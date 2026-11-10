@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: escola
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-escola}
+      POSTGRES_DB: escola
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dados_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escola -d escola"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://escola:${POSTGRES_PASSWORD:-escola}@db:5432/escola?schema=public"
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-de-exemplo}
+      PORT: "3000"
+    ports:
+      - "${API_PORT:-3090}:3000"
+    restart: unless-stopped
+
+  web:
+    build: ./client
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8090}:80"
+    restart: unless-stopped
+
+volumes:
+  dados_db:

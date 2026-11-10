@@ -1,0 +1,474 @@
+// CONTRATO DE DADOS do sistema escolar. Escrito pelo main.
+// Nenhum gerador altera este arquivo. Se algo faltar, pergunte ao @main na sala.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum Perfil {
+  ADMIN
+  SECRETARIA
+  PROFESSOR
+  ALUNO
+}
+
+enum NivelEnsino {
+  FUNDAMENTAL_1
+  FUNDAMENTAL_2
+  MEDIO
+  TECNICO
+  GRADUACAO
+  ESPECIALIZACAO
+  MESTRADO
+  DOUTORADO
+}
+
+// SERIADO: aluno cursa todas as disciplinas da série (fundamental, médio, técnico).
+// CREDITOS: aluno se inscreve disciplina a disciplina (graduação e pós).
+enum RegimeCurso {
+  SERIADO
+  CREDITOS
+}
+
+enum Titulacao {
+  GRADUADO
+  ESPECIALISTA
+  MESTRE
+  DOUTOR
+}
+
+enum TipoPeriodo {
+  ANUAL
+  SEMESTRAL
+}
+
+enum StatusMatricula {
+  ATIVA
+  TRANCADA
+  CONCLUIDA
+  CANCELADA
+}
+
+enum StatusInscricao {
+  CURSANDO
+  APROVADO
+  REPROVADO_NOTA
+  REPROVADO_FALTA
+  TRANCADO
+}
+
+enum TipoEvento {
+  LETIVO
+  FERIADO
+  PROVA
+  EVENTO
+  RECESSO
+}
+
+enum StatusProjeto {
+  EM_ELABORACAO
+  QUALIFICADO
+  APROVADO
+  REPROVADO
+}
+
+enum TipoBanca {
+  QUALIFICACAO
+  DEFESA
+}
+
+enum ResultadoBanca {
+  PENDENTE
+  APROVADO
+  APROVADO_COM_RESSALVAS
+  REPROVADO
+}
+
+enum PapelBanca {
+  PRESIDENTE
+  INTERNO
+  EXTERNO
+  SUPLENTE
+}
+
+enum StatusMensalidade {
+  ABERTA
+  PAGA
+  ATRASADA
+  CANCELADA
+}
+
+enum StatusEmprestimo {
+  ATIVO
+  DEVOLVIDO
+}
+
+enum PublicoComunicado {
+  TODOS
+  ALUNOS
+  PROFESSORES
+  TURMA
+  CURSO
+}
+
+// ---------- Pessoas ----------
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  perfil    Perfil
+  ativo     Boolean  @default(true)
+  cpf       String?
+  telefone  String?
+  criadoEm  DateTime @default(now())
+
+  aluno       Aluno?
+  professor   Professor?
+  emprestimos Emprestimo[]
+  comunicados Comunicado[]
+  leituras    ComunicadoLeitura[]
+}
+
+model Aluno {
+  id                  Int      @id @default(autoincrement())
+  usuarioId           Int      @unique
+  usuario             Usuario  @relation(fields: [usuarioId], references: [id])
+  ra                  String   @unique // registro acadêmico, ex.: "202600001"
+  dataNascimento      DateTime
+  endereco            String?
+  responsavelNome     String?
+  responsavelTelefone String?
+  responsavelEmail    String?
+
+  matriculas Matricula[]
+}
+
+model Professor {
+  id        Int       @id @default(autoincrement())
+  usuarioId Int       @unique
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+  registro  String    @unique // ex.: "P0001"
+  titulacao Titulacao
+  area      String?
+
+  turmas         Turma[]
+  orientacoes    ProjetoPesquisa[] @relation("Orientador")
+  coorientacoes  ProjetoPesquisa[] @relation("Coorientador")
+  participacoes  BancaMembro[]
+}
+
+// ---------- Estrutura acadêmica ----------
+
+model Curso {
+  id                Int         @id @default(autoincrement())
+  nome              String
+  codigo            String      @unique
+  nivel             NivelEnsino
+  regime            RegimeCurso
+  duracaoPeriodos   Int // nº de séries (seriado) ou semestres (créditos)
+  cargaHorariaTotal Int
+  mensalidade       Float       @default(0) // valor em reais
+  ativo             Boolean     @default(true)
+
+  disciplinas Disciplina[]
+  matriculas  Matricula[]
+  comunicados Comunicado[]
+}
+
+model Disciplina {
+  id              Int     @id @default(autoincrement())
+  cursoId         Int
+  curso           Curso   @relation(fields: [cursoId], references: [id])
+  nome            String
+  codigo          String  @unique
+  cargaHoraria    Int
+  creditos        Int     @default(0)
+  periodoSugerido Int     @default(1) // série ou semestre em que é cursada
+  obrigatoria     Boolean @default(true)
+
+  preRequisitos  Disciplina[] @relation("PreRequisitos")
+  preRequisitoDe Disciplina[] @relation("PreRequisitos")
+  turmas         Turma[]
+}
+
+model PeriodoLetivo {
+  id     Int         @id @default(autoincrement())
+  nome   String      @unique // ex.: "2026" ou "2026.2"
+  ano    Int
+  tipo   TipoPeriodo
+  inicio DateTime
+  fim    DateTime
+  ativo  Boolean     @default(true)
+
+  turmas     Turma[]
+  matriculas Matricula[]
+  eventos    EventoCalendario[]
+}
+
+// Turma = oferta de UMA disciplina em UM período letivo com UM professor.
+// No regime SERIADO, as turmas da mesma classe compartilham o campo "grupo" (ex.: "6A").
+model Turma {
+  id              Int           @id @default(autoincrement())
+  codigo          String
+  disciplinaId    Int
+  disciplina      Disciplina    @relation(fields: [disciplinaId], references: [id])
+  periodoLetivoId Int
+  periodoLetivo   PeriodoLetivo @relation(fields: [periodoLetivoId], references: [id])
+  professorId     Int
+  professor       Professor     @relation(fields: [professorId], references: [id])
+  grupo           String?
+  vagas           Int           @default(40)
+  sala            String?
+
+  inscricoes  Inscricao[]
+  avaliacoes  Avaliacao[]
+  aulas       Aula[]
+  horarios    HorarioAula[]
+  comunicados Comunicado[]
+
+  @@unique([codigo, periodoLetivoId])
+}
+
+// ---------- Matrícula e vida acadêmica ----------
+
+model Matricula {
+  id                Int             @id @default(autoincrement())
+  alunoId           Int
+  aluno             Aluno           @relation(fields: [alunoId], references: [id])
+  cursoId           Int
+  curso             Curso           @relation(fields: [cursoId], references: [id])
+  periodoIngressoId Int
+  periodoIngresso   PeriodoLetivo   @relation(fields: [periodoIngressoId], references: [id])
+  dataMatricula     DateTime        @default(now())
+  status            StatusMatricula @default(ATIVA)
+  serieAtual        Int             @default(1)
+
+  inscricoes   Inscricao[]
+  mensalidades Mensalidade[]
+  bolsas       Bolsa[]
+  projeto      ProjetoPesquisa?
+
+  @@unique([alunoId, cursoId])
+}
+
+model Inscricao {
+  id          Int             @id @default(autoincrement())
+  matriculaId Int
+  matricula   Matricula       @relation(fields: [matriculaId], references: [id])
+  turmaId     Int
+  turma       Turma           @relation(fields: [turmaId], references: [id])
+  status      StatusInscricao @default(CURSANDO)
+  notaFinal   Float? // 0 a 10
+  frequencia  Float? // 0 a 100 (percentual de presença)
+
+  notas     Nota[]
+  presencas Presenca[]
+
+  @@unique([matriculaId, turmaId])
+}
+
+// ---------- Notas e frequência ----------
+
+model Avaliacao {
+  id         Int      @id @default(autoincrement())
+  turmaId    Int
+  turma      Turma    @relation(fields: [turmaId], references: [id])
+  nome       String
+  peso       Float    @default(1)
+  data       DateTime
+  notaMaxima Float    @default(10)
+
+  notas Nota[]
+}
+
+model Nota {
+  id          Int       @id @default(autoincrement())
+  avaliacaoId Int
+  avaliacao   Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  inscricaoId Int
+  inscricao   Inscricao @relation(fields: [inscricaoId], references: [id], onDelete: Cascade)
+  valor       Float
+
+  @@unique([avaliacaoId, inscricaoId])
+}
+
+model Aula {
+  id       Int      @id @default(autoincrement())
+  turmaId  Int
+  turma    Turma    @relation(fields: [turmaId], references: [id])
+  data     DateTime
+  conteudo String?
+
+  presencas Presenca[]
+}
+
+model Presenca {
+  id          Int       @id @default(autoincrement())
+  aulaId      Int
+  aula        Aula      @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  inscricaoId Int
+  inscricao   Inscricao @relation(fields: [inscricaoId], references: [id], onDelete: Cascade)
+  presente    Boolean
+
+  @@unique([aulaId, inscricaoId])
+}
+
+// ---------- Horários e calendário ----------
+
+model HorarioAula {
+  id         Int     @id @default(autoincrement())
+  turmaId    Int
+  turma      Turma   @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  diaSemana  Int // 1 = segunda ... 6 = sábado, 7 = domingo
+  horaInicio String // "HH:MM"
+  horaFim    String // "HH:MM"
+  sala       String?
+}
+
+model EventoCalendario {
+  id              Int            @id @default(autoincrement())
+  titulo          String
+  descricao       String?
+  inicio          DateTime
+  fim             DateTime
+  tipo            TipoEvento
+  periodoLetivoId Int?
+  periodoLetivo   PeriodoLetivo? @relation(fields: [periodoLetivoId], references: [id])
+}
+
+// ---------- Pós-graduação ----------
+
+model ProjetoPesquisa {
+  id             Int           @id @default(autoincrement())
+  matriculaId    Int           @unique
+  matricula      Matricula     @relation(fields: [matriculaId], references: [id])
+  orientadorId   Int
+  orientador     Professor     @relation("Orientador", fields: [orientadorId], references: [id])
+  coorientadorId Int?
+  coorientador   Professor?    @relation("Coorientador", fields: [coorientadorId], references: [id])
+  titulo         String
+  resumo         String
+  linhaPesquisa  String?
+  status         StatusProjeto @default(EM_ELABORACAO)
+  criadoEm       DateTime      @default(now())
+
+  bancas Banca[]
+}
+
+model Banca {
+  id        Int             @id @default(autoincrement())
+  projetoId Int
+  projeto   ProjetoPesquisa @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  tipo      TipoBanca
+  data      DateTime
+  local     String?
+  resultado ResultadoBanca  @default(PENDENTE)
+  parecer   String?
+
+  membros BancaMembro[]
+}
+
+model BancaMembro {
+  id          Int        @id @default(autoincrement())
+  bancaId     Int
+  banca       Banca      @relation(fields: [bancaId], references: [id], onDelete: Cascade)
+  professorId Int? // membro interno
+  professor   Professor? @relation(fields: [professorId], references: [id])
+  nomeExterno String? // membro externo (sem cadastro)
+  instituicao String?
+  papel       PapelBanca
+}
+
+// ---------- Financeiro ----------
+
+model Mensalidade {
+  id             Int               @id @default(autoincrement())
+  matriculaId    Int
+  matricula      Matricula         @relation(fields: [matriculaId], references: [id])
+  competencia    String // "AAAA-MM"
+  vencimento     DateTime
+  valor          Float // valor cheio em reais
+  desconto       Float             @default(0) // em reais
+  status         StatusMensalidade @default(ABERTA)
+  pagoEm         DateTime?
+  formaPagamento String?
+
+  @@unique([matriculaId, competencia])
+}
+
+model Bolsa {
+  id          Int       @id @default(autoincrement())
+  matriculaId Int
+  matricula   Matricula @relation(fields: [matriculaId], references: [id])
+  nome        String
+  percentual  Float // 0 a 100
+  inicio      DateTime
+  fim         DateTime?
+  ativa       Boolean   @default(true)
+}
+
+// ---------- Biblioteca ----------
+
+model Livro {
+  id          Int     @id @default(autoincrement())
+  titulo      String
+  autor       String
+  isbn        String?
+  editora     String?
+  ano         Int?
+  categoria   String?
+  exemplares  Int     @default(1)
+  disponiveis Int     @default(1)
+
+  emprestimos Emprestimo[]
+}
+
+model Emprestimo {
+  id               Int              @id @default(autoincrement())
+  livroId          Int
+  livro            Livro            @relation(fields: [livroId], references: [id])
+  usuarioId        Int
+  usuario          Usuario          @relation(fields: [usuarioId], references: [id])
+  retiradoEm       DateTime         @default(now())
+  devolucaoPrevista DateTime
+  devolvidoEm      DateTime?
+  status           StatusEmprestimo @default(ATIVO)
+}
+
+// ---------- Comunicados ----------
+
+model Comunicado {
+  id          Int               @id @default(autoincrement())
+  titulo      String
+  corpo       String
+  autorId     Int
+  autor       Usuario           @relation(fields: [autorId], references: [id])
+  publicadoEm DateTime          @default(now())
+  publico     PublicoComunicado
+  turmaId     Int?
+  turma       Turma?            @relation(fields: [turmaId], references: [id])
+  cursoId     Int?
+  curso       Curso?            @relation(fields: [cursoId], references: [id])
+
+  leituras ComunicadoLeitura[]
+}
+
+model ComunicadoLeitura {
+  comunicadoId Int
+  comunicado   Comunicado @relation(fields: [comunicadoId], references: [id], onDelete: Cascade)
+  usuarioId    Int
+  usuario      Usuario    @relation(fields: [usuarioId], references: [id])
+  lidoEm       DateTime   @default(now())
+
+  @@id([comunicadoId, usuarioId])
+}

@@ -1,0 +1,114 @@
+/* Agenda: grade de horários e calendário. Celular primeiro (360 px).
+   Cores só por variáveis do tema (estilo.css), para funcionar no tema claro e no escuro. */
+
+.agenda-vazia {
+  color: var(--cor-texto-suave);
+}
+
+/* Grade semanal: só a partir de 720 px. Abaixo disso, a lista por dia. */
+.grade-semana {
+  display: none;
+  gap: 8px;
+  align-items: start;
+}
+
+.grade-lista {
+  display: block;
+}
+
+.grade-dia,
+.grade-lista-dia {
+  min-width: 0;
+}
+
+.grade-dia {
+  background: var(--cor-fundo);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.grade-dia-titulo {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.aula {
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  border-left: 4px solid var(--cor-primaria);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  margin-bottom: 8px;
+  padding: 8px;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.aula-hora,
+.aula-disciplina {
+  font-weight: 600;
+}
+
+.aula-detalhe {
+  color: var(--cor-texto-suave);
+}
+
+/* Calendário */
+
+.calendario-mes {
+  margin-bottom: 16px;
+}
+
+.calendario-mes-titulo {
+  font-size: 1.05rem;
+  margin: 0 0 4px;
+  border-bottom: 2px solid var(--cor-borda);
+  padding-bottom: 4px;
+}
+
+.calendario-evento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.calendario-evento-info {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.calendario-evento-data {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.calendario-evento-titulo {
+  font-weight: 500;
+}
+
+.calendario-evento-descricao {
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.calendario-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (min-width: 720px) {
+  .grade-semana {
+    display: grid;
+  }
+
+  .grade-lista {
+    display: none;
+  }
+}

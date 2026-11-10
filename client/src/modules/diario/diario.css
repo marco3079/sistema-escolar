@@ -1,0 +1,55 @@
+.diario-info {
+  margin: 0.25rem 0;
+}
+
+.diario-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.diario-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.diario-lista > li {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.5rem 0;
+}
+
+.diario-aluno-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.diario-aluno-topo span {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.diario-notas {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.diario-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.diario-resumo-valor {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.diario-resumo-rotulo {
+  font-size: 0.85rem;
+  color: #6b7280;
+}

@@ -1,0 +1,52 @@
+/* Comunicados: cartões de aviso. Celular primeiro (360 px).
+   Cores só por variáveis do tema (estilo.css), para funcionar no tema claro e no escuro. */
+
+.comunicado-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.comunicado {
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.comunicado-titulo {
+  font-size: 1.05rem;
+  margin: 0 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.comunicado-meta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.comunicado-corpo {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 10px 0 0;
+}
+
+.comunicado-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.comunicados-vazio {
+  color: var(--cor-texto-suave);
+}
