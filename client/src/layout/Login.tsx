@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Aviso, Botao, Campo } from '../ui';
 import { Icone } from '../ui/icones';
-import { caminhoDoPerfil } from './Layout';
+import { BotaoTema, caminhoDoPerfil } from './Layout';
 import './login.css';
 
 export function Login() {
@@ -30,6 +30,9 @@ export function Login() {
 
   return (
     <main className="entrada">
+      <div className="entrada-tema">
+        <BotaoTema />
+      </div>
       <aside className="entrada-marca">
         <div className="entrada-marca-topo">
           <img src="/logo-simbolo.png" alt="" className="entrada-logo" width={56} height={56} />

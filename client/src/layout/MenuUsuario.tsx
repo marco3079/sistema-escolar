@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useTema } from '../lib/tema';
 import type { PerfilReal } from '../lib/tipos';
 import { Avatar } from '../ui';
 import { Icone } from '../ui/icones';
@@ -60,6 +61,7 @@ export function MenuUsuario() {
   const [suporteAberto, setSuporteAberto] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   const novidades = useNovidadesSuporte(usuario !== null, INTERVALO_NOVIDADES_MS);
+  const { temaEfetivo, alternar } = useTema();
 
   useEffect(() => {
     if (!aberto) return;
@@ -136,6 +138,15 @@ export function MenuUsuario() {
                 {novidades}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="casca-menu-usuario-item"
+            onClick={() => alternar()}
+          >
+            <Icone nome={temaEfetivo === 'escuro' ? 'sol' : 'lua'} tamanho={18} />
+            {temaEfetivo === 'escuro' ? 'Tema claro' : 'Tema escuro'}
           </button>
           <button type="button" role="menuitem" className="casca-menu-usuario-item casca-menu-usuario-sair" onClick={sairDaConta}>
             <Icone nome="sair" tamanho={18} />

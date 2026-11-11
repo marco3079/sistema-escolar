@@ -520,6 +520,169 @@
   cursor: pointer;
 }
 
+/* ===== Dados e segurança ===== */
+
+.perfil-dados {
+  max-width: 1100px;
+}
+
+/* Uma coluna no celular; duas colunas iguais a partir de 900 px */
+.perfil-dados-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  max-width: 1100px;
+}
+
+.perfil-dados-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .perfil-dados-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Título de cartão com ícone à esquerda */
+.perfil-titulo-com-icone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perfil-titulo-com-icone > svg {
+  flex-shrink: 0;
+  color: var(--cor-primaria);
+}
+
+/* Lista "rótulo à esquerda, valor à direita", com divisória fina entre as linhas */
+.perfil-lista {
+  margin: 0;
+  padding: 0;
+}
+
+.perfil-lista-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.perfil-lista-linha:last-child {
+  border-bottom: 0;
+}
+
+.perfil-lista-linha dt {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  color: var(--cor-texto-suave);
+}
+
+.perfil-lista-linha dd {
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  font-weight: 600;
+  color: var(--cor-texto);
+  overflow-wrap: anywhere;
+}
+
+/* Botões de formulário alinhados à esquerda (o padrão do sistema é à direita) */
+.perfil-dados .perfil-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* Seletor de tema: três cartões lado a lado */
+.perfil-temas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.perfil-tema {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.perfil-tema:hover,
+.perfil-tema:focus-visible {
+  border-color: var(--cor-primaria);
+}
+
+.perfil-tema-ativo {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+}
+
+.perfil-tema-icone {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.perfil-tema-rotulo {
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.perfil-tema-legenda {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
+.perfil-tema-ativo .perfil-tema-legenda {
+  color: var(--cor-primaria);
+}
+
+/* Celular estreito: cabe nos três cartões com menos respiro */
+@media (max-width: 400px) {
+  .perfil-temas {
+    gap: 6px;
+  }
+
+  .perfil-tema {
+    padding: 12px 4px;
+  }
+
+  .perfil-tema-rotulo {
+    font-size: 0.82rem;
+  }
+
+  .perfil-tema-legenda {
+    font-size: 0.7rem;
+  }
+}
+
 /* ===== Organização em telas pequenas ===== */
 
 /* Cabeçalho em telas estreitas: avatar em cima, texto abaixo, botão "Trocar foto" em largura total */

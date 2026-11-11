@@ -28,6 +28,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Fórum com comunidades, votos e comentários em árvore, com ordenação "Em alta", "Novas" e "Mais votadas".
 - Ficha e menu de ações na tela de Usuários.
 - Novo layout das telas de Cursos, Períodos letivos, Turmas e Boletins.
+- Botão de tema (claro, escuro ou seguir o aparelho) no topo, no menu do usuário, na tela de login e em "Meu perfil"; a escolha fica guardada no navegador.
+- Aba "Dados e segurança" de "Meu perfil" em duas colunas, com confirmação da nova senha.
 
 ### Alterado
 

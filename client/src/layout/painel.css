@@ -36,8 +36,15 @@
   z-index: 0;
 }
 
+/* Tema escuro: escolhido pelo usuário ou seguindo o aparelho (ver estilo.css). */
+:root[data-tema='escuro'] .painel::before {
+  background-image: url('/ilustracoes/predio-escuro.png');
+  mix-blend-mode: lighten;
+  opacity: 0.9;
+}
+
 @media (prefers-color-scheme: dark) {
-  .painel::before {
+  :root:not([data-tema='claro']) .painel::before {
     background-image: url('/ilustracoes/predio-escuro.png');
     mix-blend-mode: lighten;
     opacity: 0.9;
@@ -483,8 +490,13 @@
   pointer-events: none;
 }
 
+:root[data-tema='escuro'] .painel-destaque::before {
+  background-image: url('/ilustracoes/livros-escuro.png');
+  mix-blend-mode: lighten;
+}
+
 @media (prefers-color-scheme: dark) {
-  .painel-destaque::before {
+  :root:not([data-tema='claro']) .painel-destaque::before {
     background-image: url('/ilustracoes/livros-escuro.png');
     mix-blend-mode: lighten;
   }

@@ -5,6 +5,8 @@ import { useDados } from '../../lib/useDados';
 import { Abas, Aviso, Avatar, Botao, Campo, Carregando, Cartao, Pagina, formatarData } from '../../ui';
 import { Icone } from '../../ui/icones';
 import type { NomeIcone } from '../../ui/icones';
+import { useTema } from '../../lib/tema';
+import type { PreferenciaTema } from '../../lib/tema';
 import { dataBr, mensagemErro, nulo, rotuloTitulacao } from './tipos';
 import type { PerfilMeu } from './tipos';
 import { PerfilFoto } from './PerfilFoto';
@@ -116,7 +118,7 @@ function FormDadosPerfil({
       {perfil.aluno && (
         <Campo rotulo="Endereço" valor={endereco} aoMudar={setEndereco} />
       )}
-      <div className="pagina-acoes">
+      <div className="perfil-acoes">
         <Botao tipo="submit" desabilitado={ocupado}>
           Salvar dados
         </Botao>
@@ -130,6 +132,7 @@ function FormDadosPerfil({
 function FormTrocarSenha() {
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
@@ -138,11 +141,17 @@ function FormTrocarSenha() {
     e.preventDefault();
     setErro(null);
     setSucesso(null);
+    // Conferência só no cliente: se as senhas novas não baterem, nem envia.
+    if (confirmarSenha !== novaSenha) {
+      setErro('As senhas novas não coincidem.');
+      return;
+    }
     setOcupado(true);
     try {
       await api.post('/auth/trocar-senha', { senhaAtual, novaSenha });
       setSenhaAtual('');
       setNovaSenha('');
+      setConfirmarSenha('');
       setSucesso('Senha alterada.');
     } catch (err) {
       setErro(mensagemErro(err));
@@ -153,7 +162,10 @@ function FormTrocarSenha() {
 
   return (
     <form onSubmit={trocar}>
-      <h3 className="cartao-titulo">Trocar senha</h3>
+      <h3 className="cartao-titulo perfil-titulo-com-icone">
+        <Icone nome="cadeado" tamanho={18} />
+        Trocar senha
+      </h3>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {sucesso && <Aviso tipo="sucesso">{sucesso}</Aviso>}
       <Campo
@@ -170,12 +182,61 @@ function FormTrocarSenha() {
         aoMudar={setNovaSenha}
         obrigatorio
       />
-      <div className="pagina-acoes">
+      <Campo
+        rotulo="Confirmar nova senha"
+        tipo="password"
+        valor={confirmarSenha}
+        aoMudar={setConfirmarSenha}
+        obrigatorio
+      />
+      <div className="perfil-acoes">
         <Botao tipo="submit" desabilitado={ocupado}>
           Trocar senha
         </Botao>
       </div>
     </form>
+  );
+}
+
+// ---------- Aparência (tema) ----------
+
+const OPCOES_TEMA: { valor: PreferenciaTema; rotulo: string; icone: NomeIcone; legenda?: string }[] = [
+  { valor: 'sistema', rotulo: 'Sistema', icone: 'monitor', legenda: 'Segue o aparelho' },
+  { valor: 'claro', rotulo: 'Claro', icone: 'sol' },
+  { valor: 'escuro', rotulo: 'Escuro', icone: 'lua' },
+];
+
+function CartaoAparencia() {
+  const { preferencia, definir } = useTema();
+  return (
+    <section className="cartao">
+      <h3 className="cartao-titulo perfil-titulo-com-icone">
+        <Icone nome="sol" tamanho={18} />
+        Aparência
+      </h3>
+      <p className="perfil-nota">Escolha o tema do sistema neste navegador.</p>
+      <div className="perfil-temas" role="radiogroup" aria-label="Tema do sistema">
+        {OPCOES_TEMA.map((opcao) => {
+          const ativa = preferencia === opcao.valor;
+          return (
+            <button
+              key={opcao.valor}
+              type="button"
+              role="radio"
+              aria-checked={ativa}
+              className={ativa ? 'perfil-tema perfil-tema-ativo' : 'perfil-tema'}
+              onClick={() => definir(opcao.valor)}
+            >
+              <span className="perfil-tema-icone">
+                <Icone nome={opcao.icone} tamanho={22} />
+              </span>
+              <span className="perfil-tema-rotulo">{opcao.rotulo}</span>
+              {opcao.legenda && <span className="perfil-tema-legenda">{opcao.legenda}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -325,55 +386,51 @@ function DadosESeguranca({
   dados: PerfilMeu;
   aoSalvo: () => void;
 }) {
+  // Linhas da lista "Meus dados": rótulo à esquerda, valor à direita.
+  const linhas: { rotulo: string; valor: string }[] = [
+    { rotulo: 'Nome', valor: dados.nome },
+    { rotulo: 'E-mail', valor: dados.email },
+    { rotulo: 'Perfil', valor: PAPEIS[dados.perfil] ?? dados.perfil },
+  ];
+  if (dados.cpf) linhas.push({ rotulo: 'CPF', valor: dados.cpf });
+  if (dados.aluno) {
+    linhas.push({ rotulo: 'RA', valor: dados.aluno.ra });
+    linhas.push({ rotulo: 'Data de nascimento', valor: dataBr(dados.aluno.dataNascimento) });
+  }
+  if (dados.professor) {
+    linhas.push({ rotulo: 'Registro', valor: dados.professor.registro });
+    linhas.push({ rotulo: 'Titulação', valor: rotuloTitulacao(dados.professor.titulacao) });
+    if (dados.professor.area) linhas.push({ rotulo: 'Área', valor: dados.professor.area });
+  }
+
   return (
-    <>
-      <Cartao titulo="Meus dados">
-        <p>
-          <strong>Nome:</strong> {dados.nome}
-        </p>
-        <p>
-          <strong>E-mail:</strong> {dados.email}
-        </p>
-        {dados.cpf && (
-          <p>
-            <strong>CPF:</strong> {dados.cpf}
-          </p>
-        )}
-        {dados.aluno && (
-          <>
-            <p>
-              <strong>RA:</strong> {dados.aluno.ra}
-            </p>
-            <p>
-              <strong>Data de nascimento:</strong> {dataBr(dados.aluno.dataNascimento)}
-            </p>
-          </>
-        )}
-        {dados.professor && (
-          <>
-            <p>
-              <strong>Registro:</strong> {dados.professor.registro}
-            </p>
-            <p>
-              <strong>Titulação:</strong> {rotuloTitulacao(dados.professor.titulacao)}
-            </p>
-            {dados.professor.area && (
-              <p>
-                <strong>Área:</strong> {dados.professor.area}
-              </p>
-            )}
-          </>
-        )}
-      </Cartao>
+    <div className="perfil-dados-grade">
+      <div className="perfil-dados-coluna">
+        <Cartao titulo="Meus dados">
+          <dl className="perfil-lista">
+            {linhas.map((l) => (
+              <div className="perfil-lista-linha" key={l.rotulo}>
+                <dt>{l.rotulo}</dt>
+                <dd>{l.valor}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="perfil-nota">Para corrigir nome ou e-mail, fale com a secretaria.</p>
+        </Cartao>
 
-      <Cartao titulo="Contato">
-        <FormDadosPerfil perfil={dados} aoSalvo={aoSalvo} />
-      </Cartao>
+        <Cartao titulo="Contato">
+          <FormDadosPerfil perfil={dados} aoSalvo={aoSalvo} />
+        </Cartao>
+      </div>
 
-      <Cartao>
-        <FormTrocarSenha />
-      </Cartao>
-    </>
+      <div className="perfil-dados-coluna">
+        <Cartao>
+          <FormTrocarSenha />
+        </Cartao>
+
+        <CartaoAparencia />
+      </div>
+    </div>
   );
 }
 

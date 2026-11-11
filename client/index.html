@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1d4ed8" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Tema escolhido pelo usuário (chave escola.tema). Roda antes do CSS para evitar o clarão.
+      try {
+        var tema = window.localStorage.getItem('escola.tema');
+        if (tema === 'claro' || tema === 'escuro') document.documentElement.setAttribute('data-tema', tema);
+      } catch (e) {
+        // Sem armazenamento: vale o aparelho.
+      }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" href="/logo-simbolo.png" />
     <link rel="apple-touch-icon" href="/logo-simbolo.png" />

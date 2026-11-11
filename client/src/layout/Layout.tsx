@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import type { RotaModulo } from '../lib/rotas';
+import { useTema } from '../lib/tema';
 import type { Perfil } from '../lib/tipos';
 import { Icone } from '../ui/icones';
 import { Busca } from './Busca';
@@ -43,6 +44,19 @@ function useTelaEstreita(): boolean {
   }, []);
 
   return estreita;
+}
+
+// Botão redondo que alterna claro e escuro a partir do tema que está na tela.
+// Mostra a lua quando a tela está clara e o sol quando está escura. Também usado na tela de login.
+export function BotaoTema() {
+  const { temaEfetivo, alternar } = useTema();
+  const destino = temaEfetivo === 'escuro' ? 'claro' : 'escuro';
+  const rotulo = `Mudar para o tema ${destino}`;
+  return (
+    <button type="button" className="casca-botao-redondo" aria-label={rotulo} title={rotulo} onClick={() => alternar()}>
+      <Icone nome={temaEfetivo === 'escuro' ? 'sol' : 'lua'} tamanho={20} />
+    </button>
+  );
 }
 
 export function Layout({ menu }: { menu: RotaModulo[] }) {
@@ -131,6 +145,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
             <span className="casca-topo-celular-nome">{portal}</span>
             <div className="casca-topo-celular-acoes">
               <Notificacoes raiz={raizPortal} />
+              <BotaoTema />
               <button
                 type="button"
                 className="casca-botao-redondo"
@@ -154,6 +169,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
               <Busca telas={menu} />
               <div className="casca-topo-acoes">
                 <Notificacoes raiz={raizPortal} />
+                <BotaoTema />
                 <MenuUsuario />
               </div>
             </header>

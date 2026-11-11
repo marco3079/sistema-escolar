@@ -1,12 +1,22 @@
 /* Tela de login. Classes com prefixo entrada-. Cores, raios e sombras só por variáveis de estilo.css. */
 
 .entrada {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-height: 100dvh;
   background: var(--cor-fundo);
   color: var(--cor-texto);
   box-sizing: border-box;
+}
+
+/* Botão de tema no canto superior direito, fora do fluxo do formulário. */
+
+.entrada-tema {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
 }
 
 /* ---------- Painel de marca (só a partir de 900 px) ---------- */
@@ -79,7 +89,7 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 1rem;
+  padding: 4.5rem 1rem 1rem;
   box-sizing: border-box;
 }
 
@@ -172,6 +182,6 @@
   }
 
   .entrada-formulario {
-    padding: 3rem;
+    padding: 4.5rem 3rem 3rem;
   }
 }

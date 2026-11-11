@@ -8,7 +8,7 @@ export type NomeIcone =
   | 'relogio' | 'raio' | 'grafico' | 'engrenagem' | 'documento' | 'lapis'
   | 'atividade' | 'log' | 'grade' | 'lista' | 'imagem' | 'pausar' | 'reproduzir'
   | 'medalha' | 'suporte' | 'forum' | 'voto-cima' | 'voto-baixo' | 'comentario'
-  | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado';
+  | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado' | 'sol' | 'lua' | 'monitor';
 
 export const NOMES_ICONES: NomeIcone[] = [
   'inicio', 'alunos', 'professores', 'usuarios', 'cursos', 'periodos', 'turmas',
@@ -18,7 +18,7 @@ export const NOMES_ICONES: NomeIcone[] = [
   'relogio', 'raio', 'grafico', 'engrenagem', 'documento', 'lapis',
   'atividade', 'log', 'grade', 'lista', 'imagem', 'pausar', 'reproduzir',
   'medalha', 'suporte', 'forum', 'voto-cima', 'voto-baixo', 'comentario',
-  'anexo', 'estrela', 'enviar', 'fixar', 'cadeado',
+  'anexo', 'estrela', 'enviar', 'fixar', 'cadeado', 'sol', 'lua', 'monitor',
 ];
 
 // Desenhos sólidos em grade 24 x 24 (área útil 2.5 a 21.5). Preenchidos com currentColor.
@@ -308,6 +308,26 @@ const DESENHOS: Record<NomeIcone, ReactNode> = {
     <>
       <path d="M7 10V8A5 5 0 0 1 17 8V10H15V8A3 3 0 0 0 9 8V10Z" />
       <path fillRule="evenodd" clipRule="evenodd" d="M5 10H19Q20.5 10 20.5 11.5V20Q20.5 21.5 19 21.5H5Q3.5 21.5 3.5 20V11.5Q3.5 10 5 10ZM10.5 15A1.5 1.5 0 1 0 13.5 15A1.5 1.5 0 1 0 10.5 15ZM11.2 16.5H12.8V18.5H11.2Z" />
+    </>
+  ),
+
+  // Sol sólido: disco central com oito raios sólidos (quatro retos e quatro diagonais).
+  sol: (
+    <>
+      <circle cx="12" cy="12" r="5" />
+      <path d="M11 2.5H13V5H11ZM11 19H13V21.5H11ZM2.5 11H5V13H2.5ZM19 11H21.5V13H19Z" />
+      <path d="M17.66 7.76L19.42 6L18.01 4.57L16.24 6.34ZM6.34 7.76L4.58 6L5.99 4.57L7.76 6.34ZM17.66 16.24L19.42 18L18.01 19.43L16.24 17.66ZM6.34 16.24L4.58 18L5.99 19.43L7.76 17.66Z" />
+    </>
+  ),
+
+  // Lua crescente sólida (arco externo e arco interno que recorta a parte iluminada).
+  lua: <path d="M21 12.79A9 9 0 1 1 11.21 3A7 7 0 0 0 21 12.79Z" />,
+
+  // Monitor sólido: moldura com tela recortada, haste e base.
+  monitor: (
+    <>
+      <path fillRule="evenodd" clipRule="evenodd" d="M2.5 3.5H21.5V16.5H2.5ZM4.5 5.5V14.5H19.5V5.5Z" />
+      <path d="M10 16.5H14V18.5H17V20.5H7V18.5H10Z" />
     </>
   ),
 };

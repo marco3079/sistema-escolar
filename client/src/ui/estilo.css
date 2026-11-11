@@ -30,10 +30,51 @@
   --altura-barra-inferior: 64px;
   --altura-toque: 44px;
   --fonte: Inter, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  color-scheme: light;
+}
+
+/*
+ * Tema escuro, em dois casos (contrato do tema, docs/plano/v-tema-e-perfil.md):
+ * 1) o usuário escolheu "Escuro" (data-tema='escuro' no <html>);
+ * 2) o usuário está em "Sistema" (sem data-tema) e o aparelho está no escuro.
+ * As duas listas de variáveis têm de ficar iguais.
+ */
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --cor-fundo: #070d1a;
+  --cor-superficie: #0e1627;
+  --cor-superficie-2: #131d33;
+  --cor-texto: #f1f5f9;
+  --cor-texto-suave: #94a3b8;
+  --cor-borda: #1c2740;
+  --cor-primaria: #3b82f6;
+  --cor-primaria-escura: #2563eb;
+  --cor-primaria-suave: #12244a;
+  --gradiente-primario: linear-gradient(135deg, #3b82f6, #1e40af);
+  --cor-sobre-primaria: #ffffff;
+  --cor-roxo: #a78bfa;
+  --cor-roxo-suave: #231a47;
+  --cor-verde: #34d399;
+  --cor-verde-suave: #0c2b25;
+  --cor-laranja: #fbbf24;
+  --cor-laranja-suave: #33240a;
+  --cor-azul-suave: #12244a;
+  --cor-perigo: #f87171;
+  --cor-sucesso: #34d399;
+  --cor-aviso: #fbbf24;
+  --cor-info: #60a5fa;
+  --raio: 16px;
+  --raio-pequeno: 10px;
+  --sombra: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --sombra-primaria: 0 6px 16px rgba(37, 99, 235, 0.35);
+  --largura-lateral: 240px;
+  --altura-barra-inferior: 64px;
+  --altura-toque: 44px;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema='claro']) {
+    color-scheme: dark;
     --cor-fundo: #070d1a;
     --cor-superficie: #0e1627;
     --cor-superficie-2: #131d33;
