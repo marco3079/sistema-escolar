@@ -1,26 +1,15 @@
 // Seed padrão: cria só a conta de administrador.
+// Senha inicial: ADMIN_SENHA do .env (8 caracteres ou mais) ou, se ausente/curta, a senha padrão admin1234.
 // Idempotente: se já houver usuários, não faz nada.
 // Os dados de demonstração ficam em seed-demo.ts e só entram com SEED_DEMO=true.
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 import { carregarDemonstracao } from './seed-demo';
 
 const prisma = new PrismaClient();
 
-const ALFABETO_SENHA = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-const TAMANHO_SENHA = 16;
-
-// Senha aleatória de 16 caracteres, sem caracteres ambíguos.
-function gerarSenha(): string {
-  const bytes = randomBytes(TAMANHO_SENHA);
-  let senha = '';
-  for (let i = 0; i < TAMANHO_SENHA; i += 1) {
-    senha += ALFABETO_SENHA[bytes[i] % ALFABETO_SENHA.length];
-  }
-  return senha;
-}
+const SENHA_PADRAO = 'admin1234';
 
 async function main(): Promise<void> {
   if ((await prisma.usuario.count()) > 0) {
@@ -38,10 +27,10 @@ async function main(): Promise<void> {
     console.log('Administrador será criado pelos dados de demonstração.');
   } else {
     let senha = senhaEnv;
-    let gerada = false;
+    let padrao = false;
     if (senha.length < 8) {
-      senha = gerarSenha();
-      gerada = true;
+      senha = SENHA_PADRAO;
+      padrao = true;
     }
 
     await prisma.usuario.create({
@@ -56,8 +45,8 @@ async function main(): Promise<void> {
 
     console.log('==== ADMINISTRADOR CRIADO ====');
     console.log(`E-mail: ${email}`);
-    if (gerada) {
-      console.log(`Senha gerada: ${senha}`);
+    if (padrao) {
+      console.log(`Senha padrão: ${SENHA_PADRAO}`);
     }
     console.log('Troque a senha em "Meu perfil" depois do primeiro acesso.');
     console.log('==============================');

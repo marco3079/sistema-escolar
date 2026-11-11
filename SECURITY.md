@@ -30,8 +30,8 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Login** por JWT enviado no cabeçalho `Authorization: Bearer`, com validade de 12 horas. Todas as rotas exigem login, exceto o login e o teste de saúde da API.
 - **Permissões por perfil** (ADMIN, SECRETARIA, PROFESSOR, ALUNO) são verificadas em cada rota.
 - **Banco de dados** publicado somente em `127.0.0.1`, ou seja, acessível apenas pelo próprio computador.
-- **Segredos** (senha do banco, segredo do JWT e senha do administrador) são gerados pelo instalador de forma aleatória e gravados no arquivo `.env`, que não vai para o Git.
-- **Senha do administrador** não fica no repositório. Sem o instalador, o servidor gera uma senha e a imprime uma única vez no log.
+- **Segredos** (senha do banco e segredo do JWT) são gerados pelo instalador de forma aleatória e gravados no arquivo `.env`, que não vai para o Git.
+- **Senha do administrador**: a conta de administrador nasce com a senha padrão conhecida `admin1234` (e-mail `admin@escola.local`), definida em `ADMIN_SENHA`. **Ela precisa ser trocada no primeiro acesso em "Meu perfil"**, principalmente se o site ficar acessível na rede. O login tem limite de tentativas. Para outra senha inicial, defina `ADMIN_SENHA` com 8 caracteres ou mais antes da primeira subida.
 - **Segredo JWT**: se `JWT_SECRET` estiver ausente, com menos de 16 caracteres ou com um valor de exemplo, o servidor gera um segredo aleatório a cada subida e avisa no log. Nesse caso, os logins são invalidados quando o servidor reinicia. Defina `JWT_SECRET` no `.env` (o instalador faz isso).
 - **Log de atividades**: toda requisição autenticada à API é registrada com usuário, perfil, ação, módulo, caminho, status e IP. Telas abertas e entradas e saídas também são registradas. O log não guarda corpo de requisição, senha nem token, e os registros são apagados após 90 dias. Só o administrador e o perfil TI consultam o log.
 - **Perfil TI** tem o mesmo acesso do administrador. Trate contas TI com o mesmo cuidado que contas de administrador.

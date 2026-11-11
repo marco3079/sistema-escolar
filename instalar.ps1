@@ -234,7 +234,7 @@ if ($envExiste) {
     }
     $senhaBanco = Gerar-Segredo -Tamanho 24
     $segredoJwt = Gerar-Segredo -Tamanho 48
-    $senhaAdmin = Gerar-Segredo -Tamanho 16
+    $senhaAdmin = 'admin1234'
     $seedDemo = 'false'
     if ($Demo) { $seedDemo = 'true' }
     $linhas = @(
@@ -286,10 +286,8 @@ if (-not $prontoApi) {
 }
 
 # Quadro final
-if ($envCriadoAgora) {
-    $linhaSenha = 'Senha:          ' + $senhaAdmin
-} elseif ($adminSenhaExistente -eq '') {
-    $linhaSenha = 'Senha:          gerada pelo servidor na primeira subida; veja com: docker compose logs api'
+if ($envCriadoAgora -or $adminSenhaExistente -eq '' -or $adminSenhaExistente -eq 'admin1234') {
+    $linhaSenha = 'Senha:          admin1234 (padrao; troque em "Meu perfil")'
 } else {
     $linhaSenha = 'Senha:          a senha esta no arquivo .env, variavel ADMIN_SENHA'
 }

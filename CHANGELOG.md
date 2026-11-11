@@ -31,6 +31,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ### Alterado
 
+- Senha inicial do administrador passa a ser a padrão `admin1234` (e-mail `admin@escola.local`), trocável em "Meu perfil" no primeiro acesso. Substitui a senha aleatória gerada pelo instalador e pelo servidor.
 - O banco passa a nascer somente com a conta de administrador. Os dados de demonstração deixam de ser carregados por padrão e podem ser ativados com `SEED_DEMO=true`, apenas para teste.
 
 ### Segurança

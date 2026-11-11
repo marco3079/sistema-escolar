@@ -119,7 +119,7 @@ Os dados mostrados nas telas são fictícios.
 
 ## Instalação rápida
 
-Requisitos: nada além do **Docker Desktop** (e do **Git**, para baixar o projeto). O instalador confere o Docker, oferece instalar o que faltar, cria o arquivo `.env` com senhas aleatórias, baixa todas as dependências e sobe o sistema.
+Requisitos: nada além do **Docker Desktop** (e do **Git**, para baixar o projeto). O instalador confere o Docker, oferece instalar o que faltar, cria o arquivo `.env` com segredos aleatórios, baixa todas as dependências e sobe o sistema.
 
 **Windows (PowerShell):**
 
@@ -145,19 +145,19 @@ Para um passo a passo para quem não é programador, veja [INSTALAR.md](INSTALAR
 
 Se você usa um assistente com acesso ao terminal (Claude Code, Cursor, Copilot ou outro), cole este texto nele:
 
-> Instale o sistema escolar do repositório https://github.com/marco3079/sistema-escolar neste computador seguindo o arquivo AGENTS.md do repositório. Ao terminar, me diga o endereço para abrir no navegador e onde está a senha do administrador.
+> Instale o sistema escolar do repositório https://github.com/marco3079/sistema-escolar neste computador seguindo o arquivo AGENTS.md do repositório. Ao terminar, me diga o endereço para abrir no navegador e o e-mail e a senha do administrador.
 
 As instruções para o assistente estão em [AGENTS.md](AGENTS.md).
 
 ## Primeiro acesso
 
-Na primeira subida, o sistema cria uma única conta: a do **administrador**. O e-mail dela fica na variável `ADMIN_EMAIL` do arquivo `.env`. A senha fica na variável `ADMIN_SENHA` do mesmo arquivo, que o instalador preenche com uma senha aleatória. Se `ADMIN_SENHA` estiver vazia, o servidor gera uma senha e a imprime uma única vez no log da API (`docker compose logs api`).
+Na primeira subida, o sistema cria uma única conta: a do **administrador**. O e-mail dela fica na variável `ADMIN_EMAIL` do arquivo `.env`. A senha inicial é **`admin1234`**, com o e-mail padrão **`admin@escola.local`**. O instalador grava essa senha em `ADMIN_SENHA` no arquivo `.env`. Se quiser outra senha inicial, defina `ADMIN_SENHA` com 8 caracteres ou mais antes da primeira subida. Se `ADMIN_SENHA` estiver vazia ou tiver menos de 8 caracteres, vale a senha padrão.
 
-1. Abra o endereço do site e entre com o administrador.
-2. Troque a senha em **Meu perfil**.
+1. Abra o endereço do site e entre com o e-mail e a senha padrão do administrador.
+2. Troque a senha em **Meu perfil** logo no primeiro acesso.
 3. Cadastre o período letivo, os cursos, os professores, as turmas e os alunos.
 
-O sistema começa vazio. Nenhuma senha de acesso está escrita neste repositório.
+O sistema começa vazio, só com a conta do administrador.
 
 ## Dados de demonstração
 
@@ -178,7 +178,7 @@ O arquivo `.env` na raiz do projeto é lido pelo Docker Compose. O instalador cr
 | `JWT_SECRET` | `troque-este-segredo-de-exemplo` | Segredo que assina os logins |
 | `ADMIN_NOME` | `Administrador` | Nome da conta de administrador criada na primeira subida |
 | `ADMIN_EMAIL` | `admin@escola.local` | E-mail da conta de administrador |
-| `ADMIN_SENHA` | vazio | Senha do administrador; vazio faz o servidor gerar uma e mostrá-la no log |
+| `ADMIN_SENHA` | `admin1234` | Senha inicial do administrador (8 caracteres ou mais; vazia ou curta usa `admin1234`). Troque em Meu perfil depois do primeiro acesso |
 | `SEED_DEMO` | `false` | `true` carrega os dados de demonstração (só para teste) |
 | `WEB_PORT` | `8090` | Porta do site |
 | `API_PORT` | `3090` | Porta da API, publicada somente em `127.0.0.1` |
@@ -238,7 +238,7 @@ npm run dev
 
 Com o app em modo de desenvolvimento, abra `http://localhost:5173`.
 
-O comando `npm run seed` cria o administrador (com `ADMIN_EMAIL` e `ADMIN_SENHA` do `server/.env`). Se `ADMIN_SENHA` estiver vazia, a senha gerada aparece no terminal, uma única vez.
+O comando `npm run seed` cria o administrador (com `ADMIN_EMAIL` e `ADMIN_SENHA` do `server/.env`). Se `ADMIN_SENHA` estiver vazia ou curta, o administrador entra com o e-mail `admin@escola.local` e a senha padrão `admin1234`, que aparece no terminal. Troque a senha em Meu perfil depois do primeiro acesso.
 
 Se mudar `DB_PORT`, ajuste também a `DATABASE_URL` do `server/.env` para a mesma porta.
 

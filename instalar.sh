@@ -246,7 +246,7 @@ else
   fi
   SENHA_BANCO=$(gerar_segredo 24)
   SEGREDO_JWT=$(gerar_segredo 48)
-  SENHA_ADMIN=$(gerar_segredo 16)
+  SENHA_ADMIN="admin1234"
   SEED_DEMO=false
   if [ "$DEMO" -eq 1 ]; then
     SEED_DEMO=true
@@ -304,10 +304,8 @@ if [ "$PRONTO" -ne 1 ]; then
 fi
 
 # Quadro final
-if [ "$ENV_CRIADO_AGORA" -eq 1 ]; then
-  LINHA_SENHA="Senha:          $SENHA_ADMIN"
-elif [ -z "$ADMIN_SENHA_EXISTENTE" ]; then
-  LINHA_SENHA="Senha:          gerada pelo servidor na primeira subida; veja com: docker compose logs api"
+if [ "$ENV_CRIADO_AGORA" -eq 1 ] || [ -z "$ADMIN_SENHA_EXISTENTE" ] || [ "$ADMIN_SENHA_EXISTENTE" = "admin1234" ]; then
+  LINHA_SENHA='Senha:          admin1234 (padrao; troque em "Meu perfil")'
 else
   LINHA_SENHA="Senha:          a senha esta no arquivo .env, variavel ADMIN_SENHA"
 fi

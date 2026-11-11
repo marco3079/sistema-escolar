@@ -38,13 +38,13 @@ Opções úteis: `-Demo` no Windows ou `--demo` no Linux/macOS carrega dados de 
 ## O que dizer à pessoa no fim
 
 - O endereço do site (`http://localhost:<WEB_PORT>`).
-- O e-mail do administrador (variável `ADMIN_EMAIL` do `.env`).
-- Que a senha do administrador está no arquivo `.env`, na variável `ADMIN_SENHA`. Não escreva a senha na resposta.
-- Que ela deve trocar a senha em "Meu perfil" depois do primeiro acesso.
+- O e-mail do administrador (`admin@escola.local`, ou o valor de `ADMIN_EMAIL` do `.env`).
+- A senha do administrador: `admin1234` (padrão, ou o valor de `ADMIN_SENHA` do `.env` se a pessoa tiver definido outra).
+- Que ela deve trocar a senha em "Meu perfil" logo no primeiro acesso.
 
 ## Regras para o assistente
 
-- Não imprima nem copie o conteúdo do `.env` na resposta. Diga só onde a senha está.
+- Não imprima nem copie o conteúdo do `.env` na resposta, além dos dados de acesso acima.
 - Não rode `docker compose down -v` (apaga o banco inteiro) sem pedido explícito e claro da pessoa. Não apague volumes de banco nem crie `.env` novo por cima de um banco antigo para "destravar" a instalação (código 6).
 - Não altere nem pare contêineres que não sejam deste projeto, nem mude portas de outros programas.
 - Se uma porta estiver ocupada, deixe o instalador escolher outra. Não force portas.

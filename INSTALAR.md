@@ -12,9 +12,9 @@ Este guia leva você do zero até o sistema funcionando no seu computador. Não 
 
 Se você usa um assistente com acesso ao terminal (Claude Code, Cursor, Copilot ou outro), copie o texto abaixo e cole no assistente:
 
-> Instale o sistema escolar do repositório https://github.com/marco3079/sistema-escolar neste computador seguindo o arquivo AGENTS.md do repositório. Ao terminar, me diga o endereço para abrir no navegador e onde está a senha do administrador.
+> Instale o sistema escolar do repositório https://github.com/marco3079/sistema-escolar neste computador seguindo o arquivo AGENTS.md do repositório. Ao terminar, me diga o endereço para abrir no navegador e o e-mail e a senha do administrador.
 
-O assistente baixa o projeto, roda o instalador e avisa o endereço do site. A senha do administrador fica no arquivo `.env` dentro da pasta do projeto; o assistente vai indicar onde ela está.
+O assistente baixa o projeto, roda o instalador e avisa o endereço do site. A senha inicial do administrador é `admin1234` (e-mail `admin@escola.local`); o assistente informa as duas e avisa para trocar a senha no primeiro acesso.
 
 ## Jeito 2: com um comando
 
@@ -36,11 +36,11 @@ cd sistema-escolar
 bash instalar.sh
 ```
 
-O instalador confere o Docker, oferece instalar o que faltar, cria o arquivo `.env` com senhas aleatórias, baixa tudo e sobe o sistema. No fim ele mostra:
+O instalador confere o Docker, oferece instalar o que faltar, cria o arquivo `.env` com segredos aleatórios, baixa tudo e sobe o sistema. No fim ele mostra:
 
 - o endereço do site (por exemplo, `http://localhost:8090`);
-- o e-mail do administrador;
-- a senha do administrador (só na primeira instalação; depois, a senha fica no arquivo `.env`).
+- o e-mail do administrador (`admin@escola.local`);
+- a senha do administrador (`admin1234`, a senha padrão; troque em "Meu perfil" no primeiro acesso).
 
 Se o instalador parar com uma mensagem, leia a mensagem: ela diz o que fazer. Os códigos de saída estão em `AGENTS.md`.
 
@@ -110,7 +110,7 @@ Os dados de demonstração são fictícios e servem só para teste.
 
 **Porta ocupada.** Na primeira instalação, se a porta 8090 (site) ou 3090 (API) já estiver em uso, o instalador escolhe a próxima livre e avisa qual usou. Confira o endereço no fim da instalação. Se já existe um arquivo `.env`, o instalador usa as portas dele e só avisa que estão ocupadas.
 
-**Esqueci a senha do administrador.** Se você não trocou a senha, ela está no arquivo `.env` da pasta do projeto, na variável `ADMIN_SENHA`. Se já trocou e esqueceu, a saída é apagar o banco (`docker compose down -v`, o que apaga todos os dados) e instalar de novo, ou pedir a outro administrador que redefina o acesso.
+**Esqueci a senha do administrador.** Se você não trocou a senha, ela é `admin1234`, com o e-mail `admin@escola.local` (ou o que estiver em `ADMIN_EMAIL` no arquivo `.env`). Se você definiu outra senha em `ADMIN_SENHA` no `.env`, ela está lá. Se já trocou e esqueceu, a saída é apagar o banco (`docker compose down -v`, o que apaga todos os dados) e instalar de novo, ou pedir a outro administrador que redefina o acesso.
 
 **O instalador parou com a mensagem "Ja existe um banco de dados desta instalacao" (código 6).** O banco de uma instalação anterior ainda existe, mas o arquivo `.env` com a senha dele não está na pasta. Duas saídas: (a) se você tem o `.env` antigo, copie-o de volta para a pasta do projeto e rode o instalador de novo; (b) se você não precisa mais dos dados antigos, apague o banco com `docker compose down -v` (isso apaga tudo) e rode o instalador de novo. O instalador não apaga nada sozinho.
 
