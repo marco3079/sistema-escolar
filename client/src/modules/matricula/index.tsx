@@ -361,7 +361,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/matriculas',
     rotulo: 'Matrículas',
-    icone: '📝',
+    icone: 'matriculas',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <Matriculas />,
     ordem: 30,

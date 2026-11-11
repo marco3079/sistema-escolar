@@ -115,7 +115,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/comunicados',
     rotulo: 'Comunicados',
-    icone: '📣',
+    icone: 'comunicados',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <ComunicadosAdmin />,
     ordem: 72,
@@ -123,7 +123,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/comunicados',
     rotulo: 'Comunicados',
-    icone: '📣',
+    icone: 'comunicados',
     perfis: ['PROFESSOR'],
     elemento: <ComunicadosProfessor />,
     ordem: 72,
@@ -131,7 +131,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/comunicados',
     rotulo: 'Comunicados',
-    icone: '📣',
+    icone: 'comunicados',
     perfis: ['ALUNO'],
     elemento: <ComunicadosAluno />,
     ordem: 72,

@@ -204,7 +204,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/horarios',
     rotulo: 'Horários',
-    icone: '🕒',
+    icone: 'horarios',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <HorariosAdmin />,
     ordem: 70,
@@ -212,7 +212,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/calendario',
     rotulo: 'Calendário',
-    icone: '📅',
+    icone: 'calendario',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <CalendarioAdmin />,
     ordem: 71,
@@ -220,7 +220,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/horario',
     rotulo: 'Horário',
-    icone: '🕒',
+    icone: 'horarios',
     perfis: ['PROFESSOR'],
     elemento: <HorarioMeu />,
     ordem: 70,
@@ -228,7 +228,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/calendario',
     rotulo: 'Calendário',
-    icone: '📅',
+    icone: 'calendario',
     perfis: ['PROFESSOR'],
     elemento: <CalendarioLeitura />,
     ordem: 71,
@@ -236,7 +236,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/horario',
     rotulo: 'Horário',
-    icone: '🕒',
+    icone: 'horarios',
     perfis: ['ALUNO'],
     elemento: <HorarioMeu />,
     ordem: 70,
@@ -244,7 +244,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/calendario',
     rotulo: 'Calendário',
-    icone: '📅',
+    icone: 'calendario',
     perfis: ['ALUNO'],
     elemento: <CalendarioLeitura />,
     ordem: 71,

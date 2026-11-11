@@ -568,6 +568,7 @@ textarea.campo-controle {
 }
 
 .gaveta-fundo {
+  display: flex;
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.5);
@@ -795,4 +796,62 @@ textarea.campo-controle {
   .grade {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
+}
+
+/* ===== Identidade visual: logo e ícones ===== */
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.marca-logo,
+.login-logo {
+  border-radius: 22%;
+  display: block;
+  flex-shrink: 0;
+}
+
+.login-logo {
+  margin-bottom: 0.75rem;
+}
+
+.icone-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icone-menu svg {
+  display: block;
+}
+
+.barra-titulo-grupo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.barra-titulo-grupo .barra-titulo {
+  min-width: 0;
+}
+
+/* Rótulos da barra inferior: encolhem com reticências em vez de invadir o vizinho */
+.item-inferior {
+  font-size: 0.68rem;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-inferior > span:last-child {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

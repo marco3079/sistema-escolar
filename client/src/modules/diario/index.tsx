@@ -902,7 +902,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/diario/:turmaId',
     rotulo: 'Diário',
-    icone: '📒',
+    icone: 'diario',
     perfis: ['PROFESSOR', 'ADMIN', 'SECRETARIA'],
     elemento: <DiarioTurma />,
     menu: false,
@@ -910,7 +910,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/boletim',
     rotulo: 'Boletim',
-    icone: '📊',
+    icone: 'boletim',
     perfis: ['ALUNO'],
     elemento: <BoletimAluno />,
     ordem: 40,
@@ -918,7 +918,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/historico',
     rotulo: 'Histórico',
-    icone: '📜',
+    icone: 'historico',
     perfis: ['ALUNO'],
     elemento: <HistoricoAluno />,
     ordem: 41,
@@ -926,7 +926,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/boletins',
     rotulo: 'Boletins',
-    icone: '📊',
+    icone: 'boletim',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <BoletinsAdmin />,
     ordem: 40,

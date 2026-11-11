@@ -179,7 +179,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/pos',
     rotulo: 'Pós-graduação',
-    icone: '🔬',
+    icone: 'pos',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <PosAdmin />,
     ordem: 50,
@@ -187,7 +187,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/orientacoes',
     rotulo: 'Orientações',
-    icone: '🔬',
+    icone: 'pos',
     perfis: ['PROFESSOR'],
     elemento: <OrientacoesProfessor />,
     ordem: 50,
@@ -195,7 +195,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/pesquisa',
     rotulo: 'Pesquisa',
-    icone: '🔬',
+    icone: 'pos',
     perfis: ['ALUNO'],
     elemento: <PesquisaAluno />,
     ordem: 50,

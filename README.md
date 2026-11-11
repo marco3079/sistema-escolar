@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/artes/logo.png" alt="Sistema Escolar" width="420"></p>
+
 # Sistema escolar
 
 Sistema de gestão escolar que cobre do ensino fundamental ao doutorado. Ele reúne cadastros, matrícula, vida acadêmica, notas e frequência, pós-graduação, financeiro, horários, biblioteca e comunicados em um único app web.

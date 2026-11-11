@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import type { RotaModulo } from '../lib/rotas';
 import type { Perfil } from '../lib/tipos';
+import { Icone } from '../ui/icones';
 
 export function nomePortal(perfil: Perfil): string {
   if (perfil === 'PROFESSOR') return 'Professor';
@@ -36,7 +37,10 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
   return (
     <div className="layout">
       <aside className="barra-lateral">
-        <div className="marca">Sistema Escolar</div>
+        <div className="marca">
+          <img src="/logo-simbolo.png" alt="" className="marca-logo" width={32} height={32} />
+          <span>Sistema Escolar</span>
+        </div>
         <div className="portal-nome">{portal}</div>
         <nav className="menu-lateral" aria-label="Menu principal">
           {menu.map((r) => (
@@ -47,7 +51,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
               className={({ isActive }) => classeItem(isActive, 'item-menu')}
             >
               <span className="icone-menu" aria-hidden="true">
-                {r.icone}
+                <Icone nome={r.icone} />
               </span>
               <span>{r.rotulo}</span>
             </NavLink>
@@ -56,20 +60,24 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
         <div className="lateral-rodape">
           <div className="usuario-nome">{usuario.nome}</div>
           <button type="button" className="botao botao-secundario" onClick={sair}>
+            <Icone nome="sair" tamanho={18} />
             Sair
           </button>
         </div>
       </aside>
 
       <header className="barra-superior">
-        <h1 className="barra-titulo">{portal}</h1>
+        <div className="barra-titulo-grupo">
+          <img src="/logo-simbolo.png" alt="" className="marca-logo" width={28} height={28} />
+          <h1 className="barra-titulo">{portal}</h1>
+        </div>
         <button
           type="button"
           className="botao-menu-topo"
           aria-label="Abrir menu"
           onClick={() => setGavetaAberta(true)}
         >
-          ☰
+          <Icone nome="menu" />
         </button>
       </header>
 
@@ -86,7 +94,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
             className={({ isActive }) => classeItem(isActive, 'item-inferior')}
           >
             <span className="icone-menu" aria-hidden="true">
-              {r.icone}
+              <Icone nome={r.icone} />
             </span>
             <span>{r.rotulo}</span>
           </NavLink>
@@ -97,7 +105,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
           onClick={() => setGavetaAberta(true)}
         >
           <span className="icone-menu" aria-hidden="true">
-            ⋯
+            <Icone nome="mais" />
           </span>
           <span>Mais</span>
         </button>
@@ -132,7 +140,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
                     className={({ isActive }) => classeItem(isActive, 'item-gaveta')}
                   >
                     <span className="icone-menu" aria-hidden="true">
-                      {r.icone}
+                      <Icone nome={r.icone} />
                     </span>
                     <span>{r.rotulo}</span>
                   </NavLink>
@@ -142,6 +150,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
             <div className="gaveta-rodape">
               <div className="usuario-nome">{usuario.nome}</div>
               <button type="button" className="botao botao-perigo" onClick={sair}>
+                <Icone nome="sair" tamanho={18} />
                 Sair
               </button>
             </div>

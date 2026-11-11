@@ -135,7 +135,7 @@ export const rotasAluno: RotaModulo[] = [
   {
     caminho: '/aluno/matricula',
     rotulo: 'Matrícula',
-    icone: '📝',
+    icone: 'matriculas',
     perfis: ['ALUNO'],
     elemento: <MinhaMatricula />,
     ordem: 30,

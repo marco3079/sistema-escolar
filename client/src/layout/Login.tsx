@@ -29,6 +29,7 @@ export function Login() {
   return (
     <main className="login">
       <form className="login-cartao" onSubmit={enviar}>
+        <img src="/logo-simbolo.png" alt="" className="login-logo" width={72} height={72} />
         <h1>Sistema Escolar</h1>
         <p className="login-apoio">Entre com seu e-mail e senha.</p>
         {erro && <Aviso tipo="erro">{erro}</Aviso>}

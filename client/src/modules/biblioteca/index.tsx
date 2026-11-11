@@ -497,7 +497,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/biblioteca',
     rotulo: 'Biblioteca',
-    icone: '📚',
+    icone: 'biblioteca',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <BibliotecaAdmin />,
     ordem: 61,
@@ -505,7 +505,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/biblioteca',
     rotulo: 'Biblioteca',
-    icone: '📚',
+    icone: 'biblioteca',
     perfis: ['ALUNO'],
     elemento: <BibliotecaUsuario />,
     ordem: 61,
@@ -513,7 +513,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/biblioteca',
     rotulo: 'Biblioteca',
-    icone: '📚',
+    icone: 'biblioteca',
     perfis: ['PROFESSOR'],
     elemento: <BibliotecaUsuario />,
     ordem: 61,

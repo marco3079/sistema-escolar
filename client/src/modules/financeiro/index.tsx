@@ -603,7 +603,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/financeiro',
     rotulo: 'Financeiro',
-    icone: '💰',
+    icone: 'financeiro',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <Financeiro />,
     ordem: 60,
@@ -611,7 +611,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/aluno/financeiro',
     rotulo: 'Financeiro',
-    icone: '💰',
+    icone: 'financeiro',
     perfis: ['ALUNO'],
     elemento: <FinanceiroAluno />,
     ordem: 60,

@@ -7,7 +7,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/cursos',
     rotulo: 'Cursos',
-    icone: '🏫',
+    icone: 'cursos',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <Cursos />,
     ordem: 20,
@@ -15,7 +15,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/periodos',
     rotulo: 'Períodos letivos',
-    icone: '🗓️',
+    icone: 'periodos',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <Periodos />,
     ordem: 21,
@@ -23,7 +23,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/admin/turmas',
     rotulo: 'Turmas',
-    icone: '👥',
+    icone: 'turmas',
     perfis: ['ADMIN', 'SECRETARIA'],
     elemento: <Turmas />,
     ordem: 22,
@@ -31,7 +31,7 @@ export const rotas: RotaModulo[] = [
   {
     caminho: '/professor/turmas',
     rotulo: 'Minhas turmas',
-    icone: '👥',
+    icone: 'turmas',
     perfis: ['PROFESSOR'],
     elemento: <MinhasTurmas />,
     ordem: 10,
