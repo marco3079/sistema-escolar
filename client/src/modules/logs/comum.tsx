@@ -97,6 +97,7 @@ const ROTULO_MODULO: Record<string, string> = {
   logs: 'Logs',
   forum: 'Fórum',
   suporte: 'Suporte',
+  chamados: 'Suporte',
   conquistas: 'Perfil e medalhas',
   painel: 'Início',
   auth: 'Sessão',

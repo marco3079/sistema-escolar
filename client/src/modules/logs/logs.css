@@ -361,6 +361,9 @@
 
 /* Largura da página fica com o layout; a rolagem horizontal da tabela fica dentro do cartão. */
 .logs-log {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   min-width: 0;
 }
 
