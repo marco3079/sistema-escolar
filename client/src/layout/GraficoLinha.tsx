@@ -1,21 +1,17 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 // Gráfico de linha em SVG feito à mão (sem biblioteca). As cores vêm das classes painel-grafico-*,
 // que usam só as variáveis do contrato visual (atributos de apresentação não leem var(), por isso classes).
+// O desenho usa as dimensões reais do contêiner, medidas com ResizeObserver: nada distorce.
 
 export interface PontoGrafico {
   rotulo: string;
   valor: number | null;
 }
 
-const LARGURA = 480;
-const ALTURA = 240;
-const X_ESQ = 44;
-const X_DIR = 468;
-const Y_TOPO = 16; // 100%
-const Y_BASE = 196; // 0%
-const Y_ROTULOS = 224;
 const LIMITE_ROTULOS_TODOS = 6; // acima disso, só um rótulo sim e outro não (o último sempre aparece)
+const TAM_PADRAO = { l: 480, a: 240 };
+const TAM_MINIMO = { l: 280, a: 200 };
 
 function formatarPercentual(valor: number): string {
   return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -24,6 +20,32 @@ function formatarPercentual(valor: number): string {
 export function GraficoLinha({ pontos }: { pontos: PontoGrafico[] }) {
   // Id único por instância; os dois-pontos do useId são trocados para a referência url(#...) ficar válida.
   const id = 'painel-degrade-' + useId().replace(/:/g, '');
+  const ref = useRef<HTMLDivElement>(null);
+  const [tam, setTam] = useState<{ l: number; a: number }>(TAM_PADRAO);
+
+  useEffect(() => {
+    const elemento = ref.current;
+    if (!elemento || typeof ResizeObserver === 'undefined') return;
+    const observador = new ResizeObserver((entradas) => {
+      const entrada = entradas[0];
+      if (!entrada) return;
+      const l = Math.max(TAM_MINIMO.l, Math.round(entrada.contentRect.width));
+      const a = Math.max(TAM_MINIMO.a, Math.round(entrada.contentRect.height));
+      // Só atualiza se mudou, para não criar laço de renderização.
+      setTam((anterior) => (anterior.l === l && anterior.a === a ? anterior : { l, a }));
+    });
+    observador.observe(elemento);
+    return () => observador.disconnect();
+  }, []);
+
+  const larguraDesenho = tam.l;
+  const alturaDesenho = tam.a;
+  const X_ESQ = 44;
+  const X_DIR = larguraDesenho - 12;
+  const Y_TOPO = 20; // 100%
+  const Y_BASE = alturaDesenho - 40; // 0%
+  const Y_ROTULOS = alturaDesenho - 14;
+
   const n = pontos.length;
   const mostrarTodosRotulos = n <= LIMITE_ROTULOS_TODOS;
 
@@ -51,8 +73,8 @@ export function GraficoLinha({ pontos }: { pontos: PontoGrafico[] }) {
     const texto = formatarPercentual(ultimo.valor);
     const largura = Math.max(48, texto.length * 8 + 16);
     const altura = 24;
-    // Centralizado sobre o ponto, mas sem sair do viewBox (perto da borda direita, encosta à direita).
-    const esquerda = Math.min(Math.max(ultimo.x - largura / 2, 4), LARGURA - 4 - largura);
+    // Centralizado sobre o ponto, mas preso entre 4 e a largura do desenho.
+    const esquerda = Math.min(Math.max(ultimo.x - largura / 2, 4), larguraDesenho - 4 - largura);
     // Acima do ponto; se não couber no topo (100%), fica abaixo.
     let topo = ultimo.y - 12 - altura;
     if (topo < 2) topo = ultimo.y + 12;
@@ -75,58 +97,60 @@ export function GraficoLinha({ pontos }: { pontos: PontoGrafico[] }) {
   const niveis = [0, 25, 50, 75, 100];
 
   return (
-    <svg
-      className="painel-grafico"
-      viewBox={`0 0 ${LARGURA} ${ALTURA}`}
-      width="100%"
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label="Gráfico de desempenho"
-    >
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" className="painel-grafico-degrade-topo" />
-          <stop offset="1" className="painel-grafico-degrade-base" />
-        </linearGradient>
-      </defs>
+    <div ref={ref} className="painel-grafico-area-medida">
+      <svg
+        className="painel-grafico"
+        viewBox={`0 0 ${larguraDesenho} ${alturaDesenho}`}
+        width={larguraDesenho}
+        height={alturaDesenho}
+        role="img"
+        aria-label="Gráfico de desempenho"
+      >
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" className="painel-grafico-degrade-topo" />
+            <stop offset="1" className="painel-grafico-degrade-base" />
+          </linearGradient>
+        </defs>
 
-      {niveis.map((nivel) => {
-        const y = yDe(nivel);
-        return (
-          <g key={nivel}>
-            <line className="painel-grafico-grade" x1={X_ESQ} x2={X_DIR} y1={y} y2={y} />
-            <text className="painel-grafico-eixo" x={X_ESQ - 8} y={y + 4} textAnchor="end">
-              {`${nivel}%`}
+        {niveis.map((nivel) => {
+          const y = yDe(nivel);
+          return (
+            <g key={nivel}>
+              <line className="painel-grafico-grade" x1={X_ESQ} x2={X_DIR} y1={y} y2={y} />
+              <text className="painel-grafico-eixo" x={X_ESQ - 8} y={y + 4} textAnchor="end">
+                {`${nivel}%`}
+              </text>
+            </g>
+          );
+        })}
+
+        {pontos.map((p, i) =>
+          // Com muitos meses, mostra um sim e outro não contando a partir do último (que sempre aparece).
+          mostrarTodosRotulos || (n - 1 - i) % 2 === 0 ? (
+            <text
+              key={`${p.rotulo}-${i}`}
+              className="painel-grafico-eixo"
+              x={xDe(i)}
+              y={Y_ROTULOS}
+              textAnchor="middle"
+            >
+              {p.rotulo}
             </text>
-          </g>
-        );
-      })}
+          ) : null,
+        )}
 
-      {pontos.map((p, i) =>
-        // Com muitos meses, mostra um sim e outro não contando a partir do último (que sempre aparece).
-        mostrarTodosRotulos || (n - 1 - i) % 2 === 0 ? (
-          <text
-            key={`${p.rotulo}-${i}`}
-            className="painel-grafico-eixo"
-            x={xDe(i)}
-            y={Y_ROTULOS}
-            textAnchor="middle"
-          >
-            {p.rotulo}
-          </text>
-        ) : null,
-      )}
+        {caminhoArea && <path className="painel-grafico-area" d={caminhoArea} fill={`url(#${id})`} />}
+        {caminho && <path className="painel-grafico-linha" d={caminho} />}
 
-      {caminhoArea && <path className="painel-grafico-area" d={caminhoArea} fill={`url(#${id})`} />}
-      {caminho && <path className="painel-grafico-linha" d={caminho} />}
+        {marcados.map((m, k) => (
+          <circle key={k} className="painel-grafico-ponto" cx={m.x} cy={m.y} r={5} strokeWidth={3}>
+            <title>{`${m.rotulo}: ${formatarPercentual(m.valor)}`}</title>
+          </circle>
+        ))}
 
-      {marcados.map((m, k) => (
-        <circle key={k} className="painel-grafico-ponto" cx={m.x} cy={m.y} r={5} strokeWidth={3}>
-          <title>{`${m.rotulo}: ${formatarPercentual(m.valor)}`}</title>
-        </circle>
-      ))}
-
-      {balao}
-    </svg>
+        {balao}
+      </svg>
+    </div>
   );
 }

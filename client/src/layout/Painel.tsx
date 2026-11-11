@@ -54,22 +54,38 @@ interface Atalho {
 const ATALHOS_ADMIN: Atalho[] = [
   { rotulo: 'Nova matrícula', icone: 'matriculas', caminho: '/admin/matriculas' },
   { rotulo: 'Consultar alunos', icone: 'alunos', caminho: '/admin/alunos' },
+  { rotulo: 'Professores', icone: 'professores', caminho: '/admin/professores' },
   { rotulo: 'Emitir boletins', icone: 'documento', caminho: '/admin/boletins' },
   { rotulo: 'Configurar turmas', icone: 'engrenagem', caminho: '/admin/turmas' },
+  { rotulo: 'Cursos', icone: 'cursos', caminho: '/admin/cursos' },
+  { rotulo: 'Períodos letivos', icone: 'periodos', caminho: '/admin/periodos' },
+  { rotulo: 'Financeiro', icone: 'financeiro', caminho: '/admin/financeiro' },
+  { rotulo: 'Biblioteca', icone: 'biblioteca', caminho: '/admin/biblioteca' },
+  { rotulo: 'Horários', icone: 'horarios', caminho: '/admin/horarios' },
+  { rotulo: 'Calendário', icone: 'calendario', caminho: '/admin/calendario' },
+  { rotulo: 'Comunicados', icone: 'comunicados', caminho: '/admin/comunicados' },
 ];
 
 const ATALHOS_PROFESSOR: Atalho[] = [
   { rotulo: 'Registrar notas', icone: 'lapis', caminho: '/professor/turmas' },
+  { rotulo: 'Lançar frequência', icone: 'diario', caminho: '/professor/turmas' },
   { rotulo: 'Meu horário', icone: 'horarios', caminho: '/professor/horario' },
+  { rotulo: 'Calendário', icone: 'calendario', caminho: '/professor/calendario' },
   { rotulo: 'Orientações', icone: 'pos', caminho: '/professor/orientacoes' },
   { rotulo: 'Comunicados', icone: 'comunicados', caminho: '/professor/comunicados' },
+  { rotulo: 'Biblioteca', icone: 'biblioteca', caminho: '/professor/biblioteca' },
+  { rotulo: 'Meu perfil', icone: 'perfil', caminho: '/professor/perfil' },
 ];
 
 const ATALHOS_ALUNO: Atalho[] = [
   { rotulo: 'Meu boletim', icone: 'boletim', caminho: '/aluno/boletim' },
+  { rotulo: 'Histórico', icone: 'historico', caminho: '/aluno/historico' },
+  { rotulo: 'Matrícula', icone: 'matriculas', caminho: '/aluno/matricula' },
   { rotulo: 'Meu horário', icone: 'horarios', caminho: '/aluno/horario' },
+  { rotulo: 'Calendário', icone: 'calendario', caminho: '/aluno/calendario' },
   { rotulo: 'Financeiro', icone: 'financeiro', caminho: '/aluno/financeiro' },
   { rotulo: 'Biblioteca', icone: 'biblioteca', caminho: '/aluno/biblioteca' },
+  { rotulo: 'Comunicados', icone: 'comunicados', caminho: '/aluno/comunicados' },
 ];
 
 function atalhosDoPerfil(perfil: Perfil | undefined): Atalho[] {
@@ -225,7 +241,9 @@ export function Painel() {
           {resumo.erro && <Aviso tipo="erro">{resumo.erro}</Aviso>}
           {dados &&
             (temNota ? (
-              <GraficoLinha pontos={pontos} />
+              <div className="painel-grafico-corpo">
+                <GraficoLinha pontos={pontos} />
+              </div>
             ) : (
               <p className="painel-vazio">Ainda não há notas lançadas neste período.</p>
             ))}
@@ -288,7 +306,7 @@ export function Painel() {
             </header>
             <div className="painel-atalhos-grade">
               {atalhos.map((a) => (
-                <Link key={a.caminho} to={a.caminho} className="painel-atalho">
+                <Link key={a.rotulo} to={a.caminho} className="painel-atalho">
                   <Icone nome={a.icone} tamanho={22} />
                   <span>{a.rotulo}</span>
                 </Link>

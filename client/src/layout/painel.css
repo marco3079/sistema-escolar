@@ -1,53 +1,59 @@
 /* Tela inicial (painel). Cores, raios e sombras só pelas variáveis do contrato visual. */
 
 .painel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 20px;
   min-width: 0;
 }
 
-/* ---------- Cabeçalho: saudação, data e hora sobre o prédio ---------- */
-
-.painel-cabecalho {
+/* Filhos diretos ficam acima da ilustração do prédio. */
+.painel > * {
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  min-height: 170px;
-  overflow: hidden;
-  border-radius: var(--raio);
+  z-index: 1;
 }
 
-/* Ilustração do prédio: esmaecida pela máscara e misturada com o fundo, sem retângulo visível. */
-.painel-cabecalho::before {
+/* Prédio como fundo do painel inteiro: sobe por trás da barra do topo e desce até o quarto indicador. */
+.painel::before {
   content: '';
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(46%, 520px);
+  top: -92px;
+  right: -1.5rem;
+  width: min(52%, 720px);
+  height: 330px;
   background-image: url('/ilustracoes/predio-claro.png');
   background-repeat: no-repeat;
-  background-position: right center;
-  background-size: contain;
+  background-position: right top;
+  background-size: cover;
   mix-blend-mode: multiply;
-  opacity: 0.9;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 45%), linear-gradient(to top, transparent 0%, #000 30%);
+  opacity: 0.85;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%), linear-gradient(to top, transparent 0%, #000 45%);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent 0%, #000 45%), linear-gradient(to top, transparent 0%, #000 30%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 55%), linear-gradient(to top, transparent 0%, #000 45%);
   mask-composite: intersect;
   pointer-events: none;
   z-index: 0;
 }
 
 @media (prefers-color-scheme: dark) {
-  .painel-cabecalho::before {
+  .painel::before {
     background-image: url('/ilustracoes/predio-escuro.png');
     mix-blend-mode: lighten;
-    opacity: 1;
+    opacity: 0.9;
   }
+}
+
+/* ---------- Cabeçalho: saudação, data e hora ---------- */
+
+.painel-cabecalho {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 0;
+  padding: 4px 0 6px;
 }
 
 .painel-boas-vindas {
@@ -306,10 +312,28 @@
 
 /* ---------- Gráfico de desempenho (SVG) ---------- */
 
-.painel-grafico {
+/* Contêiner que ocupa a altura que sobrar no cartão; o svg acompanha e fica centralizado (meet). */
+.painel-grafico-corpo {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 220px;
+  min-width: 0;
+}
+
+/* Contêiner medido pelo GraficoLinha (ResizeObserver): ocupa a altura e a largura que sobram no cartão. */
+.painel-grafico-area-medida {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+/* O svg fica absoluto: não empurra o contêiner, então não há laço de redimensionamento. */
+.painel-grafico-area-medida > svg {
   display: block;
-  width: 100%;
-  height: auto;
+  position: absolute;
+  inset: 0;
 }
 
 .painel-grafico-grade {
@@ -357,6 +381,11 @@
 }
 
 /* ---------- Avisos recentes ---------- */
+
+/* A lista começa no topo do cartão; o cartão só estica. */
+.painel-avisos {
+  justify-content: flex-start;
+}
 
 .painel-avisos-lista {
   display: flex;
@@ -436,7 +465,7 @@
   background-color: var(--cor-primaria-suave);
 }
 
-/* Pilha de livros: mesma técnica do cabeçalho, com máscara e mistura no fundo. */
+/* Pilha de livros: mesma técnica, com máscara e mistura no fundo. */
 .painel-destaque::before {
   content: '';
   position: absolute;
@@ -511,15 +540,31 @@
 
 /* ---------- Atalhos rápidos ---------- */
 
+/* O cartão estica até a base da coluna; a grade divide a altura que sobrar entre as fileiras. */
+.painel-atalhos {
+  flex: 1 1 auto;
+}
+
 .painel-atalhos-grade {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(84px, 1fr);
   gap: 10px;
 }
 
+/* Entre 521 e 1100 px o cartão tem altura natural: fileiras de 84 px no mínimo, sem esticar. */
+@media (min-width: 521px) and (max-width: 1100px) {
+  .painel-atalhos-grade {
+    grid-auto-rows: minmax(84px, auto);
+  }
+}
+
+/* No celular, três atalhos por fileira. */
 @media (max-width: 520px) {
   .painel-atalhos-grade {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(84px, auto);
   }
 }
 
@@ -530,7 +575,8 @@
   justify-content: center;
   gap: 6px;
   min-width: 0;
-  aspect-ratio: 1 / 1;
+  min-height: 84px;
+  height: 100%;
   padding: 8px;
   color: var(--cor-primaria);
   background: var(--cor-superficie);
@@ -551,10 +597,33 @@
   color: var(--cor-texto);
 }
 
-@media (max-width: 520px) {
-  .painel-atalho {
-    aspect-ratio: auto;
-    min-height: 84px;
+/* ---------- Telas largas: a linha de baixo ocupa a altura da tela ---------- */
+
+@media (min-width: 1101px) {
+  .painel {
+    min-height: calc(100dvh - 3rem - 44px - 1.5rem - 8px);
+  }
+
+  .painel-linha {
+    flex: 1 1 auto;
+    min-height: 380px;
+  }
+
+  .painel-linha > * {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+/* ---------- Abaixo de 900 px: ilustração menor e mais apagada ---------- */
+
+@media (max-width: 899px) {
+  .painel::before {
+    top: 0;
+    right: -1rem;
+    width: 70%;
+    height: 220px;
+    opacity: 0.3;
   }
 }
 
@@ -563,10 +632,7 @@
 @media (max-width: 720px) {
   .painel-cabecalho {
     flex-direction: column;
-  }
-
-  .painel-cabecalho::before {
-    opacity: 0.35;
+    align-items: flex-start;
   }
 
   .painel-relogio {

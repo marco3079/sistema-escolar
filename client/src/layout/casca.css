@@ -192,13 +192,15 @@
 
 .casca-area {
   min-width: 0;
-  max-width: 1440px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 /* ---------- Topo (desktop) ---------- */
 
 .casca-topo {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 1rem;
