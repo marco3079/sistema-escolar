@@ -4,6 +4,13 @@ import { useAuth } from '../lib/auth';
 import type { RotaModulo } from '../lib/rotas';
 import type { Perfil } from '../lib/tipos';
 import { Icone } from '../ui/icones';
+import { Busca } from './Busca';
+import { agrupar } from './grupos';
+import { MenuUsuario } from './MenuUsuario';
+import { Notificacoes } from './Notificacoes';
+import './casca.css';
+
+const CONSULTA_CELULAR = '(max-width: 899px)';
 
 export function nomePortal(perfil: Perfil): string {
   if (perfil === 'PROFESSOR') return 'Professor';
@@ -17,139 +24,187 @@ export function caminhoDoPerfil(perfil: Perfil): string {
   return '/admin';
 }
 
+// true abaixo de 900 px. Desktop e celular têm marcação diferente, então a escolha é feita em JS.
+function useTelaEstreita(): boolean {
+  const [estreita, setEstreita] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.matchMedia(CONSULTA_CELULAR).matches : false,
+  );
+
+  useEffect(() => {
+    const consulta = window.matchMedia(CONSULTA_CELULAR);
+    const trocou = () => setEstreita(consulta.matches);
+    consulta.addEventListener('change', trocou);
+    return () => consulta.removeEventListener('change', trocou);
+  }, []);
+
+  return estreita;
+}
+
 export function Layout({ menu }: { menu: RotaModulo[] }) {
   const { usuario, sair } = useAuth();
   const [gavetaAberta, setGavetaAberta] = useState(false);
+  const estreita = useTelaEstreita();
   const local = useLocation();
 
   useEffect(() => {
     setGavetaAberta(false);
   }, [local.pathname]);
 
+  useEffect(() => {
+    if (!gavetaAberta) return;
+    function tecla(e: KeyboardEvent) {
+      if (e.key === 'Escape') setGavetaAberta(false);
+    }
+    document.addEventListener('keydown', tecla);
+    return () => document.removeEventListener('keydown', tecla);
+  }, [gavetaAberta]);
+
   if (!usuario) return null;
 
   const raizPortal = caminhoDoPerfil(usuario.perfil);
   const portal = nomePortal(usuario.perfil);
+  const grupos = agrupar(menu);
   const principais = menu.slice(0, 4);
 
-  const classeItem = (ativo: boolean, base: string) => (ativo ? `${base} ativo` : base);
+  function itemMenu(r: RotaModulo) {
+    return (
+      <NavLink
+        key={r.caminho}
+        to={r.caminho}
+        end={r.caminho === raizPortal}
+        className={({ isActive }) => (isActive ? 'casca-item casca-ativo' : 'casca-item')}
+      >
+        <Icone nome={r.icone} tamanho={20} className="casca-item-icone" />
+        <span className="casca-item-rotulo">{r.rotulo}</span>
+      </NavLink>
+    );
+  }
+
+  function secoes() {
+    return grupos.map((g) => (
+      <div className="casca-grupo" key={g.titulo || 'inicio'}>
+        {g.titulo && <p className="casca-grupo-titulo">{g.titulo}</p>}
+        {g.rotas.map(itemMenu)}
+      </div>
+    ));
+  }
 
   return (
-    <div className="layout">
-      <aside className="barra-lateral">
-        <div className="marca">
-          <img src="/logo-simbolo.png" alt="" className="marca-logo" width={32} height={32} />
-          <span>Sistema Escolar</span>
+    <div className={estreita ? 'casca casca-celular' : 'casca casca-desktop'}>
+      {!estreita && (
+        <aside className="casca-lateral">
+          <div className="casca-marca">
+            <img src="/logo-simbolo.png" alt="" className="casca-marca-logo" width={40} height={40} />
+            <div className="casca-marca-texto">
+              <strong className="casca-marca-nome">Sistema Escolar</strong>
+              <span className="casca-marca-portal">{portal}</span>
+            </div>
+          </div>
+
+          <nav className="casca-menu" aria-label="Menu principal">
+            {secoes()}
+          </nav>
+
+          <div className="casca-cartao">
+            <p className="casca-cartao-frase">
+              Construindo
+              <br />
+              um futuro melhor.
+            </p>
+            <div className="casca-cartao-ilustracao" aria-hidden="true" />
+          </div>
+        </aside>
+      )}
+
+      {estreita && (
+        <header className="casca-topo-celular">
+          <div className="casca-topo-celular-barra">
+            <img src="/logo-simbolo.png" alt="" className="casca-topo-celular-logo" width={28} height={28} />
+            <span className="casca-topo-celular-nome">{portal}</span>
+            <div className="casca-topo-celular-acoes">
+              <Notificacoes raiz={raizPortal} />
+              <button
+                type="button"
+                className="casca-botao-redondo"
+                aria-label="Abrir menu"
+                onClick={() => setGavetaAberta(true)}
+              >
+                <Icone nome="menu" tamanho={22} />
+              </button>
+            </div>
+          </div>
+          <div className="casca-topo-celular-busca">
+            <Busca telas={menu} />
+          </div>
+        </header>
+      )}
+
+      <main className="casca-principal">
+        <div className="casca-area">
+          {!estreita && (
+            <header className="casca-topo">
+              <Busca telas={menu} />
+              <div className="casca-topo-acoes">
+                <Notificacoes raiz={raizPortal} />
+                <MenuUsuario />
+              </div>
+            </header>
+          )}
+          <Outlet />
         </div>
-        <div className="portal-nome">{portal}</div>
-        <nav className="menu-lateral" aria-label="Menu principal">
-          {menu.map((r) => (
+      </main>
+
+      {estreita && (
+        <nav className="casca-inferior" aria-label="Menu rápido">
+          {principais.map((r) => (
             <NavLink
               key={r.caminho}
               to={r.caminho}
               end={r.caminho === raizPortal}
-              className={({ isActive }) => classeItem(isActive, 'item-menu')}
+              className={({ isActive }) => (isActive ? 'casca-inferior-item casca-ativo' : 'casca-inferior-item')}
             >
-              <span className="icone-menu" aria-hidden="true">
-                <Icone nome={r.icone} />
-              </span>
-              <span>{r.rotulo}</span>
+              <Icone nome={r.icone} tamanho={22} className="casca-inferior-icone" />
+              <span className="casca-inferior-rotulo">{r.rotulo}</span>
             </NavLink>
           ))}
-        </nav>
-        <div className="lateral-rodape">
-          <div className="usuario-nome">{usuario.nome}</div>
-          <button type="button" className="botao botao-secundario" onClick={sair}>
-            <Icone nome="sair" tamanho={18} />
-            Sair
+          <button type="button" className="casca-inferior-item" onClick={() => setGavetaAberta(true)}>
+            <Icone nome="mais" tamanho={22} className="casca-inferior-icone" />
+            <span className="casca-inferior-rotulo">Mais</span>
           </button>
-        </div>
-      </aside>
+        </nav>
+      )}
 
-      <header className="barra-superior">
-        <div className="barra-titulo-grupo">
-          <img src="/logo-simbolo.png" alt="" className="marca-logo" width={28} height={28} />
-          <h1 className="barra-titulo">{portal}</h1>
-        </div>
-        <button
-          type="button"
-          className="botao-menu-topo"
-          aria-label="Abrir menu"
-          onClick={() => setGavetaAberta(true)}
-        >
-          <Icone nome="menu" />
-        </button>
-      </header>
-
-      <main className="conteudo">
-        <Outlet />
-      </main>
-
-      <nav className="barra-inferior" aria-label="Menu rápido">
-        {principais.map((r) => (
-          <NavLink
-            key={r.caminho}
-            to={r.caminho}
-            end={r.caminho === raizPortal}
-            className={({ isActive }) => classeItem(isActive, 'item-inferior')}
-          >
-            <span className="icone-menu" aria-hidden="true">
-              <Icone nome={r.icone} />
-            </span>
-            <span>{r.rotulo}</span>
-          </NavLink>
-        ))}
-        <button
-          type="button"
-          className="item-inferior botao-mais"
-          onClick={() => setGavetaAberta(true)}
-        >
-          <span className="icone-menu" aria-hidden="true">
-            <Icone nome="mais" />
-          </span>
-          <span>Mais</span>
-        </button>
-      </nav>
-
-      {gavetaAberta && (
-        <div className="gaveta-fundo" onClick={() => setGavetaAberta(false)}>
+      {estreita && gavetaAberta && (
+        <div className="casca-gaveta-fundo" onClick={() => setGavetaAberta(false)}>
           <div
-            className="gaveta"
+            className="casca-gaveta"
             role="dialog"
             aria-modal="true"
             aria-label="Menu completo"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="gaveta-cabecalho">
-              <strong>{portal}</strong>
+            <div className="casca-gaveta-cabecalho">
+              <div className="casca-marca-texto">
+                <strong className="casca-marca-nome">Sistema Escolar</strong>
+                <span className="casca-marca-portal">{portal}</span>
+              </div>
               <button
                 type="button"
-                className="modal-fechar"
+                className="casca-botao-redondo"
                 aria-label="Fechar menu"
                 onClick={() => setGavetaAberta(false)}
               >
-                ×
+                <Icone nome="fechar" tamanho={20} />
               </button>
             </div>
-            <ul className="gaveta-lista">
-              {menu.map((r) => (
-                <li key={r.caminho}>
-                  <NavLink
-                    to={r.caminho}
-                    end={r.caminho === raizPortal}
-                    className={({ isActive }) => classeItem(isActive, 'item-gaveta')}
-                  >
-                    <span className="icone-menu" aria-hidden="true">
-                      <Icone nome={r.icone} />
-                    </span>
-                    <span>{r.rotulo}</span>
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-            <div className="gaveta-rodape">
-              <div className="usuario-nome">{usuario.nome}</div>
-              <button type="button" className="botao botao-perigo" onClick={sair}>
+
+            <nav className="casca-menu casca-menu-gaveta" aria-label="Menu completo">
+              {secoes()}
+            </nav>
+
+            <div className="casca-gaveta-rodape">
+              <span className="casca-usuario-nome">{usuario.nome}</span>
+              <button type="button" className="casca-sair" onClick={sair}>
                 <Icone nome="sair" tamanho={18} />
                 Sair
               </button>
