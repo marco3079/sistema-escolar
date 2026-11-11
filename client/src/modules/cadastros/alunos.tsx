@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { useDados } from '../../lib/useDados';
 import { Aviso, Botao, Campo, Carregando, Modal, Pagina, Selo, Tabela } from '../../ui';
 import { dataParaInput, mensagemErro, nulo, queryString } from './tipos';
 import type { AlunoDTO } from './tipos';
+import { FichaAluno } from './FichaAluno';
+import { MenuAcoes } from './MenuAcoes';
+import type { AcaoMenu } from './MenuAcoes';
 
 // ---------- Formulário (criar ou editar) ----------
 
@@ -117,6 +122,10 @@ function FormAluno({ aluno, aoConcluir }: { aluno: AlunoDTO | null; aoConcluir: 
 export function Alunos() {
   const [busca, setBusca] = useState('');
   const [editando, setEditando] = useState<AlunoDTO | 'novo' | null>(null);
+  const [ficha, setFicha] = useState<number | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const { usuario } = useAuth();
+  const navegar = useNavigate();
   const { dados, carregando, erro, recarregar } = useDados<AlunoDTO[]>(
     `/alunos${queryString({ busca: busca.trim() })}`
   );
@@ -130,17 +139,55 @@ export function Alunos() {
     recarregar();
   }
 
+  async function desativar(a: AlunoDTO) {
+    if (!window.confirm(`Desativar o aluno ${a.usuario.nome}?`)) return;
+    setErroAcao(null);
+    try {
+      await api.del(`/alunos/${a.id}`);
+      recarregar();
+    } catch (e) {
+      setErroAcao(mensagemErro(e));
+    }
+  }
+
+  async function reativar(a: AlunoDTO) {
+    setErroAcao(null);
+    try {
+      await api.put(`/usuarios/${a.usuarioId}`, { ativo: true });
+      recarregar();
+    } catch (e) {
+      setErroAcao(mensagemErro(e));
+    }
+  }
+
+  function acoesDo(a: AlunoDTO): AcaoMenu[] {
+    const acoes: AcaoMenu[] = [
+      { rotulo: 'Ver ficha', icone: 'perfil', aoClicar: () => setFicha(a.id) },
+      { rotulo: 'Editar cadastro', icone: 'lapis', aoClicar: () => setEditando(a) },
+      { rotulo: 'Matrículas', icone: 'matriculas', aoClicar: () => navegar('/admin/matriculas') },
+      { rotulo: 'Boletim e histórico', icone: 'boletim', aoClicar: () => navegar('/admin/boletins') },
+      { rotulo: 'Financeiro', icone: 'financeiro', aoClicar: () => navegar('/admin/financeiro') },
+    ];
+    if (a.usuario.ativo) {
+      acoes.push({ rotulo: 'Desativar', icone: 'fechar', perigo: true, aoClicar: () => desativar(a) });
+    } else if (usuario?.perfil === 'ADMIN') {
+      acoes.push({ rotulo: 'Reativar', icone: 'perfil', aoClicar: () => reativar(a) });
+    }
+    return acoes;
+  }
+
   return (
     <Pagina titulo="Alunos" acoes={<Botao aoClicar={() => setEditando('novo')}>Novo aluno</Botao>}>
       <Campo rotulo="Buscar por nome, e-mail ou RA" valor={busca} aoMudar={setBusca} />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
       {carregando && <Carregando />}
       {dados && (
         <Tabela<AlunoDTO>
           chave={(a) => a.id}
           dados={dados}
           vazio="Nenhum aluno encontrado."
-          aoClicarLinha={(a) => setEditando(a)}
+          aoClicarLinha={(a) => setFicha(a.id)}
           colunas={[
             { titulo: 'RA', celula: (a) => a.ra },
             { titulo: 'Nome', celula: (a) => a.usuario.nome },
@@ -151,7 +198,26 @@ export function Alunos() {
               celula: (a) =>
                 a.usuario.ativo ? <Selo cor="verde">ATIVO</Selo> : <Selo cor="vermelho">INATIVO</Selo>,
             },
+            {
+              titulo: 'Ações',
+              celula: (a) => (
+                <MenuAcoes rotulo={'Ações de ' + a.usuario.nome} acoes={acoesDo(a)} />
+              ),
+            },
           ]}
+        />
+      )}
+
+      {ficha !== null && (
+        <FichaAluno
+          key={ficha}
+          alunoId={ficha}
+          aoFechar={() => setFicha(null)}
+          aoEditar={() => {
+            const a = dados?.find((x) => x.id === ficha) ?? null;
+            setFicha(null);
+            if (a) setEditando(a);
+          }}
         />
       )}
 

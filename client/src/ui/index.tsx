@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import './estilo.css';
 
 // ---------- Formatação ----------
@@ -156,6 +157,22 @@ export function Carregando() {
 export interface ColunaTabela<T> {
   titulo: string;
   celula: (item: T) => ReactNode;
+  // Alinhamento do cabeçalho e das células. Sem valor, a coluna segue o padrão (esquerda).
+  alinhar?: 'esquerda' | 'direita' | 'centro';
+  // Coluna de ações (menu de três pontos): alinhada à direita, largura mínima, sem título visível.
+  // O clique dentro dela não dispara aoClicarLinha. No cartão do celular fica no fim, sem rótulo.
+  acoes?: boolean;
+}
+
+// Impede que o clique numa célula de ações chegue à linha (aoClicarLinha).
+function naoPropagar(e: ReactMouseEvent) {
+  e.stopPropagation();
+}
+
+function classeDaCelula<T>(c: ColunaTabela<T>): string | undefined {
+  if (c.acoes) return 'tabela-coluna-acoes';
+  if (c.alinhar) return `tabela-alinhar-${c.alinhar}`;
+  return undefined;
 }
 
 export function Tabela<T>({
@@ -175,6 +192,9 @@ export function Tabela<T>({
     return <p className="tabela-vazia">{vazio ?? 'Nenhum registro encontrado.'}</p>;
   }
 
+  // No cartão, a coluna de ações vai para o fim e aparece sem rótulo.
+  const colunasCartao = [...colunas.filter((c) => !c.acoes), ...colunas.filter((c) => c.acoes)];
+
   return (
     <>
       <div className="tabela-desktop">
@@ -182,8 +202,8 @@ export function Tabela<T>({
           <thead>
             <tr>
               {colunas.map((c) => (
-                <th key={c.titulo} scope="col">
-                  {c.titulo}
+                <th key={c.titulo} scope="col" className={classeDaCelula(c)}>
+                  {c.acoes ? <span className="tabela-oculto-visual">{c.titulo}</span> : c.titulo}
                 </th>
               ))}
             </tr>
@@ -196,7 +216,13 @@ export function Tabela<T>({
                 onClick={aoClicarLinha ? () => aoClicarLinha(item) : undefined}
               >
                 {colunas.map((c) => (
-                  <td key={c.titulo}>{c.celula(item)}</td>
+                  <td
+                    key={c.titulo}
+                    className={classeDaCelula(c)}
+                    onClick={c.acoes ? naoPropagar : undefined}
+                  >
+                    {c.celula(item)}
+                  </td>
                 ))}
               </tr>
             ))}
@@ -210,16 +236,70 @@ export function Tabela<T>({
             className={aoClicarLinha ? 'tabela-cartao clicavel' : 'tabela-cartao'}
             onClick={aoClicarLinha ? () => aoClicarLinha(item) : undefined}
           >
-            {colunas.map((c) => (
-              <div className="tabela-par" key={c.titulo}>
-                <span className="tabela-par-titulo">{c.titulo}</span>
-                <span className="tabela-par-valor">{c.celula(item)}</span>
-              </div>
-            ))}
+            {colunasCartao.map((c) =>
+              c.acoes ? (
+                <div className="tabela-par tabela-par-acoes" key={c.titulo} onClick={naoPropagar}>
+                  <span className="tabela-par-valor">{c.celula(item)}</span>
+                </div>
+              ) : (
+                <div className="tabela-par" key={c.titulo}>
+                  <span className="tabela-par-titulo">{c.titulo}</span>
+                  <span className="tabela-par-valor">{c.celula(item)}</span>
+                </div>
+              ),
+            )}
           </li>
         ))}
       </ul>
     </>
+  );
+}
+
+// ---------- Avatar ----------
+
+// Iniciais: primeira letra do primeiro e do último nome.
+function iniciaisDoNome(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '';
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return (primeira + ultima).toUpperCase();
+}
+
+// Círculo com a foto do usuário ou, sem foto (ou se a imagem falhar), as iniciais do nome.
+// Decorativo (aria-hidden): o nome deve aparecer em texto ao lado quando for preciso.
+export function Avatar({
+  nome,
+  foto,
+  tamanho = 40,
+  className,
+}: {
+  nome: string;
+  foto?: string | null;
+  tamanho?: number;
+  className?: string;
+}) {
+  // Guarda a foto que falhou: uma foto nova volta a tentar sem precisar de efeito.
+  const [fotoFalhou, setFotoFalhou] = useState<string | null>(null);
+  const mostrarFoto = Boolean(foto) && fotoFalhou !== foto;
+
+  return (
+    <span
+      className={className ? `avatar ${className}` : 'avatar'}
+      style={{ width: tamanho, height: tamanho, fontSize: Math.round(tamanho * 0.36) }}
+      aria-hidden="true"
+    >
+      {mostrarFoto ? (
+        <img
+          src={foto ?? undefined}
+          alt=""
+          loading="lazy"
+          onError={() => setFotoFalhou(foto ?? null)}
+        />
+      ) : (
+        iniciaisDoNome(nome)
+      )}
+    </span>
   );
 }
 
@@ -395,3 +475,9 @@ export function Abas({
     </nav>
   );
 }
+
+// ---------- Menu de ações (reexportado para os outros módulos) ----------
+// Não há importação circular: MenuAcoes importa só ui/icones, não este arquivo.
+
+export { MenuAcoes } from '../modules/cadastros/MenuAcoes';
+export type { AcaoMenu } from '../modules/cadastros/MenuAcoes';

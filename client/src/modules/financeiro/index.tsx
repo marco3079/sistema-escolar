@@ -9,9 +9,8 @@ import {
   Botao,
   Campo,
   Carregando,
-  Cartao,
   Caixa,
-  Grade,
+  MenuAcoes,
   Modal,
   Pagina,
   Selecao,
@@ -21,6 +20,8 @@ import {
   formatarMoeda,
   paraInputData,
 } from '../../ui';
+import { Icone } from '../../ui/icones';
+import type { NomeIcone } from '../../ui/icones';
 
 // ---------- Tipos (formato do CONTRATOS 5.7) ----------
 
@@ -109,17 +110,40 @@ function mensagemErro(e: unknown): string {
   return e instanceof Error ? e.message : 'Erro inesperado';
 }
 
+// Texto que não pode quebrar em duas linhas (nomes, datas, valores, selos).
+
 function SeloStatus({ status }: { status: StatusMensalidade }) {
   const info = ROTULO_STATUS[status];
-  return <Selo cor={info.cor}>{info.rotulo}</Selo>;
+  return (
+    <span className="sem-quebra">
+      <Selo cor={info.cor}>{info.rotulo}</Selo>
+    </span>
+  );
 }
 
-function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
+type CorResumo = 'azul' | 'roxo' | 'verde' | 'laranja' | 'vermelho';
+
+function Indicador({
+  rotulo,
+  valor,
+  cor,
+  icone,
+}: {
+  rotulo: string;
+  valor: string;
+  cor: CorResumo;
+  icone: NomeIcone;
+}) {
   return (
-    <Cartao>
-      <span className="cartao-indicador-rotulo">{rotulo}</span>
-      <span className="cartao-indicador-valor">{valor}</span>
-    </Cartao>
+    <div className="resumo-item">
+      <span className={`resumo-icone resumo-icone-${cor}`}>
+        <Icone nome={icone} tamanho={24} />
+      </span>
+      <div>
+        <span className="resumo-valor">{valor}</span>
+        <span className="resumo-rotulo">{rotulo}</span>
+      </div>
+    </div>
   );
 }
 
@@ -134,12 +158,32 @@ export function Financeiro() {
       {resumo.erro && <Aviso tipo="erro">{resumo.erro}</Aviso>}
       {resumo.carregando && <Carregando />}
       {resumo.dados && (
-        <Grade>
-          <Indicador rotulo="Em aberto" valor={formatarMoeda(resumo.dados.aberto)} />
-          <Indicador rotulo="Atrasado" valor={formatarMoeda(resumo.dados.atrasado)} />
-          <Indicador rotulo="Recebido" valor={formatarMoeda(resumo.dados.pago)} />
-          <Indicador rotulo="Bolsas ativas" valor={String(resumo.dados.quantidadeBolsas)} />
-        </Grade>
+        <div className="resumo">
+          <Indicador
+            rotulo="Em aberto"
+            valor={formatarMoeda(resumo.dados.aberto)}
+            cor="azul"
+            icone="financeiro"
+          />
+          <Indicador
+            rotulo="Atrasado"
+            valor={formatarMoeda(resumo.dados.atrasado)}
+            cor="vermelho"
+            icone="relogio"
+          />
+          <Indicador
+            rotulo="Recebido"
+            valor={formatarMoeda(resumo.dados.pago)}
+            cor="verde"
+            icone="grafico"
+          />
+          <Indicador
+            rotulo="Bolsas ativas"
+            valor={String(resumo.dados.quantidadeBolsas)}
+            cor="roxo"
+            icone="alunos"
+          />
+        </div>
       )}
       <Abas
         abas={[
@@ -192,22 +236,23 @@ function AbaMensalidades({ aoGravar }: { aoGravar: () => void }) {
 
   return (
     <>
-      <div className="pagina-acoes">
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <Selecao
+            rotulo="Status"
+            valor={status}
+            aoMudar={setStatus}
+            opcoes={STATUS_OPCOES}
+            vazio="Todos"
+          />
+          <Campo
+            rotulo="Competência (AAAA-MM)"
+            valor={competencia}
+            aoMudar={setCompetencia}
+          />
+        </div>
         <Botao aoClicar={() => setGerarAberto(true)}>Gerar mensalidades</Botao>
       </div>
-
-      <Selecao
-        rotulo="Status"
-        valor={status}
-        aoMudar={setStatus}
-        opcoes={STATUS_OPCOES}
-        vazio="Todos"
-      />
-      <Campo
-        rotulo="Competência (AAAA-MM)"
-        valor={competencia}
-        aoMudar={setCompetencia}
-      />
 
       {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
@@ -220,28 +265,47 @@ function AbaMensalidades({ aoGravar }: { aoGravar: () => void }) {
           chave={(m) => m.id}
           vazio="Nenhuma mensalidade encontrada."
           colunas={[
-            { titulo: 'Aluno', celula: (m) => m.matricula.aluno.usuario.nome },
-            { titulo: 'Curso', celula: (m) => m.matricula.curso.nome },
-            { titulo: 'Competência', celula: (m) => m.competencia },
-            { titulo: 'Vencimento', celula: (m) => formatarData(m.vencimento) },
-            { titulo: 'Valor', celula: (m) => formatarMoeda(m.valor) },
-            { titulo: 'Desconto', celula: (m) => formatarMoeda(m.desconto) },
-            { titulo: 'Valor final', celula: (m) => formatarMoeda(m.valorFinal) },
+            {
+              titulo: 'Aluno',
+              celula: (m) => <span className="sem-quebra">{m.matricula.aluno.usuario.nome}</span>,
+            },
+            {
+              titulo: 'Curso',
+              celula: (m) => m.matricula.curso.nome,
+            },
+            { titulo: 'Competência', celula: (m) => <span className="sem-quebra">{m.competencia}</span> },
+            {
+              titulo: 'Vencimento',
+              celula: (m) => <span className="sem-quebra">{formatarData(m.vencimento)}</span>,
+            },
+            {
+              titulo: 'Valor',
+              alinhar: 'direita',
+              celula: (m) => <span className="sem-quebra">{formatarMoeda(m.valor)}</span>,
+            },
+            {
+              titulo: 'Desconto',
+              alinhar: 'direita',
+              celula: (m) => <span className="sem-quebra">{formatarMoeda(m.desconto)}</span>,
+            },
+            {
+              titulo: 'Valor final',
+              alinhar: 'direita',
+              celula: (m) => <span className="sem-quebra">{formatarMoeda(m.valorFinal)}</span>,
+            },
             { titulo: 'Situação', celula: (m) => <SeloStatus status={m.status} /> },
             {
               titulo: 'Ações',
+              acoes: true,
               celula: (m) =>
-                m.status === 'PAGA' || m.status === 'CANCELADA' ? (
-                  '—'
-                ) : (
-                  <>
-                    <Botao variante="texto" aoClicar={() => setPagando(m)}>
-                      Registrar pagamento
-                    </Botao>
-                    <Botao variante="perigo" aoClicar={() => cancelar(m)}>
-                      Cancelar
-                    </Botao>
-                  </>
+                m.status === 'PAGA' || m.status === 'CANCELADA' ? null : (
+                  <MenuAcoes
+                    rotulo={`Ações da mensalidade ${m.competencia} de ${m.matricula.aluno.usuario.nome}`}
+                    acoes={[
+                      { rotulo: 'Registrar pagamento', aoClicar: () => setPagando(m) },
+                      { rotulo: 'Cancelar mensalidade', perigo: true, aoClicar: () => cancelar(m) },
+                    ]}
+                  />
                 ),
             },
           ]}
@@ -458,27 +522,41 @@ function AbaBolsas() {
           chave={(b) => b.id}
           vazio="Nenhuma bolsa cadastrada."
           colunas={[
-            { titulo: 'Aluno', celula: (b) => b.matricula.aluno.usuario.nome },
-            { titulo: 'Curso', celula: (b) => b.matricula.curso.nome },
+            {
+              titulo: 'Aluno',
+              celula: (b) => <span className="sem-quebra">{b.matricula.aluno.usuario.nome}</span>,
+            },
+            {
+              titulo: 'Curso',
+              celula: (b) => b.matricula.curso.nome,
+            },
             { titulo: 'Nome', celula: (b) => b.nome },
-            { titulo: 'Percentual', celula: (b) => `${b.percentual}%` },
-            { titulo: 'Início', celula: (b) => formatarData(b.inicio) },
-            { titulo: 'Fim', celula: (b) => (b.fim ? formatarData(b.fim) : 'Sem fim') },
+            {
+              titulo: 'Percentual',
+              celula: (b) => <span className="sem-quebra">{`${b.percentual}%`}</span>,
+            },
+            { titulo: 'Início', celula: (b) => <span className="sem-quebra">{formatarData(b.inicio)}</span> },
+            {
+              titulo: 'Fim',
+              celula: (b) => (
+                <span className="sem-quebra">{b.fim ? formatarData(b.fim) : 'Sem fim'}</span>
+              ),
+            },
             {
               titulo: 'Ativa',
               celula: (b) => (b.ativa ? <Selo cor="verde">Sim</Selo> : <Selo cor="cinza">Não</Selo>),
             },
             {
               titulo: 'Ações',
+              acoes: true,
               celula: (b) => (
-                <>
-                  <Botao variante="texto" aoClicar={() => setForm({ bolsa: b })}>
-                    Editar
-                  </Botao>
-                  <Botao variante="perigo" aoClicar={() => excluir(b)}>
-                    Excluir
-                  </Botao>
-                </>
+                <MenuAcoes
+                  rotulo={`Ações da bolsa ${b.nome} de ${b.matricula.aluno.usuario.nome}`}
+                  acoes={[
+                    { rotulo: 'Editar', aoClicar: () => setForm({ bolsa: b }) },
+                    { rotulo: 'Excluir', perigo: true, aoClicar: () => excluir(b) },
+                  ]}
+                />
               ),
             },
           ]}
@@ -633,9 +711,14 @@ function FinanceiroAluno() {
       {minhas.carregando && <Carregando />}
       {minhas.dados && (
         <>
-          <Grade>
-            <Indicador rotulo="Total em aberto" valor={formatarMoeda(emAberto)} />
-          </Grade>
+          <div className="resumo">
+            <Indicador
+              rotulo="Total em aberto"
+              valor={formatarMoeda(emAberto)}
+              cor="azul"
+              icone="financeiro"
+            />
+          </div>
           <Tabela
             dados={minhas.dados}
             chave={(m) => m.id}

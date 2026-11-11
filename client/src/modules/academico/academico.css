@@ -1,0 +1,435 @@
+/* ===== Módulo acadêmico: layout das telas de Períodos, Cursos e Turmas ===== */
+/* Cores, raios e sombras vêm só das variáveis de ui/estilo.css. */
+
+/* ----- Barra de ferramentas: lado direito (alternador + botão) ----- */
+.academico-barra-direita {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.academico-barra-direita > .botao {
+  max-width: 100%;
+}
+
+/* Quando a barra da direita é o único bloco de barra-ferramentas, vai para a direita. */
+.barra-ferramentas > .academico-barra-direita {
+  margin-left: auto;
+}
+
+/* Busca ocupa a largura disponível dentro dos filtros. */
+.academico-busca {
+  min-width: 0;
+}
+
+/* ----- Períodos: barra de andamento ----- */
+.academico-andamento {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 140px;
+}
+
+.academico-andamento-trilho {
+  flex: 1 1 auto;
+  height: 8px;
+  min-width: 80px;
+  border-radius: 999px;
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-borda);
+  overflow: hidden;
+}
+
+.academico-andamento-preench {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradiente-primario);
+}
+
+.academico-andamento-texto {
+  flex: 0 0 auto;
+  min-width: 3ch;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--cor-texto-suave);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Selo roxo (o componente Selo só tem azul, verde, amarelo, vermelho e cinza). */
+.academico-selo-roxo {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--cor-roxo-suave);
+  color: var(--cor-roxo);
+}
+
+/* ----- Textos auxiliares ----- */
+.academico-texto-suave {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.academico-codigo {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.academico-negrito {
+  font-weight: 600;
+}
+
+.academico-nome-forte {
+  font-weight: 700;
+}
+
+/* ----- Cursos: cartões ----- */
+.academico-cursos-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.academico-curso-cartao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0 1.1rem 0.9rem;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.academico-curso-cartao.clicavel:hover {
+  border-color: var(--cor-primaria);
+}
+
+/* Faixa colorida no topo, conforme o nível (quatro cores do tema, repetindo). */
+.academico-curso-faixa {
+  display: block;
+  height: 6px;
+  margin: 0 -1.1rem;
+}
+
+.academico-curso-faixa-0 {
+  background: var(--cor-primaria);
+}
+
+.academico-curso-faixa-1 {
+  background: var(--cor-roxo);
+}
+
+.academico-curso-faixa-2 {
+  background: var(--cor-verde);
+}
+
+.academico-curso-faixa-3 {
+  background: var(--cor-laranja);
+}
+
+.academico-curso-cabeca {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.academico-curso-nome {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.academico-curso-dados {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.6rem 0;
+  border-top: 1px dashed var(--cor-borda);
+  border-bottom: 1px dashed var(--cor-borda);
+}
+
+.academico-curso-dado {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.academico-curso-dado dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.academico-curso-dado dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.academico-curso-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* ----- Tabela: alinhamentos e colunas específicas ----- */
+.academico-tabela-mono {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.academico-tabela-direita {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- Detalhe do curso: blocos por período ----- */
+.academico-periodo-bloco {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+}
+
+.academico-periodo-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.academico-disciplinas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.academico-disciplina {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--cor-superficie-2);
+  border-radius: var(--raio-pequeno);
+  min-width: 0;
+}
+
+.academico-disciplina-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.academico-disciplina-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.academico-pre-requisitos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.academico-pre-requisitos .selo {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+}
+
+.academico-disciplina-acoes {
+  justify-self: end;
+  align-self: center;
+}
+
+/* ----- Turmas: resumo e ocupação ----- */
+.academico-ocupacao {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 140px;
+}
+
+.academico-ocupacao-trilho {
+  flex: 1 1 auto;
+  height: 8px;
+  min-width: 60px;
+  border-radius: 999px;
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-borda);
+  overflow: hidden;
+}
+
+.academico-ocupacao-preench {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Verde até 70%, laranja até 99%, vermelho quando lotada. */
+.academico-ocupacao-baixa {
+  background: var(--cor-verde);
+}
+
+.academico-ocupacao-media {
+  background: var(--cor-laranja);
+}
+
+.academico-ocupacao-cheia {
+  background: var(--cor-perigo);
+}
+
+.academico-ocupacao-texto {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Célula com dois textos empilhados (ex.: disciplina e curso). */
+.academico-celula-dupla {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Item do alternador segmentado com ícone ao lado do texto. */
+.academico-segmentado-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Professor com avatar pequeno de iniciais. */
+.academico-professor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.academico-professor-nome {
+  overflow-wrap: anywhere;
+}
+
+/* Cartões de turma (visão Cartões). */
+.academico-turmas-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.academico-turma-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 1.1rem 1.25rem;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow-wrap: anywhere;
+}
+
+.academico-turma-cartao.clicavel:hover {
+  border-color: var(--cor-primaria);
+}
+
+.academico-turma-disciplina {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.academico-turma-linhas {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.academico-turma-linhas div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.academico-turma-linhas dt {
+  color: var(--cor-texto-suave);
+  font-weight: 600;
+}
+
+.academico-turma-linhas dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ----- Ajustes para telas pequenas (360 px) ----- */
+@media (max-width: 359px) {
+  .academico-curso-cartao {
+    padding: 0 0.75rem 0.75rem;
+  }
+
+  .academico-curso-faixa {
+    margin: 0 -0.75rem;
+  }
+
+  .academico-turma-cartao {
+    padding: 0.75rem;
+  }
+
+  .academico-curso-dados {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 720px) {
+  .academico-curso-dados {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

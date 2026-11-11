@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-escola}
       POSTGRES_DB: escola
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - dados_db:/var/lib/postgresql/data
     healthcheck:
@@ -23,14 +23,25 @@ services:
       DATABASE_URL: "postgresql://escola:${POSTGRES_PASSWORD:-escola}@db:5432/escola?schema=public"
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-de-exemplo}
       PORT: "3000"
+      ADMIN_NOME: ${ADMIN_NOME:-Administrador}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@escola.local}
+      ADMIN_SENHA: ${ADMIN_SENHA:-}
+      SEED_DEMO: ${SEED_DEMO:-false}
     ports:
-      - "${API_PORT:-3090}:3000"
+      - "127.0.0.1:${API_PORT:-3090}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   web:
     build: ./client
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "${WEB_PORT:-8090}:80"
     restart: unless-stopped

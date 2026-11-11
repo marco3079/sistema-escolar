@@ -9,6 +9,7 @@ import {
   Campo,
   Carregando,
   Cartao,
+  MenuAcoes,
   Modal,
   Pagina,
   Selecao,
@@ -16,17 +17,88 @@ import {
   Tabela,
   formatarMoeda,
 } from '../../ui';
-import type { ColunaTabela } from '../../ui';
-import { REGIMES, duracaoTexto, mensagemErro, numeroDe, rotuloRegime, unidadeDoRegime } from './comum';
+import type { AcaoMenu, ColunaTabela } from '../../ui';
+import { Icone } from '../../ui/icones';
+import type { NomeIcone } from '../../ui/icones';
+import { REGIMES, duracaoTexto, mensagemErro, numeroDe, rotuloRegime } from './comum';
 import type { Curso, CursoDetalhe, Disciplina } from './tipos';
+import './academico.css';
+
+// ---------- Visão da lista (cartões ou tabela), guardada no navegador ----------
+
+type VisaoCursos = 'cartoes' | 'tabela';
+const CHAVE_VISAO = 'escola.cursos.visao';
+
+function lerVisao(): VisaoCursos {
+  try {
+    const salva = window.localStorage.getItem(CHAVE_VISAO);
+    if (salva === 'cartoes' || salva === 'tabela') return salva;
+  } catch {
+    // Armazenamento indisponível: usa o padrão da tela
+  }
+  return 'cartoes';
+}
+
+function gravarVisao(visao: VisaoCursos) {
+  try {
+    window.localStorage.setItem(CHAVE_VISAO, visao);
+  } catch {
+    // Sem armazenamento: a escolha vale só nesta página
+  }
+}
+
+function AlternarVisao({
+  visao,
+  aoMudar,
+}: {
+  visao: VisaoCursos;
+  aoMudar: (v: VisaoCursos) => void;
+}) {
+  const opcoes: { valor: VisaoCursos; rotulo: string; icone: NomeIcone }[] = [
+    { valor: 'cartoes', rotulo: 'Cartões', icone: 'grade' },
+    { valor: 'tabela', rotulo: 'Tabela', icone: 'lista' },
+  ];
+  return (
+    <div className="segmentado" role="group" aria-label="Modo de exibição">
+      {opcoes.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          className="segmentado-item academico-segmentado-item"
+          aria-pressed={visao === o.valor}
+          onClick={() => aoMudar(o.valor)}
+        >
+          <Icone nome={o.icone} tamanho={18} />
+          <span>{o.rotulo}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------- Auxiliares de apresentação ----------
+
+// Cor da faixa do cartão pelo nível: as quatro cores do tema, repetindo.
+function corDoNivel(nivel: string): number {
+  const posicao = NIVEIS.findIndex((n) => n.valor === nivel);
+  return posicao < 0 ? 0 : posicao % 4;
+}
+
+// "1ª série" no seriado; "1º semestre" por créditos.
+function rotuloPeriodoSugerido(regime: string, numero: number): string {
+  return regime === 'SERIADO' ? `${numero}ª série` : `${numero}º semestre`;
+}
 
 // ---------- Tela de cursos ----------
 
 export function Cursos() {
   const [nivel, setNivel] = useState('');
+  const [busca, setBusca] = useState('');
+  const [visao, setVisao] = useState<VisaoCursos>(lerVisao);
   const [novo, setNovo] = useState(false);
   const [editando, setEditando] = useState<Curso | null>(null);
   const [detalheId, setDetalheId] = useState<number | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
   const caminho = nivel ? `/cursos?nivel=${encodeURIComponent(nivel)}` : '/cursos';
   const { dados, carregando, erro, recarregar } = useDados<Curso[]>(caminho);
 
@@ -35,44 +107,145 @@ export function Cursos() {
     setEditando(null);
   }
 
+  function trocarVisao(nova: VisaoCursos) {
+    setVisao(nova);
+    gravarVisao(nova);
+  }
+
+  // Desativa o curso (DELETE marca como inativo no servidor).
+  async function desativar(c: Curso) {
+    if (!window.confirm(`Desativar o curso ${c.nome}?`)) return;
+    setErroAcao(null);
+    try {
+      await api.del(`/cursos/${c.id}`);
+      recarregar();
+    } catch (e) {
+      setErroAcao(mensagemErro(e));
+    }
+  }
+
+  async function reativar(c: Curso) {
+    setErroAcao(null);
+    try {
+      await api.put(`/cursos/${c.id}`, { ativo: true });
+      recarregar();
+    } catch (e) {
+      setErroAcao(mensagemErro(e));
+    }
+  }
+
+  // Ações de cada curso (tabela e cartões).
+  function acoesDoCurso(c: Curso): AcaoMenu[] {
+    return [
+      { rotulo: 'Ver disciplinas', icone: 'documento', aoClicar: () => setDetalheId(c.id) },
+      { rotulo: 'Editar', icone: 'lapis', aoClicar: () => setEditando(c) },
+      c.ativo
+        ? { rotulo: 'Desativar', icone: 'pausar', perigo: true, aoClicar: () => void desativar(c) }
+        : { rotulo: 'Reativar', icone: 'reproduzir', aoClicar: () => void reativar(c) },
+    ];
+  }
+
+  // Busca por nome ou código, só no cliente.
+  const termo = busca.trim().toLowerCase();
+  const lista = dados ?? [];
+  const filtrados = termo
+    ? lista.filter(
+        (c) => c.nome.toLowerCase().includes(termo) || c.codigo.toLowerCase().includes(termo),
+      )
+    : lista;
+
   const colunas: ColunaTabela<Curso>[] = [
-    { titulo: 'Código', celula: (c) => c.codigo },
-    { titulo: 'Nome', celula: (c) => c.nome },
+    { titulo: 'Código', celula: (c) => <span className="academico-codigo">{c.codigo}</span> },
+    { titulo: 'Nome', celula: (c) => <span className="academico-nome-forte">{c.nome}</span> },
     { titulo: 'Nível', celula: (c) => rotuloNivel(c.nivel) },
     { titulo: 'Regime', celula: (c) => rotuloRegime(c.regime) },
     { titulo: 'Duração', celula: (c) => duracaoTexto(c.duracaoPeriodos, c.regime) },
-    { titulo: 'Mensalidade', celula: (c) => formatarMoeda(c.mensalidade) },
+    {
+      titulo: 'Mensalidade',
+      alinhar: 'direita',
+      celula: (c) => formatarMoeda(c.mensalidade),
+    },
     {
       titulo: 'Situação',
       celula: (c) => <Selo cor={c.ativo ? 'verde' : 'cinza'}>{c.ativo ? 'ATIVO' : 'INATIVO'}</Selo>,
     },
+    {
+      titulo: 'Ações',
+      acoes: true,
+      celula: (c) => <MenuAcoes rotulo={`Ações de ${c.nome}`} acoes={acoesDoCurso(c)} />,
+    },
   ];
 
   return (
-    <Pagina
-      titulo="Cursos"
-      acoes={<Botao aoClicar={() => setNovo(true)}>Novo curso</Botao>}
-    >
-      <Cartao>
-        <Selecao
-          rotulo="Nível"
-          valor={nivel}
-          aoMudar={setNivel}
-          opcoes={NIVEIS}
-          vazio="Todos os níveis"
-        />
-      </Cartao>
+    <Pagina titulo="Cursos">
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <Campo rotulo="Buscar por nome ou código" valor={busca} aoMudar={setBusca} />
+          <Selecao
+            rotulo="Nível"
+            valor={nivel}
+            aoMudar={setNivel}
+            opcoes={NIVEIS}
+            vazio="Todos os níveis"
+          />
+        </div>
+        <div className="academico-barra-direita">
+          <AlternarVisao visao={visao} aoMudar={trocarVisao} />
+          <Botao aoClicar={() => setNovo(true)}>Novo curso</Botao>
+        </div>
+      </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
       {carregando ? (
         <Carregando />
-      ) : (
+      ) : visao === 'tabela' ? (
         <Tabela
           colunas={colunas}
-          dados={dados ?? []}
+          dados={filtrados}
           chave={(c) => c.id}
           vazio="Nenhum curso encontrado."
           aoClicarLinha={(c) => setDetalheId(c.id)}
         />
+      ) : filtrados.length === 0 ? (
+        <p className="tabela-vazia">Nenhum curso encontrado.</p>
+      ) : (
+        <ul className="academico-cursos-grade">
+          {filtrados.map((c) => (
+            <li
+              key={c.id}
+              className="academico-curso-cartao clicavel"
+              onClick={() => setDetalheId(c.id)}
+            >
+              <span className={`academico-curso-faixa academico-curso-faixa-${corDoNivel(c.nivel)}`} />
+              <div className="academico-curso-cabeca">
+                <Selo cor="azul">{rotuloNivel(c.nivel)}</Selo>
+                <Selo cor={c.ativo ? 'verde' : 'cinza'}>{c.ativo ? 'ATIVO' : 'INATIVO'}</Selo>
+              </div>
+              <div>
+                <h3 className="academico-curso-nome">{c.nome}</h3>
+                <span className="academico-codigo">{c.codigo}</span>
+              </div>
+              <dl className="academico-curso-dados">
+                <div className="academico-curso-dado">
+                  <dt>Duração</dt>
+                  <dd>{duracaoTexto(c.duracaoPeriodos, c.regime)}</dd>
+                </div>
+                <div className="academico-curso-dado">
+                  <dt>Carga horária</dt>
+                  <dd>{c.cargaHorariaTotal} h</dd>
+                </div>
+                <div className="academico-curso-dado">
+                  <dt>Mensalidade</dt>
+                  <dd>{formatarMoeda(c.mensalidade)}</dd>
+                </div>
+              </dl>
+              <div className="academico-curso-rodape">
+                <span className="academico-texto-suave">{rotuloRegime(c.regime)}</span>
+                <MenuAcoes rotulo={`Ações de ${c.nome}`} acoes={acoesDoCurso(c)} />
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
       <Modal
@@ -245,35 +418,6 @@ function DetalheCurso({
     }
   }
 
-  const colunas: ColunaTabela<Disciplina>[] = [
-    { titulo: 'Código', celula: (d) => d.codigo },
-    { titulo: 'Nome', celula: (d) => d.nome },
-    { titulo: 'CH (h)', celula: (d) => d.cargaHoraria },
-    { titulo: 'Créditos', celula: (d) => d.creditos },
-    {
-      titulo: 'Obrigatória',
-      celula: (d) => <Selo cor={d.obrigatoria ? 'azul' : 'cinza'}>{d.obrigatoria ? 'SIM' : 'NÃO'}</Selo>,
-    },
-    {
-      titulo: 'Pré-requisitos',
-      celula: (d) =>
-        d.preRequisitos.length > 0 ? d.preRequisitos.map((p) => p.codigo).join(', ') : 'Nenhum',
-    },
-    {
-      titulo: 'Ações',
-      celula: (d) => (
-        <>
-          <Botao variante="texto" aoClicar={() => setDisciplina(d)}>
-            Editar
-          </Botao>
-          <Botao variante="perigo" aoClicar={() => void excluir(d)}>
-            Excluir
-          </Botao>
-        </>
-      ),
-    },
-  ];
-
   const grupos = agruparPorPeriodo(dados?.disciplinas ?? []);
 
   return (
@@ -300,14 +444,55 @@ function DetalheCurso({
 
           {grupos.length === 0 && <p>Nenhuma disciplina cadastrada neste curso.</p>}
           {grupos.map(([periodo, lista]) => (
-            <Cartao key={periodo} titulo={`${unidadeDoRegime(dados.regime)} ${periodo}`}>
-              <Tabela
-                colunas={colunas}
-                dados={lista}
-                chave={(d) => d.id}
-                vazio="Nenhuma disciplina."
-              />
-            </Cartao>
+            <section key={periodo} className="academico-periodo-bloco">
+              <h3 className="academico-periodo-titulo">
+                <span>{rotuloPeriodoSugerido(dados.regime, periodo)}</span>
+                <span className="academico-texto-suave">{lista.length} disciplina(s)</span>
+              </h3>
+              {lista.length === 0 ? (
+                <p className="tabela-vazia">Nenhuma disciplina.</p>
+              ) : (
+                <ul className="academico-disciplinas">
+                  {lista.map((d) => {
+                    const acoesDo: AcaoMenu[] = [
+                      { rotulo: 'Editar', icone: 'lapis', aoClicar: () => setDisciplina(d) },
+                      { rotulo: 'Excluir', icone: 'fechar', perigo: true, aoClicar: () => void excluir(d) },
+                    ];
+                    return (
+                      <li key={d.id} className="academico-disciplina">
+                        <div className="academico-disciplina-texto">
+                          <span>
+                            <span className="academico-codigo">{d.codigo}</span>{' '}
+                            <span className="academico-nome-forte">{d.nome}</span>
+                          </span>
+                          <span className="academico-disciplina-meta">
+                            <span>{d.cargaHoraria} h</span>
+                            <span>{d.creditos} créditos</span>
+                            <span>
+                              Obrigatória:{' '}
+                              <Selo cor={d.obrigatoria ? 'azul' : 'cinza'}>
+                                {d.obrigatoria ? 'SIM' : 'NÃO'}
+                              </Selo>
+                            </span>
+                            <span className="academico-pre-requisitos">
+                              <span>Pré-requisitos:</span>
+                              {d.preRequisitos.length > 0 ? (
+                                d.preRequisitos.map((p) => <Selo key={p.id}>{p.codigo}</Selo>)
+                              ) : (
+                                <span>Nenhum</span>
+                              )}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="academico-disciplina-acoes">
+                          <MenuAcoes rotulo={`Ações de ${d.nome}`} acoes={acoesDo} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
           ))}
 
           <Modal

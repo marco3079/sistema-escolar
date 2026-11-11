@@ -3,7 +3,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import type { RotaModulo } from '../../lib/rotas';
 import { useDados } from '../../lib/useDados';
-import { Aviso, Botao, Carregando, Modal, Pagina } from '../../ui';
+import { Aviso, Botao, Modal, Pagina } from '../../ui';
 import { FormularioComunicado } from './FormularioComunicado';
 import { ListaComunicados } from './ListaComunicados';
 import type { ComunicadoDTO } from './tipos';
@@ -32,18 +32,16 @@ function ComunicadosAdmin() {
   }
 
   return (
-    <Pagina titulo="Comunicados" acoes={<Botao aoClicar={() => setNovoAberto(true)}>Novo comunicado</Botao>}>
+    <Pagina titulo="Comunicados">
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
       {lista.erro && <Aviso tipo="erro">{lista.erro}</Aviso>}
-      {lista.carregando ? (
-        <Carregando />
-      ) : (
-        <ListaComunicados
-          comunicados={lista.dados ?? []}
-          podeExcluir={(c) => usuario?.perfil === 'ADMIN' || c.autorId === usuario?.id}
-          aoExcluir={excluir}
-        />
-      )}
+      <ListaComunicados
+        comunicados={lista.dados ?? []}
+        carregando={lista.carregando}
+        acaoNovo={<Botao aoClicar={() => setNovoAberto(true)}>Novo comunicado</Botao>}
+        podeExcluir={(c) => usuario?.perfil === 'ADMIN' || c.autorId === usuario?.id}
+        aoExcluir={excluir}
+      />
 
       <Modal aberto={novoAberto} titulo="Novo comunicado" aoFechar={() => setNovoAberto(false)}>
         <FormularioComunicado
@@ -65,18 +63,15 @@ function ComunicadosProfessor() {
   const [novoAberto, setNovoAberto] = useState(false);
 
   return (
-    <Pagina
-      titulo="Comunicados"
-      acoes={
-        <Botao aoClicar={() => setNovoAberto(true)}>Novo comunicado para turma</Botao>
-      }
-    >
+    <Pagina titulo="Comunicados">
       {lista.erro && <Aviso tipo="erro">{lista.erro}</Aviso>}
-      {lista.carregando ? (
-        <Carregando />
-      ) : (
-        <ListaComunicados comunicados={lista.dados ?? []} />
-      )}
+      <ListaComunicados
+        comunicados={lista.dados ?? []}
+        carregando={lista.carregando}
+        acaoNovo={
+          <Botao aoClicar={() => setNovoAberto(true)}>Novo comunicado para turma</Botao>
+        }
+      />
 
       <Modal
         aberto={novoAberto}
@@ -102,11 +97,7 @@ function ComunicadosAluno() {
   return (
     <Pagina titulo="Comunicados">
       {lista.erro && <Aviso tipo="erro">{lista.erro}</Aviso>}
-      {lista.carregando ? (
-        <Carregando />
-      ) : (
-        <ListaComunicados comunicados={lista.dados ?? []} />
-      )}
+      <ListaComunicados comunicados={lista.dados ?? []} carregando={lista.carregando} />
     </Pagina>
   );
 }

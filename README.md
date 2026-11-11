@@ -1,10 +1,38 @@
 <p align="center"><img src="assets/artes/logo.png" alt="Sistema Escolar" width="420"></p>
 
-# Sistema escolar
+<p align="center">Sistema de gestão escolar, do ensino fundamental ao doutorado, em um único app web.</p>
 
-Sistema de gestão escolar que cobre do ensino fundamental ao doutorado. Ele reúne cadastros, matrícula, vida acadêmica, notas e frequência, pós-graduação, financeiro, horários, biblioteca e comunicados em um único app web.
+<p align="center">
+  <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-blue" alt="Licença MIT">
+  <img src="https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/Node-20-339933?logo=node.js&logoColor=white" alt="Node 20">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React 18">
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 16">
+</p>
 
-## Níveis de ensino cobertos
+<p align="center"><img src="docs/imagens/painel-claro.png" alt="Tela inicial do portal administrativo" width="900"></p>
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Funcionalidades](#funcionalidades)
+- [Telas](#telas)
+- [Instalação rápida](#instalação-rápida)
+- [Primeiro acesso](#primeiro-acesso)
+- [Dados de demonstração](#dados-de-demonstração)
+- [Configuração](#configuração)
+- [Arquitetura](#arquitetura)
+- [Desenvolvimento](#desenvolvimento)
+- [Contribuindo](#contribuindo)
+- [Segurança](#segurança)
+- [Licença](#licença)
+
+## Visão geral
+
+O Sistema Escolar reúne cadastros, matrícula, vida acadêmica, notas e frequência, pós-graduação, financeiro, horários, biblioteca e comunicados em um único app web. Ele serve a escolas e instituições de ensino que querem tudo em um lugar só, e funciona no computador e no celular.
+
+Cobre os oito níveis de ensino:
 
 - Ensino fundamental I e II
 - Ensino médio
@@ -16,58 +44,182 @@ Sistema de gestão escolar que cobre do ensino fundamental ao doutorado. Ele re�
 
 As regras de aprovação seguem o nível: frequência mínima de 75% e média mínima 6 para os níveis básicos, técnico e graduação; média mínima 7 para especialização, mestrado e doutorado.
 
-## Portais
+Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 
-Um único app web com três portais, escolhidos pelo perfil do usuário no login:
+- **Administrativo** (perfis administrador, TI e secretaria): cadastros, matrículas, cursos, turmas, financeiro, biblioteca, horários, calendário e comunicados.
+- **Professor**: minhas turmas, diário de classe, orientações, biblioteca, horário, calendário e comunicados.
+- **Aluno**: matrícula e inscrição em disciplinas, boletim, histórico, pesquisa (pós-graduação), mensalidades, biblioteca, horário, calendário e comunicados.
 
-- **Administrativo** (perfis ADMIN e SECRETARIA, em `/admin`): alunos, professores, usuários (só ADMIN), cursos, períodos letivos, turmas, matrículas, boletins, pós-graduação, financeiro, biblioteca, horários, calendário e comunicados.
-- **Professor** (perfil PROFESSOR, em `/professor`): minhas turmas, diário de classe (notas, frequência e aulas), orientações, biblioteca, horário, calendário, comunicados e meu perfil.
-- **Aluno** (perfil ALUNO, em `/aluno`): matrícula e inscrição em disciplinas, boletim, histórico, pesquisa (pós-graduação), financeiro (mensalidades), biblioteca, horário, calendário, comunicados e meu perfil.
+## Funcionalidades
 
-## Como rodar com Docker
+**Administrativo**
 
-Requisitos: Docker com Docker Compose.
+- Cadastros de alunos e professores, com ficha completa de cada um
+- Cursos, períodos letivos e turmas
+- Matrícula com pré-requisitos e controle de vagas
+- Boletins, pós-graduação com bancas, financeiro e biblioteca
+- Horários, calendário, comunicados e busca geral
+- Painel com indicadores e gráfico
+- Perfil TI, com o mesmo acesso do administrador
+- Painel "Atividades" com o registro de ações em tempo real, visível só para administrador e TI; os registros são guardados por 90 dias
 
-```bash
-docker compose up --build
+**Professor**
+
+- Diário de classe com notas e frequência
+- Orientações de pós-graduação
+- Horário, calendário, biblioteca e comunicados
+
+**Aluno**
+
+- Matrícula e inscrição em disciplinas
+- Boletim e histórico
+- Mensalidades e biblioteca
+- Horário, calendário e comunicados
+
+**Geral**
+
+- Biblioteca com capas de livros, com alternância entre tabela e cartões
+- Calendário em grade mensal
+- Perfil com medalhas, nível e foto
+- Suporte por chamados (tickets), com atendimento por categoria
+- Fórum com comunidades, votos e comentários
+- Temas claro e escuro
+- Uso no celular, com opção de instalar como app (PWA)
+
+## Telas
+
+<p align="center"><img src="docs/imagens/painel-escuro.png" alt="Painel administrativo no tema escuro" width="900"></p>
+<p align="center"><em>Painel administrativo no tema escuro.</em></p>
+
+<p align="center"><img src="docs/imagens/atividades.png" alt="Painel de atividades" width="900"></p>
+<p align="center"><em>Painel de atividades, com o registro de ações em tempo real.</em></p>
+
+<p align="center"><img src="docs/imagens/biblioteca.png" alt="Acervo da biblioteca em cartões" width="900"></p>
+<p align="center"><em>Acervo da biblioteca, com capas em cartões.</em></p>
+
+<p align="center"><img src="docs/imagens/forum.png" alt="Fórum" width="900"></p>
+<p align="center"><em>Fórum, com comunidades, votos e comentários.</em></p>
+
+<p align="center"><img src="docs/imagens/alunos.png" alt="Lista de alunos" width="900"></p>
+<p align="center"><em>Lista de alunos, com menu de ações em cada linha.</em></p>
+
+<p align="center"><img src="docs/imagens/ficha-aluno.png" alt="Ficha do aluno" width="900"></p>
+<p align="center"><em>Ficha do aluno, um painel com o resumo de tudo sobre ele.</em></p>
+
+<p align="center"><img src="docs/imagens/diario.png" alt="Diário do professor" width="900"></p>
+<p align="center"><em>Diário do professor, com notas e frequência.</em></p>
+
+<p align="center"><img src="docs/imagens/login.png" alt="Tela de login" width="900"></p>
+<p align="center"><em>Tela de entrada.</em></p>
+
+<p align="center"><img src="docs/imagens/boletim-celular.png" alt="Boletim no celular" width="320"></p>
+<p align="center"><em>Boletim do aluno em tela de celular.</em></p>
+
+Os dados mostrados nas telas são fictícios.
+
+## Instalação rápida
+
+Requisitos: nada além do **Docker Desktop** (e do **Git**, para baixar o projeto). O instalador confere o Docker, oferece instalar o que faltar, cria o arquivo `.env` com senhas aleatórias, baixa todas as dependências e sobe o sistema.
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/marco3079/sistema-escolar.git
+cd sistema-escolar
+powershell -ExecutionPolicy Bypass -File .\instalar.ps1
 ```
 
-Depois de subir:
+**Linux e macOS (terminal):**
 
-- Aplicativo web: abra `http://localhost:8090`
-- API (teste de saúde): `http://localhost:3090/api/saude`
+```bash
+git clone https://github.com/marco3079/sistema-escolar.git
+cd sistema-escolar
+bash instalar.sh
+```
 
-As portas podem ser trocadas com as variáveis `WEB_PORT` e `API_PORT` (veja `.env.example`).
+No fim da instalação, o instalador mostra o endereço do site (por padrão `http://localhost:8090`) e o e-mail do administrador.
 
-O banco PostgreSQL roda no contêiner `db` e só fica acessível pelo próprio computador (`127.0.0.1:5432`). Os valores padrão de senha e segredo JWT são de exemplo (veja `.env.example`) e devem ser trocados em produção.
+Para um passo a passo para quem não é programador, veja [INSTALAR.md](INSTALAR.md).
 
-## Como usar no celular
+### Instalar com um assistente de IA
 
-1. Conecte o celular na mesma rede Wi-Fi do computador onde o sistema está rodando.
-2. No navegador do celular, abra `http://<IP-do-computador>:8090` (por exemplo, `http://192.168.0.10:8090`).
-3. Use a opção "Adicionar à tela inicial" do navegador para instalar o app como PWA.
+Se você usa um assistente com acesso ao terminal (Claude Code, Cursor, Copilot ou outro), cole este texto nele:
 
-## Usuários de demonstração
+> Instale o sistema escolar do repositório https://github.com/marco3079/sistema-escolar neste computador seguindo o arquivo AGENTS.md do repositório. Ao terminar, me diga o endereço para abrir no navegador e onde está a senha do administrador.
 
-Todos os usuários abaixo usam a senha **`demo1234`**.
+As instruções para o assistente estão em [AGENTS.md](AGENTS.md).
 
-Os dados são **fictícios** e existem só para demonstração. Não use estes usuários nem estes dados em uma escola real.
+## Primeiro acesso
 
-| Perfil | E-mail |
-|---|---|
-| Administrador | `admin@escola.demo` |
-| Secretaria | `secretaria@escola.demo` |
-| Professor | `prof.ana@escola.demo` |
-| Aluno (fundamental) | `aluno.lucas@escola.demo` |
-| Aluno (graduação) | `aluna.marina@escola.demo` |
-| Aluno (doutorado) | `aluno.rafael@escola.demo` |
+Na primeira subida, o sistema cria uma única conta: a do **administrador**. O e-mail dela fica na variável `ADMIN_EMAIL` do arquivo `.env`. A senha fica na variável `ADMIN_SENHA` do mesmo arquivo, que o instalador preenche com uma senha aleatória. Se `ADMIN_SENHA` estiver vazia, o servidor gera uma senha e a imprime uma única vez no log da API (`docker compose logs api`).
 
-## Desenvolvimento sem Docker
+1. Abra o endereço do site e entre com o administrador.
+2. Troque a senha em **Meu perfil**.
+3. Cadastre o período letivo, os cursos, os professores, as turmas e os alunos.
+
+O sistema começa vazio. Nenhuma senha de acesso está escrita neste repositório.
+
+## Dados de demonstração
+
+Para testar com uma escola fictícia, use a opção de demonstração numa instalação nova:
+
+- Windows: `powershell -ExecutionPolicy Bypass -File .\instalar.ps1 -Demo`
+- Linux e macOS: `bash instalar.sh --demo`
+
+Os acessos de demonstração usam o domínio `escola.demo` e estão definidos em `server/prisma/seed-demo.ts`. Os dados são fictícios e servem só para teste.
+
+## Configuração
+
+O arquivo `.env` na raiz do projeto é lido pelo Docker Compose. O instalador cria esse arquivo; para ajustar à mão, copie o `.env.example`.
+
+| Variável | Padrão | Para que serve |
+|---|---|---|
+| `POSTGRES_PASSWORD` | `escola` | Senha do banco de dados |
+| `JWT_SECRET` | `troque-este-segredo-de-exemplo` | Segredo que assina os logins |
+| `ADMIN_NOME` | `Administrador` | Nome da conta de administrador criada na primeira subida |
+| `ADMIN_EMAIL` | `admin@escola.local` | E-mail da conta de administrador |
+| `ADMIN_SENHA` | vazio | Senha do administrador; vazio faz o servidor gerar uma e mostrá-la no log |
+| `SEED_DEMO` | `false` | `true` carrega os dados de demonstração (só para teste) |
+| `WEB_PORT` | `8090` | Porta do site |
+| `API_PORT` | `3090` | Porta da API, publicada somente em `127.0.0.1` |
+| `DB_PORT` | `5432` | Porta do banco, publicada somente em `127.0.0.1` |
+
+Os valores padrão são exemplos. Os instaladores geram segredos aleatórios no `.env`. Não envie o `.env` para o Git.
+
+## Arquitetura
+
+O sistema roda em três contêineres, orquestrados pelo `docker-compose.yml`:
+
+- **`db`**: PostgreSQL 16.
+- **`api`**: API em Node.js 20 e TypeScript (Express e Prisma). Na subida, aplica o esquema do banco e cria o administrador.
+- **`web`**: o app React servido pelo nginx, que também encaminha `/api` para a API.
+
+Estrutura de pastas:
+
+```
+sistema-escolar/
+  docker-compose.yml
+  instalar.ps1 / instalar.sh   instaladores (Windows e Linux/macOS)
+  server/                      API (Node 20, TypeScript, Express, Prisma)
+  client/                      aplicativo web (React, TypeScript, Vite)
+  docs/                        documentação técnica e imagens
+```
+
+Tecnologias:
+
+- **API**: Node.js 20, TypeScript, Express 4, Prisma 5, zod, JWT, bcryptjs
+- **Aplicativo**: React 18, TypeScript, Vite 5, react-router-dom 6
+- **Banco de dados**: PostgreSQL 16
+- **Implantação**: Docker Compose, nginx
+
+Para os detalhes, veja [docs/ARQUITETURA.md](docs/ARQUITETURA.md) e [docs/API.md](docs/API.md).
+
+## Desenvolvimento
 
 Para desenvolver sem contêineres de aplicação, suba só o banco pelo Compose e rode a API e o app com o Node.js 20:
 
 ```bash
-# 1) banco (PostgreSQL publicado só em 127.0.0.1:5432)
+# 1) banco (PostgreSQL publicado só em 127.0.0.1, na porta DB_PORT)
 docker compose up -d db
 
 # 2) API
@@ -86,25 +238,24 @@ npm run dev
 
 Com o app em modo de desenvolvimento, abra `http://localhost:5173`.
 
-## Estrutura de pastas
+O comando `npm run seed` cria o administrador (com `ADMIN_EMAIL` e `ADMIN_SENHA` do `server/.env`). Se `ADMIN_SENHA` estiver vazia, a senha gerada aparece no terminal, uma única vez.
 
+Se mudar `DB_PORT`, ajuste também a `DATABASE_URL` do `server/.env` para a mesma porta.
+
+Verificações antes de enviar uma mudança:
+
+```bash
+cd server && npx tsc --noEmit
+cd client && npx tsc --noEmit && npx vite build
 ```
-sistema_escolar/
-  docker-compose.yml
-  server/    API (Node 20, TypeScript, Express, Prisma)
-  client/    Aplicativo web (React, TypeScript, Vite)
-```
 
-Dentro de `server/`: `prisma/` (esquema do banco e dados de demonstração), `src/server.ts`, `src/app.ts`, `src/lib/` (código compartilhado) e `src/modules/<modulo>/routes.ts` (um arquivo de rotas por módulo).
+## Contribuindo
 
-Dentro de `client/`: `src/main.tsx`, `src/App.tsx`, `src/lib/` (código compartilhado), `src/ui/` (componentes visuais) e `src/modules/<modulo>/index.tsx` (telas de cada módulo).
+Sugestões e correções são bem-vindas. Veja [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Tecnologias
+## Segurança
 
-- **API**: Node.js 20, TypeScript, Express 4, Prisma 5, zod, JWT, bcryptjs
-- **Aplicativo**: React 18, TypeScript, Vite 5, react-router-dom 6
-- **Banco de dados**: PostgreSQL 16
-- **Implantação**: Docker Compose, nginx (serve o app e encaminha `/api` para a API)
+Para relatar uma vulnerabilidade, siga as instruções em [SECURITY.md](SECURITY.md).
 
 ## Licença
 

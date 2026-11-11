@@ -64,6 +64,139 @@ export interface PerfilMeu extends UsuarioDTO {
   } | null;
 }
 
+// Respostas de GET /alunos/:id/ficha e GET /professores/:id/ficha (docs/plano/i-g05-fichas-api.md).
+
+export interface FichaAlunoDTO {
+  aluno: {
+    id: number;
+    ra: string;
+    nome: string;
+    email: string;
+    cpf: string | null;
+    telefone: string | null;
+    ativo: boolean;
+    dataNascimento: string;
+    idade: number;
+    endereco: string | null;
+    responsavelNome: string | null;
+    responsavelTelefone: string | null;
+    responsavelEmail: string | null;
+    usuarioId: number;
+    criadoEm: string;
+  };
+  indicadores: {
+    disciplinasCursando: number;
+    mediaGeral: number | null;
+    frequenciaMedia: number | null;
+    mensalidadesEmAberto: number;
+    valorEmAberto: number;
+    emprestimosAtivos: number;
+  };
+  matriculas: {
+    id: number;
+    status: string;
+    serieAtual: number;
+    dataMatricula: string;
+    curso: { id: number; nome: string; nivel: string; regime: string };
+    periodoIngresso: string;
+  }[];
+  disciplinas: {
+    inscricaoId: number;
+    disciplina: string;
+    codigo: string;
+    turma: string;
+    periodo: string;
+    professor: string;
+    status: string;
+    notaFinal: number | null;
+    frequencia: number | null;
+  }[];
+  mensalidades: {
+    id: number;
+    competencia: string;
+    vencimento: string;
+    valorFinal: number;
+    status: string;
+  }[];
+  emprestimos: {
+    id: number;
+    livro: string;
+    retiradoEm: string;
+    devolucaoPrevista: string;
+    devolvidoEm: string | null;
+    atrasado: boolean;
+  }[];
+  projeto: { id: number; titulo: string; status: string; orientador: string } | null;
+}
+
+export interface FichaProfessorDTO {
+  professor: {
+    id: number;
+    registro: string;
+    nome: string;
+    email: string;
+    cpf: string | null;
+    telefone: string | null;
+    ativo: boolean;
+    titulacao: string;
+    area: string | null;
+    usuarioId: number;
+    criadoEm: string;
+  };
+  indicadores: {
+    turmasAtivas: number;
+    alunos: number;
+    orientacoes: number;
+    frequenciaMedia: number | null;
+    mediaDasTurmas: number | null;
+    cargaSemanalHoras: number;
+  };
+  turmas: {
+    id: number;
+    codigo: string;
+    disciplina: string;
+    curso: string;
+    periodo: string;
+    periodoAtivo: boolean;
+    grupo: string | null;
+    sala: string | null;
+    inscritos: number;
+    vagas: number;
+  }[];
+  horarios: {
+    diaSemana: number;
+    horaInicio: string;
+    horaFim: string;
+    sala: string | null;
+    turma: string;
+    disciplina: string;
+  }[];
+  orientacoes: {
+    id: number;
+    titulo: string;
+    status: string;
+    aluno: string;
+    curso: string;
+    papel: 'Orientador' | 'Coorientador';
+  }[];
+  bancas: {
+    id: number;
+    tipo: string;
+    data: string;
+    resultado: string;
+    papel: string;
+    projeto: string;
+  }[];
+  emprestimos: {
+    id: number;
+    livro: string;
+    retiradoEm: string;
+    devolucaoPrevista: string;
+    devolvidoEm: string | null;
+    atrasado: boolean;
+  }[];
+}
+
 export const TITULACOES: { valor: string; rotulo: string }[] = [
   { valor: 'GRADUADO', rotulo: 'Graduado' },
   { valor: 'ESPECIALISTA', rotulo: 'Especialista' },
@@ -115,4 +248,38 @@ export function queryString(params: Record<string, string>): string {
     .filter(([, v]) => v !== '')
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
   return partes.length ? `?${partes.join('&')}` : '';
+}
+
+// Log de atividades (docs/plano/segunda-leva.md): GET /logs, GET /logs/usuarios/:id/resumo.
+
+export interface LogDTO {
+  id: number;
+  criadoEm: string;
+  usuarioId: number | null;
+  usuarioNome: string | null;
+  perfil: string | null;
+  tipo: string;
+  modulo: string;
+  descricao: string;
+  metodo: string | null;
+  caminho: string | null;
+  status: number | null;
+  duracaoMs: number | null;
+  ip: string | null;
+  navegador: string | null;
+}
+
+export interface ListaLogDTO {
+  itens: LogDTO[];
+  haMais: boolean;
+}
+
+export interface ResumoUsuarioLogDTO {
+  ultimoLogin: string | null;
+  ultimaAtividade: string | null;
+  telaAtual: string | null;
+  online: boolean;
+  atividadesHoje: number;
+  atividades7Dias: number;
+  porTipo: { tipo: string; total: number }[];
 }

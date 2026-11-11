@@ -1,5 +1,7 @@
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, matchPath, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 import { caminhoDoPerfil, Layout } from './layout/Layout';
 import { Login } from './layout/Login';
@@ -50,21 +52,40 @@ function NaoEncontrada() {
   );
 }
 
+// Avisa o servidor a cada troca de tela (para o log de atividades). Falha silenciosa.
+function RegistroDeTelas() {
+  const { usuario } = useAuth();
+  const { pathname } = useLocation();
+  const logado = usuario !== null;
+
+  useEffect(() => {
+    if (!logado) return;
+    const rota = ROTAS.find((r) => matchPath(r.caminho, pathname) !== null);
+    if (!rota) return;
+    api.post('/logs/tela', { caminho: pathname, titulo: rota.rotulo }).catch(() => undefined);
+  }, [pathname, logado]);
+
+  return null;
+}
+
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Raiz />} />
-      <Route element={<LayoutDoPerfil />}>
-        {ROTAS.map((r) => (
-          <Route
-            key={r.caminho}
-            path={r.caminho}
-            element={<RotaProtegida perfis={r.perfis}>{r.elemento}</RotaProtegida>}
-          />
-        ))}
-        <Route path="*" element={<NaoEncontrada />} />
-      </Route>
-    </Routes>
+    <>
+      <RegistroDeTelas />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Raiz />} />
+        <Route element={<LayoutDoPerfil />}>
+          {ROTAS.map((r) => (
+            <Route
+              key={r.caminho}
+              path={r.caminho}
+              element={<RotaProtegida perfis={r.perfis}>{r.elemento}</RotaProtegida>}
+            />
+          ))}
+          <Route path="*" element={<NaoEncontrada />} />
+        </Route>
+      </Routes>
+    </>
   );
 }

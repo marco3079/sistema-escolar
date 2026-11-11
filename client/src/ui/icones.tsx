@@ -5,7 +5,10 @@ export type NomeIcone =
   | 'matriculas' | 'diario' | 'boletim' | 'historico' | 'pos' | 'financeiro' | 'biblioteca'
   | 'horarios' | 'calendario' | 'comunicados' | 'perfil' | 'menu' | 'mais' | 'sair' | 'fechar'
   | 'busca' | 'sino' | 'seta-direita' | 'seta-cima' | 'seta-baixo' | 'chevron-baixo'
-  | 'relogio' | 'raio' | 'grafico' | 'engrenagem' | 'documento' | 'lapis';
+  | 'relogio' | 'raio' | 'grafico' | 'engrenagem' | 'documento' | 'lapis'
+  | 'atividade' | 'log' | 'grade' | 'lista' | 'imagem' | 'pausar' | 'reproduzir'
+  | 'medalha' | 'suporte' | 'forum' | 'voto-cima' | 'voto-baixo' | 'comentario'
+  | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado';
 
 export const NOMES_ICONES: NomeIcone[] = [
   'inicio', 'alunos', 'professores', 'usuarios', 'cursos', 'periodos', 'turmas',
@@ -13,6 +16,9 @@ export const NOMES_ICONES: NomeIcone[] = [
   'horarios', 'calendario', 'comunicados', 'perfil', 'menu', 'mais', 'sair', 'fechar',
   'busca', 'sino', 'seta-direita', 'seta-cima', 'seta-baixo', 'chevron-baixo',
   'relogio', 'raio', 'grafico', 'engrenagem', 'documento', 'lapis',
+  'atividade', 'log', 'grade', 'lista', 'imagem', 'pausar', 'reproduzir',
+  'medalha', 'suporte', 'forum', 'voto-cima', 'voto-baixo', 'comentario',
+  'anexo', 'estrela', 'enviar', 'fixar', 'cadeado',
 ];
 
 // Desenhos sólidos em grade 24 x 24 (área útil 2.5 a 21.5). Preenchidos com currentColor.
@@ -223,6 +229,86 @@ const DESENHOS: Record<NomeIcone, ReactNode> = {
   // Lápis sólido na diagonal, ponta para baixo à esquerda, com a virola recortada.
   lapis: (
     <path fillRule="evenodd" clipRule="evenodd" d="M3.5 20.5L8.24 18.88L21.06 6.06L17.94 2.94L5.12 15.76ZM14.21 6.67L17.33 9.79L17.96 9.16L14.84 6.04Z" />
+  ),
+
+  // Linha de pulso (traço grosso, como um eletrocardiograma).
+  atividade: <path d="M2.5 12H7L9.5 6.5L13 17.5L15.5 12H21.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />,
+
+  // Folha sólida com três linhas recortadas e um ponto recortado à esquerda de cada linha.
+  log: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M4.5 2.5H19.5V21.5H4.5ZM6.4 8A1.1 1.1 0 1 0 8.6 8A1.1 1.1 0 1 0 6.4 8ZM10 7.2H16.5V8.8H10ZM6.4 12A1.1 1.1 0 1 0 8.6 12A1.1 1.1 0 1 0 6.4 12ZM10 11.2H16.5V12.8H10ZM6.4 16A1.1 1.1 0 1 0 8.6 16A1.1 1.1 0 1 0 6.4 16ZM10 15.2H16.5V16.8H10Z" />
+  ),
+
+  // Quatro quadrados arredondados sólidos em 2 x 2.
+  grade: (
+    <path d="M4.5 2.5H9Q11 2.5 11 4.5V9Q11 11 9 11H4.5Q2.5 11 2.5 9V4.5Q2.5 2.5 4.5 2.5ZM15 2.5H19.5Q21.5 2.5 21.5 4.5V9Q21.5 11 19.5 11H15Q13 11 13 9V4.5Q13 2.5 15 2.5ZM4.5 13H9Q11 13 11 15V19.5Q11 21.5 9 21.5H4.5Q2.5 21.5 2.5 19.5V15Q2.5 13 4.5 13ZM15 13H19.5Q21.5 13 21.5 15V19.5Q21.5 21.5 19.5 21.5H15Q13 21.5 13 19.5V15Q13 13 15 13Z" />
+  ),
+
+  // Três barras sólidas horizontais, cada uma com um ponto sólido à esquerda.
+  lista: (
+    <path d="M2.5 6A2 2 0 1 0 6.5 6A2 2 0 1 0 2.5 6ZM9 4.5H21V7.5H9ZM2.5 12A2 2 0 1 0 6.5 12A2 2 0 1 0 2.5 12ZM9 10.5H21V13.5H9ZM2.5 18A2 2 0 1 0 6.5 18A2 2 0 1 0 2.5 18ZM9 16.5H21V19.5H9Z" />
+  ),
+
+  // Moldura sólida com uma montanha e um sol recortados.
+  imagem: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M2.5 4H21.5V20H2.5ZM14.5 9A2 2 0 1 0 18.5 9A2 2 0 1 0 14.5 9ZM4.5 17L9.5 11.5L12.5 14.5L14.5 12.5L19.5 17Z" />
+  ),
+
+  // Duas barras verticais sólidas.
+  pausar: <path d="M6 4H10V20H6ZM14 4H18V20H14Z" />,
+
+  // Triângulo sólido apontando para a direita.
+  reproduzir: <path d="M7 4.5L19.5 12L7 19.5Z" />,
+
+  // Círculo sólido com estrela recortada e duas fitas embaixo.
+  medalha: (
+    <>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5.5 9A6.5 6.5 0 1 0 18.5 9A6.5 6.5 0 1 0 5.5 9ZM12 5.4L12.88 7.79L15.42 7.89L13.43 9.46L14.12 11.91L12 10.5L9.88 11.91L10.57 9.46L8.58 7.89L11.12 7.79Z" />
+      <path d="M7 13.8H10.4L9.5 21.5L8.7 20.3L7.8 21.5ZM17 13.8H13.6L14.5 21.5L15.3 20.3L16.2 21.5Z" />
+    </>
+  ),
+
+  // Balão de conversa sólido com um ponto de interrogação recortado.
+  suporte: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5.5 3H18.5Q21 3 21 5.5V14Q21 16.5 18.5 16.5H10.5L6.5 20.5V16.5H5.5Q3 16.5 3 14V5.5Q3 3 5.5 3ZM9.7 8.4A2.3 2.3 0 1 1 12 10.7L12 9.5A0.9 0.9 0 1 0 11.1 8.4ZM11.3 10.9H12.7V12.9H11.3ZM11.1 14.6A0.9 0.9 0 1 0 12.9 14.6A0.9 0.9 0 1 0 11.1 14.6Z" />
+  ),
+
+  // Dois balões de conversa sólidos sobrepostos.
+  forum: (
+    <path d="M10.5 2.5H19Q21.5 2.5 21.5 5V10Q21.5 12.5 19 12.5H17.5L15.5 14.5V12.5H10.5Q8 12.5 8 10V5Q8 2.5 10.5 2.5ZM5.5 9H13.5Q16 9 16 11.5V16Q16 18.5 13.5 18.5H13V21.5L9.5 18.5H5.5Q3 18.5 3 16V11.5Q3 9 5.5 9Z" />
+  ),
+
+  // Seta larga para cima (triângulo com haste), sólida.
+  'voto-cima': <path d="M12 3L21.5 12.5H16.5V21H7.5V12.5H2.5Z" />,
+
+  // Seta larga para baixo (triângulo com haste), sólida.
+  'voto-baixo': <path d="M12 21L21.5 11.5H16.5V3H7.5V11.5H2.5Z" />,
+
+  // Balão de conversa sólido com três pontos recortados.
+  comentario: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5.5 3H18.5Q21 3 21 5.5V14Q21 16.5 18.5 16.5H10.5L6.5 20.5V16.5H5.5Q3 16.5 3 14V5.5Q3 3 5.5 3ZM6.7 10A1.3 1.3 0 1 0 9.3 10A1.3 1.3 0 1 0 6.7 10ZM10.7 10A1.3 1.3 0 1 0 13.3 10A1.3 1.3 0 1 0 10.7 10ZM14.7 10A1.3 1.3 0 1 0 17.3 10A1.3 1.3 0 1 0 14.7 10Z" />
+  ),
+
+  // Clipe de papel em traço.
+  anexo: (
+    <path d="M20 11.5L12.2 19.3A4.8 4.8 0 0 1 5.4 12.5L13.2 4.7A3.2 3.2 0 0 1 17.7 9.2L10.1 16.8A1.6 1.6 0 0 1 7.8 14.5L14.6 7.7" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+  ),
+
+  // Estrela sólida de cinco pontas.
+  estrela: <path d="M12 2.5L14.9 8.6L21.5 9.4L16.6 14L17.9 20.6L12 17.3L6.1 20.6L7.4 14L2.5 9.4L9.1 8.6Z" />,
+
+  // Avião de papel sólido apontando para a direita.
+  enviar: <path d="M2.5 3.5L21.5 12L2.5 20.5L4.5 13.5L13.5 12L4.5 10.5Z" />,
+
+  // Alfinete sólido na diagonal (cabeça no canto superior direito, agulha embaixo à esquerda).
+  fixar: <path d="M14.5 2.5L21.5 9.5L18.5 11L13 16.5L13.5 19.5L12 21L8.5 17.5L3 12L4.5 10.5L7.5 11L13 5.5ZM3.2 20.8L7.6 16.4L8.4 17.2L4 21.6Z" />,
+
+  // Cadeado sólido: arco em traço cheio separado do corpo, com fechadura recortada.
+  cadeado: (
+    <>
+      <path d="M7 10V8A5 5 0 0 1 17 8V10H15V8A3 3 0 0 0 9 8V10Z" />
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 10H19Q20.5 10 20.5 11.5V20Q20.5 21.5 19 21.5H5Q3.5 21.5 3.5 20V11.5Q3.5 10 5 10ZM10.5 15A1.5 1.5 0 1 0 13.5 15A1.5 1.5 0 1 0 10.5 15ZM11.2 16.5H12.8V18.5H11.2Z" />
+    </>
   ),
 };
 

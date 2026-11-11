@@ -1,5 +1,5 @@
 /* Agenda: grade de horários e calendário. Celular primeiro (360 px).
-   Cores só por variáveis do tema (estilo.css), para funcionar no tema claro e no escuro. */
+   Cores, raios e sombras só por variáveis do tema (estilo.css), para funcionar no tema claro e no escuro. */
 
 .agenda-vazia {
   color: var(--cor-texto-suave);
@@ -37,7 +37,7 @@
   color: var(--cor-texto);
   border-left: 4px solid var(--cor-primaria);
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--sombra);
   margin-bottom: 8px;
   padding: 8px;
   font-size: 0.9rem;
@@ -54,55 +54,439 @@
   color: var(--cor-texto-suave);
 }
 
-/* Calendário */
+/* ===== Tipos de evento: fundo suave e cor de acento (faixas, cartões, legenda e detalhe) ===== */
 
-.calendario-mes {
-  margin-bottom: 16px;
+.agenda-tipo-LETIVO {
+  --evento-fundo: var(--cor-azul-suave);
+  --evento-acento: var(--cor-primaria);
 }
 
-.calendario-mes-titulo {
-  font-size: 1.05rem;
-  margin: 0 0 4px;
-  border-bottom: 2px solid var(--cor-borda);
-  padding-bottom: 4px;
+.agenda-tipo-FERIADO {
+  --evento-fundo: color-mix(in srgb, var(--cor-perigo) 14%, transparent);
+  --evento-acento: var(--cor-perigo);
 }
 
-.calendario-evento {
+.agenda-tipo-PROVA {
+  --evento-fundo: var(--cor-laranja-suave);
+  --evento-acento: var(--cor-laranja);
+}
+
+.agenda-tipo-EVENTO {
+  --evento-fundo: var(--cor-verde-suave);
+  --evento-acento: var(--cor-verde);
+}
+
+.agenda-tipo-RECESSO {
+  --evento-fundo: var(--cor-superficie-2);
+  --evento-acento: var(--cor-texto-suave);
+}
+
+/* ===== Calendário ===== */
+
+.calendario {
+  min-width: 0;
+}
+
+/* Cabeçalho: navegação de mês à esquerda, alternância Mês | Lista à direita */
+.calendario-barra {
+  align-items: center;
+}
+
+.calendario-navegacao {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--cor-borda);
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
-.calendario-evento-info {
-  flex: 1 1 200px;
+.calendario-titulo {
+  margin: 0;
+  padding: 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendario-seta,
+.calendario-hoje,
+.calendario-segmento {
+  cursor: pointer;
+  color: var(--cor-texto);
+  font-weight: 600;
+}
+
+.calendario-seta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--altura-toque);
+  height: var(--altura-toque);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.calendario-seta svg {
+  display: block;
+}
+
+.calendario-seta-esquerda {
+  transform: rotate(90deg);
+}
+
+.calendario-seta-direita {
+  transform: rotate(-90deg);
+}
+
+.calendario-hoje {
+  min-height: var(--altura-toque);
+  padding: 0 0.9rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.calendario-segmentado {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie-2);
+}
+
+.calendario-segmento {
+  min-height: calc(var(--altura-toque) - 8px);
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: calc(var(--raio-pequeno) - 2px);
+  background: transparent;
+  color: var(--cor-texto-suave);
+}
+
+.calendario-segmento[aria-pressed='true'] {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  box-shadow: var(--sombra);
+}
+
+.calendario-seta:focus-visible,
+.calendario-hoje:focus-visible,
+.calendario-segmento:focus-visible,
+.calendario-faixa:focus-visible,
+.calendario-mais:focus-visible,
+.calendario-cartao:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+/* Corpo: grade/lista e painel lateral (ao lado a partir de 1100 px) */
+.calendario-corpo {
+  display: grid;
+  gap: 1rem;
   min-width: 0;
+}
+
+.calendario-principal,
+.calendario-lateral {
+  min-width: 0;
+}
+
+/* Grade do mês: o fundo da grade vira as linhas finas entre as células */
+.calendario-mes-cartao {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+
+.calendario-grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--cor-borda);
+}
+
+.calendario-dia-semana {
+  padding: 0.5rem 0;
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto-suave);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendario-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 6px;
+  background: var(--cor-superficie);
+  overflow: hidden;
+}
+
+.calendario-dia-fora {
+  background: var(--cor-superficie-2);
+}
+
+.calendario-dia-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.calendario-dia-fora .calendario-dia-numero {
+  color: var(--cor-texto-suave);
+}
+
+.calendario-dia-hoje {
+  background: var(--cor-primaria);
+  color: var(--cor-sobre-primaria);
+  font-weight: 700;
+}
+
+/* Faixa de evento dentro do dia */
+.calendario-faixa {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-left: 3px solid var(--evento-acento);
+  border-radius: 6px;
+  background: var(--evento-fundo);
+  color: var(--cor-texto);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.calendario-faixa:hover {
+  box-shadow: inset 0 0 0 1px var(--evento-acento);
+}
+
+.calendario-faixa-texto {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendario-mais {
+  align-self: flex-start;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--cor-primaria);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Lista do mês e próximos eventos: cartões compactos, o cartão inteiro é clicável */
+.calendario-lista,
+.calendario-proximos {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.calendario-cartao {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--cor-borda);
+  border-left: 4px solid var(--evento-acento);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  box-shadow: var(--sombra);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.calendario-cartao:hover {
+  border-color: var(--cor-primaria);
+}
+
+.calendario-cartao-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  border-radius: var(--raio-pequeno);
+  background: var(--evento-fundo);
+}
+
+.calendario-cartao-dia {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--cor-texto);
+}
+
+.calendario-cartao-mes {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cor-texto-suave);
+}
+
+.calendario-cartao-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.calendario-cartao-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.calendario-evento-data {
-  color: var(--cor-texto-suave);
-  font-size: 0.85rem;
-}
-
-.calendario-evento-titulo {
-  font-weight: 500;
-}
-
-.calendario-evento-descricao {
-  color: var(--cor-texto-suave);
+.calendario-cartao-descricao {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 0.9rem;
+  color: var(--cor-texto-suave);
 }
 
-.calendario-acoes {
+.calendario-cartao-periodo {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.calendario-cartao-compacto {
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.calendario-cartao-compacto .calendario-cartao-dia {
+  font-size: 1rem;
+}
+
+/* Legenda dos tipos */
+.calendario-legenda {
   display: flex;
   flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--cor-texto-suave);
+  font-size: 0.8rem;
+}
+
+.calendario-legenda li {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
 
+.calendario-legenda-cor {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--evento-acento);
+}
+
+/* Detalhe do evento (dentro do Modal) */
+.calendario-detalhe {
+  display: grid;
+  gap: 0.75rem;
+  padding: 12px 14px;
+  border-left: 4px solid var(--evento-acento);
+  border-radius: var(--raio-pequeno);
+  background: var(--evento-fundo);
+}
+
+.calendario-detalhe-periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--cor-texto-suave);
+}
+
+.calendario-detalhe-descricao {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.calendario-detalhe-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* Celular (abaixo de 720 px): faixas viram barrinhas coloridas, sem texto, para caber em 7 colunas */
+@media (max-width: 719px) {
+  .calendario-dia {
+    padding: 4px 3px;
+  }
+
+  .calendario-faixa {
+    height: 6px;
+    min-height: 6px;
+    padding: 0;
+    border: 0;
+    background: var(--evento-acento);
+    font-size: 0;
+  }
+
+  .calendario-faixa-texto {
+    display: none;
+  }
+
+  .calendario-mais {
+    font-size: 0.65rem;
+  }
+}
+
+/* A partir de 1100 px: painel de próximos eventos ao lado da grade */
+@media (min-width: 1100px) {
+  .calendario-corpo {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    align-items: start;
+  }
+}
+
+/* Grade semanal (horários): só a partir de 720 px */
 @media (min-width: 720px) {
   .grade-semana {
     display: grid;

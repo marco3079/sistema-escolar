@@ -1,14 +1,42 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { useDados } from '../../lib/useDados';
-import { Aviso, Botao, Campo, Carregando, Modal, Pagina, Selecao, Selo, Tabela } from '../../ui';
-import { PERFIS, mensagemErro, queryString, rotuloPerfil } from './tipos';
+import {
+  Aviso,
+  Avatar,
+  Botao,
+  Campo,
+  Carregando,
+  MenuAcoes,
+  Modal,
+  Pagina,
+  Selecao,
+  Selo,
+  Tabela,
+  formatarData,
+} from '../../ui';
+import type { AcaoMenu } from '../../ui';
+import { Icone } from '../../ui/icones';
+import type { NomeIcone } from '../../ui/icones';
+import { mensagemErro, queryString, rotuloPerfil } from './tipos';
 import type { UsuarioDTO } from './tipos';
+import { FichaUsuario, SeloPerfilUsuario } from './FichaUsuario';
 
-// Perfis que o ADMIN pode criar por esta tela.
+// Filtro de perfil da tela (rótulos em português; TI é perfil próprio).
+const PERFIS_FILTRO: { valor: string; rotulo: string }[] = [
+  { valor: 'ADMIN', rotulo: 'Administrador' },
+  { valor: 'TI', rotulo: 'TI' },
+  { valor: 'SECRETARIA', rotulo: 'Secretaria' },
+  { valor: 'PROFESSOR', rotulo: 'Professor' },
+  { valor: 'ALUNO', rotulo: 'Aluno' },
+];
+
+// Perfis que se criam por esta tela. Professores e alunos são criados nas telas deles.
 const PERFIS_ADMINISTRATIVOS: { valor: string; rotulo: string }[] = [
   { valor: 'ADMIN', rotulo: 'Administrador' },
+  { valor: 'TI', rotulo: 'TI' },
   { valor: 'SECRETARIA', rotulo: 'Secretaria' },
 ];
 
@@ -59,6 +87,9 @@ function FormNovoUsuario({ aoConcluir }: { aoConcluir: () => void }) {
         opcoes={PERFIS_ADMINISTRATIVOS}
         obrigatorio
       />
+      <p className="usuarios-ajuda">
+        Professores e alunos são criados nas telas Professores e Alunos.
+      </p>
       <div className="pagina-acoes">
         <Botao tipo="submit" desabilitado={ocupado}>
           Criar usuário
@@ -68,7 +99,7 @@ function FormNovoUsuario({ aoConcluir }: { aoConcluir: () => void }) {
   );
 }
 
-// ---------- Detalhe: ativar/desativar e redefinir senha ----------
+// ---------- Detalhe: ativar/desativar e redefinir senha (Editar e Redefinir senha) ----------
 
 function DetalheUsuario({
   usuario,
@@ -156,45 +187,162 @@ function DetalheUsuario({
   );
 }
 
-// ---------- Lista (somente ADMIN) ----------
+// ---------- Fileira de resumo ----------
+
+function ResumoItem({
+  icone,
+  cor,
+  valor,
+  rotulo,
+}: {
+  icone: NomeIcone;
+  cor: 'azul' | 'roxo' | 'verde' | 'vermelho';
+  valor: number;
+  rotulo: string;
+}) {
+  return (
+    <div className="resumo-item">
+      <span className={`resumo-icone resumo-icone-${cor}`} aria-hidden="true">
+        <Icone nome={icone} tamanho={24} />
+      </span>
+      <div>
+        <span className="resumo-valor">{valor}</span>
+        <span className="resumo-rotulo">{rotulo}</span>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Lista (somente ADMIN e TI) ----------
 
 export function Usuarios() {
   const [perfil, setPerfil] = useState('');
   const [busca, setBusca] = useState('');
   const [novo, setNovo] = useState(false);
-  const [selecionado, setSelecionado] = useState<UsuarioDTO | null>(null);
+  const [editando, setEditando] = useState<UsuarioDTO | null>(null);
+  const [ficha, setFicha] = useState<number | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const { usuario } = useAuth();
   const { dados, carregando, erro, recarregar } = useDados<UsuarioDTO[]>(
     `/usuarios${queryString({ perfil, busca: busca.trim() })}`
   );
 
+  async function alternarAtivoLista(u: UsuarioDTO, ativo: boolean) {
+    if (!ativo && !window.confirm(`Desativar o usuário ${u.nome}?`)) return;
+    setErroAcao(null);
+    try {
+      await api.put(`/usuarios/${u.id}`, { ativo });
+      recarregar();
+    } catch (e) {
+      setErroAcao(mensagemErro(e));
+    }
+  }
+
+  // Ações do menu de três pontos. Não há desativar para o próprio usuário logado.
+  function acoesDo(u: UsuarioDTO): AcaoMenu[] {
+    const acoes: AcaoMenu[] = [
+      { rotulo: 'Ver ficha', icone: 'perfil', aoClicar: () => setFicha(u.id) },
+      { rotulo: 'Editar', icone: 'lapis', aoClicar: () => setEditando(u) },
+      { rotulo: 'Redefinir senha', icone: 'cadeado', aoClicar: () => setEditando(u) },
+    ];
+    if (u.id !== usuario?.id) {
+      if (u.ativo) {
+        acoes.push({
+          rotulo: 'Desativar',
+          icone: 'fechar',
+          perigo: true,
+          aoClicar: () => alternarAtivoLista(u, false),
+        });
+      } else {
+        acoes.push({
+          rotulo: 'Reativar',
+          icone: 'perfil',
+          aoClicar: () => alternarAtivoLista(u, true),
+        });
+      }
+    }
+    return acoes;
+  }
+
+  const lista = dados ?? [];
+  const ativos = lista.filter((u) => u.ativo).length;
+  const administradores = lista.filter((u) => u.perfil === 'ADMIN' || u.perfil === 'TI').length;
+
   return (
-    <Pagina titulo="Usuários" acoes={<Botao aoClicar={() => setNovo(true)}>Novo usuário</Botao>}>
-      <Selecao
-        rotulo="Perfil"
-        valor={perfil}
-        aoMudar={setPerfil}
-        opcoes={PERFIS}
-        vazio="Todos os perfis"
-      />
-      <Campo rotulo="Buscar por nome ou e-mail" valor={busca} aoMudar={setBusca} />
+    <Pagina titulo="Usuários">
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <Selecao
+            rotulo="Perfil"
+            valor={perfil}
+            aoMudar={setPerfil}
+            opcoes={PERFIS_FILTRO}
+            vazio="Todos"
+          />
+          <Campo rotulo="Buscar por nome ou e-mail" valor={busca} aoMudar={setBusca} />
+        </div>
+        <Botao aoClicar={() => setNovo(true)}>Novo usuário</Botao>
+      </div>
+
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
+
+      {dados && (
+        <div className="resumo">
+          <ResumoItem icone="usuarios" cor="azul" valor={lista.length} rotulo="Usuários" />
+          <ResumoItem icone="perfil" cor="verde" valor={ativos} rotulo="Ativos" />
+          <ResumoItem icone="relogio" cor="vermelho" valor={lista.length - ativos} rotulo="Inativos" />
+          <ResumoItem icone="cadeado" cor="roxo" valor={administradores} rotulo="Administradores" />
+        </div>
+      )}
+
       {carregando && <Carregando />}
       {dados && (
         <Tabela<UsuarioDTO>
           chave={(u) => u.id}
           dados={dados}
           vazio="Nenhum usuário encontrado."
-          aoClicarLinha={(u) => setSelecionado(u)}
+          aoClicarLinha={(u) => setFicha(u.id)}
           colunas={[
-            { titulo: 'Nome', celula: (u) => u.nome },
-            { titulo: 'E-mail', celula: (u) => u.email },
-            { titulo: 'Perfil', celula: (u) => rotuloPerfil(u.perfil) },
+            {
+              titulo: 'Usuário',
+              celula: (u) => (
+                <span className="usuario-celula">
+                  <Avatar nome={u.nome} tamanho={36} />
+                  <span>
+                    <span>{u.nome}</span>
+                    <span className="usuario-email">{u.email}</span>
+                  </span>
+                </span>
+              ),
+            },
+            { titulo: 'Perfil', celula: (u) => <SeloPerfilUsuario perfil={u.perfil} /> },
+            { titulo: 'Telefone', celula: (u) => u.telefone ?? '—' },
+            { titulo: 'Cadastro', celula: (u) => formatarData(u.criadoEm) },
             {
               titulo: 'Situação',
               celula: (u) =>
                 u.ativo ? <Selo cor="verde">ATIVO</Selo> : <Selo cor="vermelho">INATIVO</Selo>,
             },
+            {
+              titulo: 'Ações',
+              acoes: true,
+              celula: (u) => <MenuAcoes rotulo={'Ações de ' + u.nome} acoes={acoesDo(u)} />,
+            },
           ]}
+        />
+      )}
+
+      {ficha !== null && dados?.find((x) => x.id === ficha) && (
+        <FichaUsuario
+          key={ficha}
+          usuario={dados.find((x) => x.id === ficha) as UsuarioDTO}
+          aoFechar={() => setFicha(null)}
+          aoEditar={() => {
+            const u = dados.find((x) => x.id === ficha) ?? null;
+            setFicha(null);
+            if (u) setEditando(u);
+          }}
         />
       )}
 
@@ -210,16 +358,16 @@ export function Usuarios() {
       </Modal>
 
       <Modal
-        aberto={selecionado !== null}
-        titulo={selecionado ? selecionado.nome : 'Usuário'}
-        aoFechar={() => setSelecionado(null)}
+        aberto={editando !== null}
+        titulo={editando ? editando.nome : 'Usuário'}
+        aoFechar={() => setEditando(null)}
       >
-        {selecionado && (
+        {editando && (
           <DetalheUsuario
-            key={selecionado.id}
-            usuario={selecionado}
+            key={editando.id}
+            usuario={editando}
             aoAtualizado={(u) => {
-              setSelecionado(u);
+              setEditando(u);
               recarregar();
             }}
           />

@@ -13,8 +13,10 @@ datasource db {
 
 // ---------- Enums ----------
 
+// TI tem o mesmo acesso do ADMIN (o servidor trata TI como ADMIN nas permissões).
 enum Perfil {
   ADMIN
+  TI
   SECRETARIA
   PROFESSOR
   ALUNO
@@ -130,6 +132,7 @@ model Usuario {
   ativo     Boolean  @default(true)
   cpf       String?
   telefone  String?
+  foto      String? // endereço http(s) ou data URL (imagem reduzida enviada pelo usuário)
   criadoEm  DateTime @default(now())
 
   aluno       Aluno?
@@ -429,6 +432,7 @@ model Livro {
   categoria   String?
   exemplares  Int     @default(1)
   disponiveis Int     @default(1)
+  capa        String? // imagem da capa: endereço http(s) ou data URL (imagem reduzida enviada pelo usuário)
 
   emprestimos Emprestimo[]
 }
@@ -461,6 +465,175 @@ model Comunicado {
   curso       Curso?            @relation(fields: [cursoId], references: [id])
 
   leituras ComunicadoLeitura[]
+}
+
+// ---------- Medalhas ----------
+
+// Só as medalhas concedidas à mão ficam no banco.
+// As automáticas são calculadas na hora a partir dos dados (notas, frequência, biblioteca...).
+model MedalhaConcedida {
+  id             Int      @id @default(autoincrement())
+  usuarioId      Int // quem recebeu
+  concedidaPorId Int // quem concedeu
+  titulo         String
+  descricao      String?
+  icone          String   @default("medalha") // nome de ícone do cliente
+  cor            String   @default("azul") // azul, roxo, verde ou laranja
+  pontos         Int      @default(20)
+  criadoEm       DateTime @default(now())
+
+  @@index([usuarioId])
+}
+
+// ---------- Suporte (chamados) ----------
+
+enum CategoriaChamado {
+  TECNICO // atendido por ADMIN e TI
+  SECRETARIA // atendido por SECRETARIA (e ADMIN, TI)
+  FINANCEIRO // atendido por SECRETARIA (e ADMIN, TI)
+  ACADEMICO // atendido pelo professor da turma escolhida (e ADMIN, TI)
+}
+
+enum PrioridadeChamado {
+  BAIXA
+  NORMAL
+  ALTA
+}
+
+enum StatusChamado {
+  ABERTO // aguardando a equipe
+  EM_ATENDIMENTO // a equipe respondeu por último
+  AGUARDANDO_USUARIO // a equipe pediu informação
+  RESOLVIDO
+  FECHADO
+}
+
+model Chamado {
+  id                   Int               @id @default(autoincrement())
+  autorId              Int
+  categoria            CategoriaChamado
+  turmaId              Int? // obrigatório quando a categoria é ACADEMICO
+  assunto              String
+  prioridade           PrioridadeChamado @default(NORMAL)
+  status               StatusChamado     @default(ABERTO)
+  responsavelId        Int? // usuário da equipe que assumiu
+  avaliacao            Int? // 1 a 5, dada pelo autor depois de resolvido
+  avaliacaoComentario  String?
+  criadoEm             DateTime          @default(now())
+  atualizadoEm         DateTime          @default(now())
+  ultimaMensagemEm     DateTime          @default(now())
+  ultimaMensagemEquipe Boolean           @default(false) // a última mensagem foi da equipe?
+  lidoPeloAutorEm      DateTime?
+  lidoPelaEquipeEm     DateTime?
+
+  mensagens ChamadoMensagem[]
+
+  @@index([autorId])
+  @@index([status, categoria])
+}
+
+model ChamadoMensagem {
+  id        Int      @id @default(autoincrement())
+  chamadoId Int
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  autorId   Int
+  daEquipe  Boolean  @default(false)
+  texto     String
+  anexo     String? // data URL de imagem reduzida (opcional)
+  criadoEm  DateTime @default(now())
+
+  @@index([chamadoId])
+}
+
+// ---------- Fórum ----------
+
+model ForumComunidade {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  slug        String   @unique // minúsculas, números e hífen
+  descricao   String?
+  cor         String   @default("azul") // azul, roxo, verde ou laranja
+  criadoPorId Int
+  criadoEm    DateTime @default(now())
+
+  publicacoes ForumPublicacao[]
+}
+
+model ForumPublicacao {
+  id           Int             @id @default(autoincrement())
+  comunidadeId Int
+  comunidade   ForumComunidade @relation(fields: [comunidadeId], references: [id], onDelete: Cascade)
+  autorId      Int
+  titulo       String
+  corpo        String
+  imagem       String? // data URL de imagem reduzida (opcional)
+  fixada       Boolean         @default(false)
+  fechada      Boolean         @default(false) // não aceita novos comentários
+  removida     Boolean         @default(false)
+  pontos       Int             @default(0) // soma dos votos
+  comentarios  Int             @default(0) // quantidade de comentários não removidos
+  criadoEm     DateTime        @default(now())
+  editadoEm    DateTime?
+
+  respostas ForumComentario[]
+  votos     ForumVoto[]
+
+  @@index([comunidadeId, criadoEm])
+}
+
+model ForumComentario {
+  id           Int             @id @default(autoincrement())
+  publicacaoId Int
+  publicacao   ForumPublicacao @relation(fields: [publicacaoId], references: [id], onDelete: Cascade)
+  autorId      Int
+  paiId        Int? // comentário respondido (árvore)
+  corpo        String
+  removido     Boolean         @default(false)
+  pontos       Int             @default(0)
+  criadoEm     DateTime        @default(now())
+  editadoEm    DateTime?
+
+  votos ForumVoto[]
+
+  @@index([publicacaoId])
+}
+
+model ForumVoto {
+  id           Int              @id @default(autoincrement())
+  usuarioId    Int
+  publicacaoId Int?
+  publicacao   ForumPublicacao? @relation(fields: [publicacaoId], references: [id], onDelete: Cascade)
+  comentarioId Int?
+  comentario   ForumComentario? @relation(fields: [comentarioId], references: [id], onDelete: Cascade)
+  valor        Int // +1 ou -1
+
+  @@unique([usuarioId, publicacaoId])
+  @@unique([usuarioId, comentarioId])
+}
+
+// ---------- Log de atividades ----------
+
+// Um registro por atividade na plataforma. Visível só para ADMIN e TI.
+// Não guarda corpo de requisição nem senha. Registros com mais de 90 dias são apagados.
+model LogAtividade {
+  id          Int      @id @default(autoincrement())
+  criadoEm    DateTime @default(now())
+  usuarioId   Int? // sem relação: o log sobrevive à exclusão do usuário
+  usuarioNome String?
+  perfil      String? // perfil real no momento: ADMIN, TI, SECRETARIA, PROFESSOR ou ALUNO
+  tipo        String // LOGIN, FALHA_LOGIN, SAIDA, TELA, CONSULTA, CRIACAO, ALTERACAO, EXCLUSAO
+  modulo      String // ex.: alunos, turmas, financeiro, sessao
+  descricao   String // frase curta em português
+  metodo      String? // GET, POST, PUT, DELETE
+  caminho     String? // caminho da API ou da tela, sem query string
+  status      Int? // código HTTP da resposta
+  duracaoMs   Int?
+  ip          String?
+  navegador   String?
+
+  @@index([criadoEm])
+  @@index([usuarioId, criadoEm])
+  @@index([tipo, criadoEm])
 }
 
 model ComunicadoLeitura {

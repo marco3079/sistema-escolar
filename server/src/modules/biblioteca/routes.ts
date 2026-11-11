@@ -12,7 +12,7 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 // Inclusão padrão de empréstimo no formato EmprestimoDTO (sem senhaHash)
 const INCLUIR_EMPRESTIMO = {
-  livro: { select: { id: true, titulo: true, autor: true } },
+  livro: { select: { id: true, titulo: true, autor: true, capa: true } },
   usuario: { select: { id: true, nome: true, perfil: true } },
 };
 
@@ -36,6 +36,30 @@ function paraDTO<T extends { status: string; devolucaoPrevista: Date }>(
 
 const campoTexto = z.string().nullable().optional();
 
+const PREFIXOS_DATA_URL_CAPA = [
+  'data:image/jpeg;base64,',
+  'data:image/png;base64,',
+  'data:image/webp;base64,',
+];
+const MAX_CAPA_ENDERECO = 500;
+const MAX_CAPA_DATA_URL = 200_000;
+
+// Normaliza a capa: vazio vira null; endereço http(s) até 500 caracteres ou data URL de imagem até 200.000
+function normalizarCapa(capa: string | null | undefined): string | null | undefined {
+  if (capa === undefined || capa === null) return capa;
+  const limpa = capa.trim();
+  if (limpa === '') return null;
+  if (limpa.startsWith('http://') || limpa.startsWith('https://')) {
+    if (limpa.length <= MAX_CAPA_ENDERECO) return limpa;
+    throw new HttpError(400, 'Capa inválida');
+  }
+  if (PREFIXOS_DATA_URL_CAPA.some((p) => limpa.startsWith(p))) {
+    if (limpa.length <= MAX_CAPA_DATA_URL) return limpa;
+    throw new HttpError(400, 'Capa inválida');
+  }
+  throw new HttpError(400, 'Capa inválida');
+}
+
 const criarLivroSchema = z.object({
   titulo: z.string().min(1),
   autor: z.string().min(1),
@@ -44,6 +68,7 @@ const criarLivroSchema = z.object({
   ano: z.number().int().nullable().optional(),
   categoria: campoTexto,
   exemplares: z.number().int().min(0),
+  capa: z.string().nullable().optional(),
 });
 
 const atualizarLivroSchema = z.object({
@@ -54,6 +79,7 @@ const atualizarLivroSchema = z.object({
   ano: z.number().int().nullable().optional(),
   categoria: campoTexto,
   exemplares: z.number().int().min(0).optional(),
+  capa: z.string().nullable().optional(),
 });
 
 const filtroLivrosSchema = z.object({
@@ -95,8 +121,9 @@ router.post(
   permitir('ADMIN', 'SECRETARIA'),
   asyncHandler(async (req, res) => {
     const dados = validar(criarLivroSchema, req.body);
+    const capa = normalizarCapa(dados.capa);
     const livro = await prisma.livro.create({
-      data: { ...dados, disponiveis: dados.exemplares },
+      data: { ...dados, capa, disponiveis: dados.exemplares },
     });
     res.status(201).json(livro);
   })
@@ -107,7 +134,8 @@ router.put(
   permitir('ADMIN', 'SECRETARIA'),
   asyncHandler(async (req, res) => {
     const id = idParam(req);
-    const dados = validar(atualizarLivroSchema, req.body);
+    const dadosRecebidos = validar(atualizarLivroSchema, req.body);
+    const dados = { ...dadosRecebidos, capa: normalizarCapa(dadosRecebidos.capa) };
     const livro = await prisma.$transaction(async (tx) => {
       const atual = await tx.livro.findUnique({ where: { id } });
       if (!atual) {

@@ -5,8 +5,10 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useDados } from '../../lib/useDados';
 import type { RotaModulo } from '../../lib/rotas';
+import { rotuloNivel } from '../../lib/tipos';
 import {
   Abas,
+  Avatar,
   Aviso,
   Botao,
   Caixa,
@@ -21,7 +23,10 @@ import {
   formatarData,
   paraInputData,
 } from '../../ui';
+import { Icone } from '../../ui/icones';
+import type { NomeIcone } from '../../ui/icones';
 import './diario.css';
+import './boletim.css';
 
 // ---------- Tipos (formatos do contrato 5.5 e 5.3/5.4) ----------
 
@@ -691,112 +696,415 @@ function DiarioTurma() {
 
 // ---------- Boletim e histórico (reutilizados por aluno e secretaria) ----------
 
-function BoletimView({ caminho }: { caminho: string | null }) {
+const NIVEIS_POS_GRADUACAO: string[] = ['ESPECIALIZACAO', 'MESTRADO', 'DOUTORADO'];
+const FREQUENCIA_MINIMA_BOLETIM = 75;
+const CHAVE_VISAO_BOLETIM = 'escola.boletim.visao';
+
+type VisaoBoletim = 'cartoes' | 'tabela';
+
+function mediaMinimaDoNivel(nivel: string): number {
+  return NIVEIS_POS_GRADUACAO.includes(nivel) ? 7 : 6;
+}
+
+function classeNota(nota: number | null, minima: number): string {
+  if (nota === null || nota === undefined) return 'boletim-nota-sem';
+  return nota >= minima ? 'boletim-nota-ok' : 'boletim-nota-baixa';
+}
+
+function classeFrequencia(frequencia: number | null): string {
+  if (frequencia === null || frequencia === undefined) return '';
+  return frequencia < FREQUENCIA_MINIMA_BOLETIM ? 'boletim-nota-baixa' : '';
+}
+
+function mediaDe(valores: (number | null)[]): number | null {
+  const validos = valores.filter((v): v is number => v !== null && v !== undefined);
+  if (validos.length === 0) return null;
+  return validos.reduce((soma, v) => soma + v, 0) / validos.length;
+}
+
+function limitarPercentual(valor: number): number {
+  return Math.min(100, Math.max(0, valor));
+}
+
+function textoNota(avaliacao: { valor: number | null; notaMaxima: number }): string {
+  if (avaliacao.valor === null) return '—';
+  return formatarNumero(avaliacao.valor) + (avaliacao.notaMaxima !== 10 ? `/${avaliacao.notaMaxima}` : '');
+}
+
+function rotuloStatusMatricula(status: string): string {
+  return status === 'ATIVA' ? 'Ativa' : status.charAt(0) + status.slice(1).toLowerCase();
+}
+
+function normalizarBusca(texto: string): string {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+function lerVisaoBoletim(): VisaoBoletim {
+  try {
+    return window.localStorage.getItem(CHAVE_VISAO_BOLETIM) === 'tabela' ? 'tabela' : 'cartoes';
+  } catch {
+    return 'cartoes';
+  }
+}
+
+function guardarVisaoBoletim(visao: VisaoBoletim) {
+  try {
+    window.localStorage.setItem(CHAVE_VISAO_BOLETIM, visao);
+  } catch {
+    // Sem armazenamento disponível: a escolha vale só para esta tela.
+  }
+}
+
+function agruparPorPeriodo(itens: ItemHistorico[]): { periodo: string; itens: ItemHistorico[] }[] {
+  const grupos = new Map<string, ItemHistorico[]>();
+  for (const item of itens) {
+    const lista = grupos.get(item.periodo);
+    if (lista) lista.push(item);
+    else grupos.set(item.periodo, [item]);
+  }
+  return Array.from(grupos.entries()).map(([periodo, lista]) => ({ periodo, itens: lista }));
+}
+
+function CabecalhoAluno({ matricula }: { matricula: MatriculaResumo }) {
+  const ativa = matricula.status === 'ATIVA';
+  return (
+    <Cartao>
+      <div className="boletim-cabecalho">
+        <Avatar nome={matricula.aluno.usuario.nome} tamanho={56} />
+        <div className="boletim-cabecalho-texto">
+          <h2 className="boletim-cabecalho-nome">{matricula.aluno.usuario.nome}</h2>
+          <p className="boletim-suave">RA {matricula.aluno.ra}</p>
+          <p className="boletim-cabecalho-curso">{matricula.curso.nome}</p>
+          <div className="boletim-selos">
+            <Selo cor="azul">{rotuloNivel(matricula.curso.nivel)}</Selo>
+            <Selo cor={ativa ? 'verde' : 'cinza'}>{rotuloStatusMatricula(matricula.status)}</Selo>
+          </div>
+        </div>
+        <div className="boletim-cabecalho-acoes boletim-nao-imprimir">
+          <Botao variante="secundario" aoClicar={() => window.print()}>
+            <Icone nome="documento" tamanho={18} />
+            Imprimir
+          </Botao>
+        </div>
+      </div>
+    </Cartao>
+  );
+}
+
+// Estrutura comum das três telas: cabeçalho do aluno, abas (quando houver) e o conteúdo.
+function Moldura({
+  matricula,
+  abas,
+  children,
+}: {
+  matricula?: MatriculaResumo;
+  abas?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="boletim-visao">
+      {matricula && <CabecalhoAluno matricula={matricula} />}
+      {abas && <div className="boletim-nao-imprimir">{abas}</div>}
+      {children}
+    </div>
+  );
+}
+
+function ItemResumo({
+  icone,
+  cor,
+  valor,
+  rotulo,
+}: {
+  icone: NomeIcone;
+  cor: 'azul' | 'roxo' | 'verde' | 'laranja';
+  valor: ReactNode;
+  rotulo: string;
+}) {
+  return (
+    <div className="resumo-item">
+      <span className={`resumo-icone resumo-icone-${cor}`}>
+        <Icone nome={icone} tamanho={24} />
+      </span>
+      <div className="boletim-resumo-texto">
+        <span className="resumo-valor">{valor}</span>
+        <span className="resumo-rotulo">{rotulo}</span>
+      </div>
+    </div>
+  );
+}
+
+function MedidorMedia({ nota, minima }: { nota: number | null; minima: number }) {
+  const texto = formatarNumero(nota);
+  const classe = classeNota(nota, minima);
+  return (
+    <div className="boletim-medidor">
+      <span className="boletim-medidor-rotulo">Média</span>
+      <span className={`boletim-medidor-valor ${classe}`}>{texto}</span>
+      <div
+        className="boletim-barra"
+        role="img"
+        aria-label={nota === null ? 'Média ainda não lançada' : `Média ${texto} de 10`}
+      >
+        {nota !== null && (
+          <span
+            className={`boletim-barra-preenchimento ${classe}`}
+            style={{ width: `${limitarPercentual(nota * 10)}%` }}
+          />
+        )}
+        <span className="boletim-marcador" style={{ left: `${minima * 10}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MedidorFrequencia({ frequencia }: { frequencia: number | null }) {
+  const texto = formatarPercentual(frequencia);
+  const baixa = frequencia !== null && frequencia < FREQUENCIA_MINIMA_BOLETIM;
+  return (
+    <div className="boletim-medidor">
+      <span className="boletim-medidor-rotulo">Frequência</span>
+      <span className={`boletim-medidor-valor ${baixa ? 'boletim-nota-baixa' : ''}`}>{texto}</span>
+      <div
+        className="boletim-barra"
+        role="img"
+        aria-label={frequencia === null ? 'Frequência ainda não lançada' : `Frequência ${texto}`}
+      >
+        {frequencia !== null && (
+          <span
+            className={`boletim-barra-preenchimento ${baixa ? 'boletim-nota-baixa' : 'boletim-barra-neutra'}`}
+            style={{ width: `${limitarPercentual(frequencia)}%` }}
+          />
+        )}
+        <span className="boletim-marcador" style={{ left: `${FREQUENCIA_MINIMA_BOLETIM}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function CartaoDisciplina({ item, minima }: { item: ItemBoletim; minima: number }) {
+  return (
+    <article className="boletim-disciplina">
+      <header className="boletim-disciplina-topo">
+        <div className="boletim-disciplina-titulo">
+          <h3>{item.disciplina}</h3>
+          <p className="boletim-suave">
+            {item.codigo} · Turma {item.turma}
+          </p>
+          <p className="boletim-suave">{item.professor}</p>
+        </div>
+        <SeloSituacao valor={item.status} />
+      </header>
+      {item.avaliacoes.length === 0 ? (
+        <p className="boletim-suave">Sem avaliações lançadas.</p>
+      ) : (
+        <ul className="boletim-avaliacoes">
+          {item.avaliacoes.map((a, k) => (
+            <li key={k}>
+              <span>
+                {a.nome} <small className="boletim-suave">peso {formatarNumero(a.peso)}</small>
+              </span>
+              <span>{textoNota(a)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="boletim-medidores">
+        <MedidorMedia nota={item.notaFinal} minima={minima} />
+        <MedidorFrequencia frequencia={item.frequencia} />
+      </div>
+    </article>
+  );
+}
+
+function SegmentadoVisao({ visao, aoMudar }: { visao: VisaoBoletim; aoMudar: (v: VisaoBoletim) => void }) {
+  const opcoes: { id: VisaoBoletim; rotulo: string }[] = [
+    { id: 'cartoes', rotulo: 'Cartões' },
+    { id: 'tabela', rotulo: 'Tabela' },
+  ];
+  return (
+    <div className="segmentado" role="group" aria-label="Visão do boletim">
+      {opcoes.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className="segmentado-item"
+          aria-pressed={visao === o.id}
+          onClick={() => aoMudar(o.id)}
+        >
+          {o.rotulo}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BoletimView({ caminho, abas }: { caminho: string | null; abas?: ReactNode }) {
   const { dados, carregando, erro } = useDados<Boletim>(caminho);
+  const [periodoEscolhido, setPeriodoEscolhido] = useState('');
+  const [visao, setVisao] = useState<VisaoBoletim>(lerVisaoBoletim);
   if (caminho === null) return <Aviso tipo="info">Escolha uma matrícula.</Aviso>;
-  if (carregando) return <Carregando />;
-  if (erro) return <Aviso tipo="erro">{erro}</Aviso>;
+  if (carregando) return <Moldura abas={abas}><Carregando /></Moldura>;
+  if (erro) return <Moldura abas={abas}><Aviso tipo="erro">{erro}</Aviso></Moldura>;
   if (!dados) return null;
 
+  const minima = mediaMinimaDoNivel(dados.matricula.curso.nivel);
+  const periodos = dados.periodos;
+  // O primeiro da lista é o mais recente (contrato 5.5).
+  const periodo = periodos.find((p) => String(p.periodo.id) === periodoEscolhido) ?? periodos[0] ?? null;
+  const itens = periodo ? periodo.itens : [];
+  const mediaPeriodo = mediaDe(itens.map((i) => i.notaFinal));
+  const frequenciaMedia = mediaDe(itens.map((i) => i.frequencia));
+  const aprovadas = itens.filter((i) => i.status === 'APROVADO').length;
+
   return (
-    <>
-      <p className="diario-info">
-        {dados.matricula.curso.nome} · RA {dados.matricula.aluno.ra} · {dados.matricula.aluno.usuario.nome}
-      </p>
-      {dados.periodos.length === 0 && <Aviso tipo="info">Nenhuma disciplina nesta matrícula.</Aviso>}
-      {dados.periodos.map((p) => (
-        <Cartao key={p.periodo.id} titulo={p.periodo.nome}>
+    <Moldura matricula={dados.matricula} abas={abas}>
+      {periodos.length === 0 && <Aviso tipo="info">Nenhuma disciplina nesta matrícula.</Aviso>}
+      {periodo && (
+        <>
+          <div className="resumo">
+            <ItemResumo icone="diario" cor="azul" valor={itens.length} rotulo="Disciplinas" />
+            <ItemResumo icone="grafico" cor="roxo" valor={formatarNumero(mediaPeriodo)} rotulo="Média do período" />
+            <ItemResumo icone="calendario" cor="verde" valor={formatarPercentual(frequenciaMedia)} rotulo="Frequência média" />
+            <ItemResumo icone="medalha" cor="laranja" valor={`${aprovadas} de ${itens.length}`} rotulo="Aprovadas" />
+          </div>
+
+          <div className="barra-ferramentas boletim-nao-imprimir">
+            {periodos.length > 1 && (
+              <div className="filtros">
+                <Selecao
+                  rotulo="Período"
+                  valor={periodoEscolhido}
+                  aoMudar={setPeriodoEscolhido}
+                  opcoes={periodos.map((p) => ({ valor: String(p.periodo.id), rotulo: p.periodo.nome }))}
+                  vazio="Mais recente"
+                />
+              </div>
+            )}
+            <SegmentadoVisao
+              visao={visao}
+              aoMudar={(v) => {
+                setVisao(v);
+                guardarVisaoBoletim(v);
+              }}
+            />
+          </div>
+
+          {itens.length === 0 ? (
+            <Aviso tipo="info">Nenhuma disciplina neste período.</Aviso>
+          ) : visao === 'cartoes' ? (
+            <div className="boletim-grade-disciplinas">
+              {itens.map((i) => (
+                <CartaoDisciplina key={i.inscricaoId} item={i} minima={minima} />
+              ))}
+            </div>
+          ) : (
+            <Cartao>
+              <Tabela
+                colunas={[
+                  {
+                    titulo: 'Disciplina',
+                    celula: (i: ItemBoletim) => (
+                      <>
+                        <strong>{i.disciplina}</strong>
+                        <br />
+                        <small>
+                          {i.codigo} · Turma {i.turma}
+                        </small>
+                      </>
+                    ),
+                  },
+                  {
+                    titulo: 'Avaliações',
+                    celula: (i: ItemBoletim) =>
+                      i.avaliacoes.length === 0
+                        ? '—'
+                        : i.avaliacoes.map((a) => `${a.nome} ${textoNota(a)}`).join(' · '),
+                  },
+                  {
+                    titulo: 'Média',
+                    alinhar: 'direita',
+                    celula: (i: ItemBoletim) => (
+                      <span className={classeNota(i.notaFinal, minima)}>{formatarNumero(i.notaFinal)}</span>
+                    ),
+                  },
+                  {
+                    titulo: 'Frequência',
+                    alinhar: 'direita',
+                    celula: (i: ItemBoletim) => (
+                      <span className={classeFrequencia(i.frequencia)}>{formatarPercentual(i.frequencia)}</span>
+                    ),
+                  },
+                  { titulo: 'Situação', celula: (i: ItemBoletim) => <SeloSituacao valor={i.status} /> },
+                ]}
+                dados={itens}
+                chave={(i) => i.inscricaoId}
+                vazio="Nenhuma disciplina neste período."
+              />
+            </Cartao>
+          )}
+        </>
+      )}
+    </Moldura>
+  );
+}
+
+function HistoricoView({ caminho, abas }: { caminho: string | null; abas?: ReactNode }) {
+  const { dados, carregando, erro } = useDados<Historico>(caminho);
+  if (caminho === null) return <Aviso tipo="info">Escolha uma matrícula.</Aviso>;
+  if (carregando) return <Moldura abas={abas}><Carregando /></Moldura>;
+  if (erro) return <Moldura abas={abas}><Aviso tipo="erro">{erro}</Aviso></Moldura>;
+  if (!dados) return null;
+
+  const minima = mediaMinimaDoNivel(dados.matricula.curso.nivel);
+  const grupos = agruparPorPeriodo(dados.itens);
+  const aprovadas = dados.itens.filter((i) => i.status === 'APROVADO').length;
+
+  return (
+    <Moldura matricula={dados.matricula} abas={abas}>
+      <div className="resumo">
+        <ItemResumo icone="lista" cor="azul" valor={dados.resumo.creditosConcluidos} rotulo="Créditos concluídos" />
+        <ItemResumo icone="relogio" cor="roxo" valor={`${dados.resumo.cargaHorariaConcluida} h`} rotulo="Carga horária concluída" />
+        <ItemResumo icone="grafico" cor="verde" valor={formatarNumero(dados.resumo.coeficiente, 2)} rotulo="Coeficiente" />
+        <ItemResumo icone="medalha" cor="laranja" valor={aprovadas} rotulo="Disciplinas aprovadas" />
+      </div>
+
+      {dados.itens.length === 0 && <Aviso tipo="info">Nenhuma disciplina no histórico.</Aviso>}
+
+      {grupos.map((g) => (
+        <Cartao key={g.periodo} titulo={g.periodo}>
           <Tabela
             colunas={[
               {
-                titulo: 'Disciplina',
-                celula: (i: ItemBoletim) => (
-                  <>
-                    <strong>{i.disciplina}</strong>
-                    <br />
-                    <small>
-                      {i.codigo} · Turma {i.turma}
-                    </small>
-                  </>
+                titulo: 'Código',
+                celula: (i: ItemHistorico) => <span className="boletim-codigo">{i.codigo}</span>,
+              },
+              { titulo: 'Disciplina', celula: (i: ItemHistorico) => i.disciplina },
+              { titulo: 'C.H.', alinhar: 'direita', celula: (i: ItemHistorico) => i.cargaHoraria },
+              { titulo: 'Créditos', alinhar: 'direita', celula: (i: ItemHistorico) => i.creditos },
+              {
+                titulo: 'Nota final',
+                alinhar: 'direita',
+                celula: (i: ItemHistorico) => (
+                  <span className={classeNota(i.notaFinal, minima)}>{formatarNumero(i.notaFinal)}</span>
                 ),
               },
-              { titulo: 'Professor', celula: (i: ItemBoletim) => i.professor },
               {
-                titulo: 'Avaliações',
-                celula: (i: ItemBoletim) =>
-                  i.avaliacoes.length === 0 ? (
-                    '—'
-                  ) : (
-                    <ul className="diario-notas">
-                      {i.avaliacoes.map((a, k) => (
-                        <li key={k}>
-                          {a.nome}: {a.valor === null ? '—' : formatarNumero(a.valor)}
-                          {a.notaMaxima !== 10 ? `/${a.notaMaxima}` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  ),
+                titulo: 'Frequência',
+                alinhar: 'direita',
+                celula: (i: ItemHistorico) => (
+                  <span className={classeFrequencia(i.frequencia)}>{formatarPercentual(i.frequencia)}</span>
+                ),
               },
-              { titulo: 'Média', celula: (i: ItemBoletim) => formatarNumero(i.notaFinal) },
-              { titulo: 'Frequência', celula: (i: ItemBoletim) => formatarPercentual(i.frequencia) },
-              { titulo: 'Situação', celula: (i: ItemBoletim) => <SeloSituacao valor={i.status} /> },
+              { titulo: 'Situação', celula: (i: ItemHistorico) => <SeloSituacao valor={i.status} /> },
             ]}
-            dados={p.itens}
-            chave={(i) => i.inscricaoId}
+            dados={g.itens}
+            chave={(i) => `${i.codigo}-${i.disciplina}`}
             vazio="Nenhuma disciplina neste período."
           />
         </Cartao>
       ))}
-    </>
-  );
-}
-
-function HistoricoView({ caminho }: { caminho: string | null }) {
-  const { dados, carregando, erro } = useDados<Historico>(caminho);
-  if (caminho === null) return <Aviso tipo="info">Escolha uma matrícula.</Aviso>;
-  if (carregando) return <Carregando />;
-  if (erro) return <Aviso tipo="erro">{erro}</Aviso>;
-  if (!dados) return null;
-
-  return (
-    <>
-      <p className="diario-info">
-        {dados.matricula.curso.nome} · RA {dados.matricula.aluno.ra} · {dados.matricula.aluno.usuario.nome}
-      </p>
-      <Cartao titulo="Resumo">
-        <div className="diario-resumo">
-          <div>
-            <div className="diario-resumo-valor">{dados.resumo.creditosConcluidos}</div>
-            <div className="diario-resumo-rotulo">Créditos concluídos</div>
-          </div>
-          <div>
-            <div className="diario-resumo-valor">{dados.resumo.cargaHorariaConcluida}</div>
-            <div className="diario-resumo-rotulo">Carga horária concluída</div>
-          </div>
-          <div>
-            <div className="diario-resumo-valor">{formatarNumero(dados.resumo.coeficiente, 2)}</div>
-            <div className="diario-resumo-rotulo">Coeficiente</div>
-          </div>
-        </div>
-      </Cartao>
-      <Cartao titulo="Disciplinas">
-        <Tabela
-          colunas={[
-            { titulo: 'Período', celula: (i: ItemHistorico) => i.periodo },
-            { titulo: 'Código', celula: (i: ItemHistorico) => i.codigo },
-            { titulo: 'Disciplina', celula: (i: ItemHistorico) => i.disciplina },
-            { titulo: 'C.H.', celula: (i: ItemHistorico) => i.cargaHoraria },
-            { titulo: 'Créditos', celula: (i: ItemHistorico) => i.creditos },
-            { titulo: 'Nota final', celula: (i: ItemHistorico) => formatarNumero(i.notaFinal) },
-            { titulo: 'Frequência', celula: (i: ItemHistorico) => formatarPercentual(i.frequencia) },
-            { titulo: 'Situação', celula: (i: ItemHistorico) => <SeloSituacao valor={i.status} /> },
-          ]}
-          dados={dados.itens}
-          chave={(i) => `${i.periodo}-${i.codigo}`}
-          vazio="Nenhuma disciplina no histórico."
-        />
-      </Cartao>
-    </>
+    </Moldura>
   );
 }
 
@@ -818,15 +1126,17 @@ function BoletimAluno() {
   return (
     <Pagina titulo="Boletim">
       {lista.length > 1 && (
-        <Cartao>
-          <Selecao
-            rotulo="Matrícula"
-            valor={escolhida}
-            aoMudar={setEscolhida}
-            opcoes={lista.map((m) => ({ valor: String(m.id), rotulo: `${m.curso.nome} (${m.periodoIngresso.nome})` }))}
-            vazio="Primeira matrícula ativa"
-          />
-        </Cartao>
+        <div className="barra-ferramentas boletim-nao-imprimir">
+          <div className="filtros">
+            <Selecao
+              rotulo="Matrícula"
+              valor={escolhida}
+              aoMudar={setEscolhida}
+              opcoes={lista.map((m) => ({ valor: String(m.id), rotulo: `${m.curso.nome} (${m.periodoIngresso.nome})` }))}
+              vazio="Primeira matrícula ativa"
+            />
+          </div>
+        </div>
       )}
       {lista.length === 0 ? (
         <Aviso tipo="info">Você ainda não tem matrícula.</Aviso>
@@ -849,6 +1159,8 @@ function BoletinsAdmin() {
   const { dados: matriculas, carregando, erro } = useDados<MatriculaResumo[]>('/matriculas');
   const [matriculaId, setMatriculaId] = useState('');
   const [aba, setAba] = useState('boletim');
+  const [busca, setBusca] = useState('');
+  const [cursoFiltro, setCursoFiltro] = useState('');
 
   if (carregando && !matriculas) return <Carregando />;
   if (erro && !matriculas) {
@@ -860,38 +1172,108 @@ function BoletinsAdmin() {
   }
   const lista = matriculas ?? [];
 
+  const cursos: { id: number; nome: string }[] = [];
+  for (const m of lista) {
+    if (!cursos.some((c) => c.id === m.curso.id)) cursos.push({ id: m.curso.id, nome: m.curso.nome });
+  }
+  cursos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const termo = normalizarBusca(busca);
+  const casa = (m: MatriculaResumo) =>
+    (cursoFiltro === '' || String(m.curso.id) === cursoFiltro) &&
+    (termo === '' ||
+      normalizarBusca(m.aluno.usuario.nome).includes(termo) ||
+      normalizarBusca(m.aluno.ra).includes(termo));
+  const visiveis = lista.filter(casa);
+  // No celular o seletor mostra os filtrados, mais o aluno já escolhido (para não ficar em branco).
+  const opcoesSelecao = lista.filter((m) => casa(m) || String(m.id) === matriculaId);
+
+  const abasEl = (
+    <Abas
+      abas={[
+        { id: 'boletim', rotulo: 'Boletim' },
+        { id: 'historico', rotulo: 'Histórico' },
+      ]}
+      ativa={aba}
+      aoMudar={setAba}
+    />
+  );
+
   let conteudo: ReactNode;
   if (matriculaId === '') {
-    conteudo = <Aviso tipo="info">Escolha uma matrícula para ver o boletim ou o histórico.</Aviso>;
+    conteudo = (
+      <div className="cartao boletim-vazio">
+        <Icone nome="boletim" tamanho={48} className="boletim-vazio-icone" />
+        <p>Escolha um aluno para ver o boletim e o histórico.</p>
+      </div>
+    );
   } else if (aba === 'boletim') {
-    conteudo = <BoletimView caminho={`/boletim/${matriculaId}`} />;
+    conteudo = <BoletimView caminho={`/boletim/${matriculaId}`} abas={abasEl} />;
   } else {
-    conteudo = <HistoricoView caminho={`/historico/${matriculaId}`} />;
+    conteudo = <HistoricoView caminho={`/historico/${matriculaId}`} abas={abasEl} />;
   }
 
   return (
     <Pagina titulo="Boletins">
-      <Cartao>
-        <Selecao
-          rotulo="Matrícula"
-          valor={matriculaId}
-          aoMudar={setMatriculaId}
-          opcoes={lista.map((m) => ({
-            valor: String(m.id),
-            rotulo: `${m.aluno.ra} - ${m.aluno.usuario.nome} - ${m.curso.nome}`,
-          }))}
-          vazio="Escolha uma matrícula"
-        />
-      </Cartao>
-      <Abas
-        abas={[
-          { id: 'boletim', rotulo: 'Boletim' },
-          { id: 'historico', rotulo: 'Histórico' },
-        ]}
-        ativa={aba}
-        aoMudar={setAba}
-      />
-      {conteudo}
+      <div className="boletim-admin">
+        <section className="cartao boletim-lista">
+          <div className="barra-ferramentas">
+            <div className="filtros">
+              <Campo rotulo="Buscar por nome ou RA" valor={busca} aoMudar={setBusca} />
+              <Selecao
+                rotulo="Curso"
+                valor={cursoFiltro}
+                aoMudar={setCursoFiltro}
+                opcoes={cursos.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+                vazio="Todos os cursos"
+              />
+            </div>
+          </div>
+
+          <div className="boletim-so-celular">
+            <Selecao
+              rotulo="Aluno"
+              valor={matriculaId}
+              aoMudar={setMatriculaId}
+              opcoes={opcoesSelecao.map((m) => ({
+                valor: String(m.id),
+                rotulo: `${m.aluno.usuario.nome} · RA ${m.aluno.ra}`,
+              }))}
+              vazio="Escolha um aluno"
+            />
+          </div>
+
+          {visiveis.length === 0 ? (
+            <p className="tabela-vazia">Nenhum aluno encontrado.</p>
+          ) : (
+            <ul className="boletim-alunos">
+              {visiveis.map((m) => {
+                const ativo = String(m.id) === matriculaId;
+                return (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      className={ativo ? 'boletim-aluno boletim-aluno-ativo' : 'boletim-aluno'}
+                      aria-pressed={ativo}
+                      onClick={() => setMatriculaId(String(m.id))}
+                    >
+                      <Avatar nome={m.aluno.usuario.nome} tamanho={36} />
+                      <span className="boletim-aluno-texto">
+                        <strong>{m.aluno.usuario.nome}</strong>
+                        <small>
+                          RA {m.aluno.ra} · {m.curso.nome}
+                        </small>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <div className="boletim-principal">{conteudo}</div>
+      </div>
     </Pagina>
   );
 }

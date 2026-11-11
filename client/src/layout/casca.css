@@ -563,6 +563,61 @@
   color: var(--cor-perigo);
 }
 
+/* Avatar do menu com ponto de novidade e contador do item "Suporte" (terceira leva) */
+.casca-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.casca-ponto-novidade {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--cor-perigo);
+  box-shadow: 0 0 0 2px var(--cor-superficie);
+}
+
+.casca-menu-usuario-rotulo {
+  flex: 1;
+}
+
+.casca-contador {
+  min-width: 22px;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--cor-perigo);
+  color: var(--cor-sobre-primaria);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+/* Botão "Suporte" no rodapé da gaveta do celular (abre o popup de chamados) */
+.casca-suporte-celular {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.casca-suporte-celular:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
 /* ---------- Celular (abaixo de 900 px) ---------- */
 
 .casca-topo-celular {

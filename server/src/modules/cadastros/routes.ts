@@ -74,7 +74,7 @@ const dataSchema = z
   .string()
   .refine((valor) => !Number.isNaN(new Date(valor).getTime()), 'Data inválida');
 const titulacaoSchema = z.enum(['GRADUADO', 'ESPECIALISTA', 'MESTRE', 'DOUTOR']);
-const perfilUsuarioSchema = z.enum(['ADMIN', 'SECRETARIA']);
+const perfilUsuarioSchema = z.enum(['ADMIN', 'TI', 'SECRETARIA']);
 
 const alunoCampos = {
   nome: z.string().min(1, 'Nome obrigatório'),
@@ -118,7 +118,7 @@ const usuarioAtualizarSchema = z.object({
 });
 
 const usuarioFiltroSchema = z.object({
-  perfil: z.enum(['ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO']).optional(),
+  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA', 'PROFESSOR', 'ALUNO']).optional(),
   busca: z.string().optional(),
 });
 

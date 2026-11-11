@@ -42,20 +42,20 @@ function HorariosAdmin() {
   }
 
   return (
-    <Pagina
-      titulo="Horários"
-      acoes={
+    <Pagina titulo="Horários">
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <Selecao
+            rotulo="Período letivo"
+            valor={periodoId}
+            aoMudar={setPeriodoId}
+            opcoes={(periodos.dados ?? []).map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
+            vazio="Todos os períodos"
+          />
+          <Campo rotulo="Grupo (ex.: 6A)" valor={grupo} aoMudar={setGrupo} />
+        </div>
         <Botao aoClicar={() => setNovoAberto(true)}>Novo horário</Botao>
-      }
-    >
-      <Selecao
-        rotulo="Período letivo"
-        valor={periodoId}
-        aoMudar={setPeriodoId}
-        opcoes={(periodos.dados ?? []).map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
-        vazio="Todos os períodos"
-      />
-      <Campo rotulo="Grupo (ex.: 6A)" valor={grupo} aoMudar={setGrupo} />
+      </div>
 
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
       {horarios.erro && <Aviso tipo="erro">{horarios.erro}</Aviso>}
@@ -125,8 +125,8 @@ function CalendarioAdmin() {
     setFormAberto(true);
   }
 
+  // A confirmação fica no detalhe do evento (Calendario), antes de chamar esta função.
   async function excluir(evento: EventoCalendario) {
-    if (!window.confirm(`Excluir o evento "${evento.titulo}"?`)) return;
     try {
       await api.del(`/calendario/${evento.id}`);
       setErroAcao(null);

@@ -1,12 +1,17 @@
 export type Perfil = 'ADMIN' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO';
 
+// Perfil verdadeiro do usuário. TI tem o mesmo acesso do ADMIN, mas aparece como "TI".
+export type PerfilReal = Perfil | 'TI';
+
 export interface UsuarioLogado {
   id: number;
   nome: string;
   email: string;
-  perfil: Perfil;
+  perfil: Perfil; // efetivo: 'ADMIN' para TI
+  perfilReal: PerfilReal; // perfil verdadeiro, usado só para mostrar o papel
   alunoId: number | null;
   professorId: number | null;
+  foto: string | null; // data URL ou endereço http(s); null sem foto
 }
 
 export const NIVEIS: { valor: string; rotulo: string }[] = [

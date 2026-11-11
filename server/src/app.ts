@@ -5,6 +5,7 @@ import path from 'path';
 import { Prisma } from '@prisma/client';
 import { HttpError } from './lib/erros';
 import { autenticar } from './lib/auth';
+import { descreverRequisicao, iniciarLimpezaDeLogs, registrarLog } from './lib/log';
 
 interface ModuloRotas {
   publico?: Router;
@@ -50,14 +51,63 @@ function tratarErro(e: unknown, req: Request, res: Response, _next: NextFunction
     res.status(400).json({ erro: 'JSON inválido' });
     return;
   }
+  if ((e as { type?: string })?.type === 'entity.too.large') {
+    res.status(413).json({ erro: 'Corpo da requisição grande demais' });
+    return;
+  }
   console.error(`Erro em ${req.method} ${req.originalUrl}:`, e);
   res.status(500).json({ erro: 'Erro interno' });
 }
 
+// Registra toda requisição autenticada sob /api ao terminar a resposta (sem atrasá-la).
+function registrarAtividade(req: Request, res: Response, next: NextFunction): void {
+  const inicio = Date.now();
+  // Capturados antes da resposta: dentro de 'finish' o req.path pode já não ter o prefixo /api.
+  const caminho = req.originalUrl.split('?')[0];
+  const metodo = req.method;
+  res.on('finish', () => {
+    try {
+      if (!caminho.startsWith('/api/') || !req.usuario || metodo === 'OPTIONS') {
+        return;
+      }
+      if (
+        caminho === '/api/saude' ||
+        caminho === '/api/logs' ||
+        caminho.startsWith('/api/logs/') ||
+        caminho === '/api/auth/login' ||
+        caminho === '/api/auth/sair'
+      ) {
+        return;
+      }
+      const descricao = descreverRequisicao(metodo, caminho);
+      const navegador = req.get('user-agent');
+      registrarLog({
+        usuarioId: req.usuario.id,
+        perfil: req.usuario.perfilReal ?? req.usuario.perfil,
+        tipo: descricao.tipo,
+        modulo: descricao.modulo,
+        descricao: descricao.descricao,
+        metodo,
+        caminho,
+        status: res.statusCode,
+        duracaoMs: Date.now() - inicio,
+        ip: req.ip ?? null,
+        navegador: navegador ? navegador.slice(0, 200) : null,
+      });
+    } catch (erro) {
+      console.error('Falha ao montar log de atividade:', erro instanceof Error ? erro.message : erro);
+    }
+  });
+  next();
+}
+
 export function criarApp() {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
+  app.use(registrarAtividade);
+  iniciarLimpezaDeLogs();
 
   const modulos = carregarModulos();
 

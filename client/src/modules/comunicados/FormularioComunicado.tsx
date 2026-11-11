@@ -82,7 +82,6 @@ export function FormularioComunicado({
     <form onSubmit={enviar}>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} obrigatorio />
-      <AreaTexto rotulo="Texto" valor={corpo} aoMudar={setCorpo} linhas={6} />
 
       {modoProfessor ? (
         <Selecao
@@ -131,9 +130,13 @@ export function FormularioComunicado({
       {turmas.erro && <Aviso tipo="erro">{turmas.erro}</Aviso>}
       {cursos.erro && <Aviso tipo="erro">{cursos.erro}</Aviso>}
 
-      <Botao tipo="submit" desabilitado={enviando}>
-        {enviando ? 'Enviando...' : 'Enviar comunicado'}
-      </Botao>
+      <AreaTexto rotulo="Texto" valor={corpo} aoMudar={setCorpo} linhas={6} />
+
+      <div className="comunicados-form-acoes">
+        <Botao tipo="submit" desabilitado={enviando}>
+          {enviando ? 'Enviando...' : 'Enviar comunicado'}
+        </Botao>
+      </div>
     </form>
   );
 }

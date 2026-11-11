@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import type { RotaModulo } from '../lib/rotas';
@@ -6,9 +6,14 @@ import type { Perfil } from '../lib/tipos';
 import { Icone } from '../ui/icones';
 import { Busca } from './Busca';
 import { agrupar } from './grupos';
-import { MenuUsuario } from './MenuUsuario';
+import { MenuUsuario, useNovidadesSuporte } from './MenuUsuario';
 import { Notificacoes } from './Notificacoes';
 import './casca.css';
+
+// Popup de chamados, também aberto pela gaveta do celular. Carregado sob demanda.
+const PainelSuporte = lazy(() =>
+  import('../modules/suporte/PainelSuporte').then((m) => ({ default: m.PainelSuporte })),
+);
 
 const CONSULTA_CELULAR = '(max-width: 899px)';
 
@@ -43,8 +48,11 @@ function useTelaEstreita(): boolean {
 export function Layout({ menu }: { menu: RotaModulo[] }) {
   const { usuario, sair } = useAuth();
   const [gavetaAberta, setGavetaAberta] = useState(false);
+  const [suporteAberto, setSuporteAberto] = useState(false);
   const estreita = useTelaEstreita();
   const local = useLocation();
+  // No celular, o contador busca uma vez por abertura da gaveta (sem intervalo).
+  const novidades = useNovidadesSuporte(gavetaAberta);
 
   useEffect(() => {
     setGavetaAberta(false);
@@ -204,6 +212,22 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
 
             <div className="casca-gaveta-rodape">
               <span className="casca-usuario-nome">{usuario.nome}</span>
+              <button
+                type="button"
+                className="casca-suporte-celular"
+                onClick={() => {
+                  setGavetaAberta(false);
+                  setSuporteAberto(true);
+                }}
+              >
+                <Icone nome="suporte" tamanho={18} />
+                Suporte
+                {novidades > 0 && (
+                  <span className="casca-contador" aria-label={`${novidades} novidades`}>
+                    {novidades}
+                  </span>
+                )}
+              </button>
               <button type="button" className="casca-sair" onClick={sair}>
                 <Icone nome="sair" tamanho={18} />
                 Sair
@@ -211,6 +235,12 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
             </div>
           </div>
         </div>
+      )}
+
+      {suporteAberto && (
+        <Suspense fallback={null}>
+          <PainelSuporte aberto={suporteAberto} aoFechar={() => setSuporteAberto(false)} />
+        </Suspense>
       )}
     </div>
   );

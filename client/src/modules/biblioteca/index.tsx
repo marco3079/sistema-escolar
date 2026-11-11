@@ -10,6 +10,7 @@ import {
   Botao,
   Campo,
   Carregando,
+  MenuAcoes,
   Modal,
   Pagina,
   Selecao,
@@ -17,6 +18,11 @@ import {
   Tabela,
   formatarData,
 } from '../../ui';
+import type { AcaoMenu } from '../../ui';
+import { Icone } from '../../ui/icones';
+import { CapaLivro } from './CapaLivro';
+import { CampoCapa } from './CampoCapa';
+import './biblioteca.css';
 
 // ---------- Tipos (formato do CONTRATOS 5.8) ----------
 
@@ -30,6 +36,7 @@ interface LivroDTO {
   categoria: string | null;
   exemplares: number;
   disponiveis: number;
+  capa: string | null;
 }
 
 interface EmprestimoDTO {
@@ -40,7 +47,7 @@ interface EmprestimoDTO {
   devolucaoPrevista: string;
   devolvidoEm: string | null;
   status: 'ATIVO' | 'DEVOLVIDO';
-  livro: { id: number; titulo: string; autor: string };
+  livro: { id: number; titulo: string; autor: string; capa: string | null };
   usuario: { id: number; nome: string; perfil: string };
   atrasado: boolean;
 }
@@ -71,6 +78,7 @@ function opcionalTexto(valor: string): string | null {
 
 const ROTULO_PERFIL: Record<string, string> = {
   ADMIN: 'Administrador',
+  TI: 'TI',
   SECRETARIA: 'Secretaria',
   PROFESSOR: 'Professor',
   ALUNO: 'Aluno',
@@ -90,10 +98,104 @@ function SeloSituacao({ emprestimo }: { emprestimo: EmprestimoDTO }) {
   return <Selo cor={info.cor}>{info.rotulo}</Selo>;
 }
 
+// ---------- Visão do acervo (tabela ou cartões), guardada no navegador ----------
+
+type Visao = 'tabela' | 'cartoes';
+const CHAVE_VISAO = 'escola.biblioteca.visao';
+
+// Padrão sem escolha salva: cartões
+const VISAO_PADRAO: Visao = 'cartoes';
+
+function lerVisao(): Visao {
+  try {
+    const salva = window.localStorage.getItem(CHAVE_VISAO);
+    if (salva === 'tabela' || salva === 'cartoes') return salva;
+  } catch {
+    // Armazenamento indisponível: usa o padrão
+  }
+  return VISAO_PADRAO;
+}
+
+function gravarVisao(visao: Visao) {
+  try {
+    window.localStorage.setItem(CHAVE_VISAO, visao);
+  } catch {
+    // Sem armazenamento: a escolha vale só nesta página
+  }
+}
+
+function AlternarVisao({ visao, aoMudar }: { visao: Visao; aoMudar: (v: Visao) => void }) {
+  return (
+    <div className="biblioteca-alternar" role="group" aria-label="Modo de exibição">
+      <button
+        type="button"
+        className="biblioteca-alternar-botao"
+        aria-label="Tabela"
+        title="Tabela"
+        aria-pressed={visao === 'tabela'}
+        onClick={() => aoMudar('tabela')}
+      >
+        <Icone nome="lista" />
+      </button>
+      <button
+        type="button"
+        className="biblioteca-alternar-botao"
+        aria-label="Cartões"
+        title="Cartões"
+        aria-pressed={visao === 'cartoes'}
+        onClick={() => aoMudar('cartoes')}
+      >
+        <Icone nome="grade" />
+      </button>
+    </div>
+  );
+}
+
 // ---------- Acervo ----------
+
+function CartoesLivros({
+  livros,
+  editavel,
+  acoesDoLivro,
+}: {
+  livros: LivroDTO[];
+  editavel: boolean;
+  acoesDoLivro: (livro: LivroDTO) => AcaoMenu[];
+}) {
+  if (livros.length === 0) {
+    return <p className="tabela-vazia">Nenhum livro encontrado.</p>;
+  }
+  return (
+    <ul className="biblioteca-cartoes">
+      {livros.map((l) => (
+        <li key={l.id} className="biblioteca-cartao">
+          {editavel && (
+            <div className="biblioteca-cartao-menu">
+              <MenuAcoes rotulo={`Ações de ${l.titulo}`} acoes={acoesDoLivro(l)} />
+            </div>
+          )}
+          <CapaLivro livro={l} tamanho="grande" />
+          <div className="biblioteca-cartao-corpo">
+            <span className="biblioteca-cartao-titulo" title={l.titulo}>
+              {l.titulo}
+            </span>
+            <span className="biblioteca-cartao-texto">{l.autor}</span>
+            <span className="biblioteca-cartao-texto">
+              {l.categoria ?? '—'} · {l.ano ?? '—'}
+            </span>
+            <Selo cor={l.disponiveis > 0 ? 'verde' : 'vermelho'}>
+              {`${l.disponiveis} de ${l.exemplares} disponíveis`}
+            </Selo>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function Acervo({ editavel }: { editavel: boolean }) {
   const [busca, setBusca] = useState('');
+  const [visao, setVisao] = useState<Visao>(lerVisao);
   const [formulario, setFormulario] = useState<{ livro: LivroDTO | null } | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
@@ -101,6 +203,11 @@ function Acervo({ editavel }: { editavel: boolean }) {
   const termo = busca.trim();
   const qs = termo ? `?${new URLSearchParams({ busca: termo }).toString()}` : '';
   const livros = useDados<LivroDTO[]>('/livros' + qs);
+
+  function trocarVisao(nova: Visao) {
+    setVisao(nova);
+    gravarVisao(nova);
+  }
 
   async function excluir(livro: LivroDTO) {
     if (!window.confirm(`Excluir o livro "${livro.titulo}"?`)) return;
@@ -115,33 +222,58 @@ function Acervo({ editavel }: { editavel: boolean }) {
     }
   }
 
+  // Ações de cada livro (tabela e cartões), no menu de três pontos.
+  function acoesDoLivro(l: LivroDTO): AcaoMenu[] {
+    return [
+      { rotulo: 'Editar', icone: 'lapis', aoClicar: () => setFormulario({ livro: l }) },
+      { rotulo: 'Excluir', icone: 'fechar', perigo: true, aoClicar: () => void excluir(l) },
+    ];
+  }
+
   return (
     <>
-      {editavel && (
-        <div className="pagina-acoes">
-          <Botao aoClicar={() => setFormulario({ livro: null })}>Novo livro</Botao>
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <input
+            type="search"
+            className="campo-controle biblioteca-busca"
+            placeholder="Buscar por título, autor ou categoria"
+            aria-label="Buscar por título, autor ou categoria"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
         </div>
-      )}
-
-      <Campo
-        rotulo="Buscar por título, autor ou categoria"
-        valor={busca}
-        aoMudar={setBusca}
-      />
+        <div className="biblioteca-acoes-barra">
+          <AlternarVisao visao={visao} aoMudar={trocarVisao} />
+          {editavel && (
+            <Botao aoClicar={() => setFormulario({ livro: null })}>Novo livro</Botao>
+          )}
+        </div>
+      </div>
 
       {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
       {livros.erro && <Aviso tipo="erro">{livros.erro}</Aviso>}
       {livros.carregando && <Carregando />}
 
-      {livros.dados && (
+      {livros.dados && visao === 'tabela' && (
         <Tabela
           dados={livros.dados}
           chave={(l) => l.id}
           vazio="Nenhum livro encontrado."
           colunas={[
-            { titulo: 'Título', celula: (l) => l.titulo },
-            { titulo: 'Autor', celula: (l) => l.autor },
+            {
+              titulo: 'Título',
+              celula: (l) => (
+                <div className="biblioteca-titulo-celula">
+                  <CapaLivro livro={l} tamanho="mini" />
+                  <div>
+                    <span className="biblioteca-titulo-livro">{l.titulo}</span>
+                    <span className="biblioteca-autor">{l.autor}</span>
+                  </div>
+                </div>
+              ),
+            },
             { titulo: 'Categoria', celula: (l) => l.categoria ?? '—' },
             { titulo: 'Ano', celula: (l) => (l.ano ?? '—') },
             { titulo: 'Disponíveis', celula: (l) => `${l.disponiveis}/${l.exemplares}` },
@@ -149,20 +281,22 @@ function Acervo({ editavel }: { editavel: boolean }) {
               ? [
                   {
                     titulo: 'Ações',
+                    acoes: true,
                     celula: (l: LivroDTO) => (
-                      <>
-                        <Botao variante="texto" aoClicar={() => setFormulario({ livro: l })}>
-                          Editar
-                        </Botao>
-                        <Botao variante="perigo" aoClicar={() => excluir(l)}>
-                          Excluir
-                        </Botao>
-                      </>
+                      <MenuAcoes rotulo={`Ações de ${l.titulo}`} acoes={acoesDoLivro(l)} />
                     ),
                   },
                 ]
               : []),
           ]}
+        />
+      )}
+
+      {livros.dados && visao === 'cartoes' && (
+        <CartoesLivros
+          livros={livros.dados}
+          editavel={editavel}
+          acoesDoLivro={acoesDoLivro}
         />
       )}
 
@@ -196,6 +330,7 @@ function FormLivro({
   const [ano, setAno] = useState(livro?.ano != null ? String(livro.ano) : '');
   const [categoria, setCategoria] = useState(livro?.categoria ?? '');
   const [exemplares, setExemplares] = useState(livro ? String(livro.exemplares) : '1');
+  const [capa, setCapa] = useState<string | null>(livro?.capa ?? null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -215,6 +350,7 @@ function FormLivro({
       ano: ano.trim() === '' ? null : Number(ano),
       categoria: opcionalTexto(categoria),
       exemplares: qtd,
+      capa,
     };
     setEnviando(true);
     try {
@@ -236,6 +372,11 @@ function FormLivro({
     <Modal aberto titulo={livro ? 'Editar livro' : 'Novo livro'} aoFechar={aoFechar}>
       <form onSubmit={enviar}>
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        <CampoCapa
+          valor={capa}
+          aoMudar={setCapa}
+          livro={{ titulo, categoria }}
+        />
         <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} obrigatorio />
         <Campo rotulo="Autor" valor={autor} aoMudar={setAutor} obrigatorio />
         <Campo rotulo="ISBN" valor={isbn} aoMudar={setIsbn} />
@@ -275,7 +416,15 @@ function MeusEmprestimos() {
           chave={(e) => e.id}
           vazio="Você não tem empréstimos."
           colunas={[
-            { titulo: 'Livro', celula: (e) => e.livro.titulo },
+            {
+              titulo: 'Livro',
+              celula: (e) => (
+                <div className="biblioteca-titulo-celula">
+                  <CapaLivro livro={e.livro} tamanho="mini" />
+                  <span className="biblioteca-titulo-livro">{e.livro.titulo}</span>
+                </div>
+              ),
+            },
             { titulo: 'Retirada', celula: (e) => formatarData(e.retiradoEm) },
             { titulo: 'Devolução prevista', celula: (e) => formatarData(e.devolucaoPrevista) },
             { titulo: 'Situação', celula: (e) => <SeloSituacao emprestimo={e} /> },
@@ -394,20 +543,23 @@ function Emprestimos() {
 
   return (
     <>
-      <div className="pagina-acoes">
-        <Botao aoClicar={() => setNovo(true)}>Novo empréstimo</Botao>
+      <div className="barra-ferramentas">
+        <div className="filtros">
+          <Selecao
+            rotulo="Situação"
+            valor={status}
+            aoMudar={setStatus}
+            vazio="Todos"
+            opcoes={[
+              { valor: 'ATIVO', rotulo: 'Ativos' },
+              { valor: 'DEVOLVIDO', rotulo: 'Devolvidos' },
+            ]}
+          />
+        </div>
+        <div className="biblioteca-acoes-barra">
+          <Botao aoClicar={() => setNovo(true)}>Novo empréstimo</Botao>
+        </div>
       </div>
-
-      <Selecao
-        rotulo="Situação"
-        valor={status}
-        aoMudar={setStatus}
-        vazio="Todos"
-        opcoes={[
-          { valor: 'ATIVO', rotulo: 'Ativos' },
-          { valor: 'DEVOLVIDO', rotulo: 'Devolvidos' },
-        ]}
-      />
 
       {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
@@ -420,7 +572,15 @@ function Emprestimos() {
           chave={(e) => e.id}
           vazio="Nenhum empréstimo encontrado."
           colunas={[
-            { titulo: 'Livro', celula: (e) => e.livro.titulo },
+            {
+              titulo: 'Livro',
+              celula: (e) => (
+                <div className="biblioteca-titulo-celula">
+                  <CapaLivro livro={e.livro} tamanho="mini" />
+                  <span className="biblioteca-titulo-livro">{e.livro.titulo}</span>
+                </div>
+              ),
+            },
             { titulo: 'Usuário', celula: (e) => e.usuario.nome },
             {
               titulo: 'Perfil',
@@ -431,14 +591,19 @@ function Emprestimos() {
             { titulo: 'Situação', celula: (e) => <SeloSituacao emprestimo={e} /> },
             {
               titulo: 'Ações',
+              acoes: true,
               celula: (e) =>
                 e.status === 'ATIVO' ? (
-                  <Botao variante="texto" aoClicar={() => devolver(e)}>
-                    Registrar devolução
-                  </Botao>
-                ) : (
-                  '—'
-                ),
+                  <MenuAcoes
+                    rotulo={`Ações do empréstimo de ${e.livro.titulo}`}
+                    acoes={[
+                      {
+                        rotulo: 'Registrar devolução',
+                        aoClicar: () => void devolver(e),
+                      },
+                    ]}
+                  />
+                ) : null,
             },
           ]}
         />

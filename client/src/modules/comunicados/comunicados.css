@@ -1,52 +1,369 @@
-/* Comunicados: cartões de aviso. Celular primeiro (360 px).
-   Cores só por variáveis do tema (estilo.css), para funcionar no tema claro e no escuro. */
+/* Comunicados: caixa de avisos (lista compacta + leitura ao lado, ou em Modal abaixo de 1000 px).
+   Celular primeiro (360 px). Cores, raios e sombras só por variáveis do tema (estilo.css),
+   para funcionar no tema claro e no escuro. */
+
+.comunicados-caixa {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* ---------- Barra: busca, filtros e ação ---------- */
+
+.comunicados-filtros-grupo {
+  flex: 1 1 320px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.comunicados-busca {
+  position: relative;
+  display: block;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.comunicados-busca .campo-controle {
+  padding-left: 2.4rem;
+}
+
+.comunicados-busca-icone {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cor-texto-suave);
+  pointer-events: none;
+}
+
+.comunicados-pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.comunicados-pilula {
+  min-height: 36px;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comunicados-pilula[aria-pressed='true'] {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  border-color: var(--cor-primaria);
+}
+
+.comunicados-pilula:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+.comunicados-contador {
+  display: inline-block;
+  min-width: 1.4rem;
+  margin-left: 0.3rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--cor-primaria);
+  color: var(--cor-sobre-primaria);
+  font-size: 0.75rem;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
+.comunicados-selecao-publico {
+  flex: 0 1 200px;
+  min-width: 150px;
+}
+
+.comunicados-selecao-publico .campo {
+  margin-bottom: 0;
+}
+
+/* ---------- Layout: lista e leitura ---------- */
+
+.comunicados-layout {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.comunicados-lista-coluna,
+.comunicados-leitura-coluna {
+  min-width: 0;
+}
+
+@media (min-width: 1000px) {
+  .comunicados-layout {
+    grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+  }
+
+  .comunicados-leitura-coluna {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+/* ---------- Lista compacta ---------- */
 
 .comunicado-lista {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 12px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
 }
 
-.comunicado {
-  background: var(--cor-superficie);
-  color: var(--cor-texto);
-  border: 1px solid var(--cor-borda);
-  border-radius: 8px;
-  padding: 12px;
+.comunicado-linha {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   min-width: 0;
-  overflow-wrap: anywhere;
+  padding: 0.8rem 0.9rem;
+  color: var(--cor-texto);
+  cursor: pointer;
+}
+
+.comunicado-linha + .comunicado-linha {
+  border-top: 1px solid var(--cor-borda);
+}
+
+.comunicado-linha:hover {
+  background: var(--cor-superficie-2);
+}
+
+.comunicado-linha:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: -2px;
+}
+
+.comunicado-linha-selecionada,
+.comunicado-linha-selecionada:hover {
+  background: var(--cor-primaria-suave);
+}
+
+.comunicado-avatar {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.comunicado-avatar-azul {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+}
+
+.comunicado-avatar-roxo {
+  background: var(--cor-roxo-suave);
+  color: var(--cor-roxo);
+}
+
+.comunicado-avatar-verde {
+  background: var(--cor-verde-suave);
+  color: var(--cor-verde);
+}
+
+.comunicado-avatar-laranja {
+  background: var(--cor-laranja-suave);
+  color: var(--cor-laranja);
+}
+
+.comunicado-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comunicado-titulo,
+.comunicado-previa {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .comunicado-titulo {
-  font-size: 1.05rem;
-  margin: 0 0 4px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+.comunicado-titulo-novo {
+  font-weight: 700;
+}
+
+.comunicado-previa {
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
 }
 
 .comunicado-meta {
-  margin: 0;
-  color: var(--cor-texto-suave);
-  font-size: 0.85rem;
-}
-
-.comunicado-corpo {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin: 10px 0 0;
-}
-
-.comunicado-acoes {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
 }
 
-.comunicados-vazio {
+.comunicado-autor {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.comunicado-linha .selo {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.5rem;
+}
+
+.comunicado-lado {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 0.78rem;
   color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.comunicado-ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cor-primaria);
+}
+
+/* ---------- Estados vazios ---------- */
+
+.comunicados-vazio,
+.comunicados-vazio-leitura {
+  margin: 0;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--cor-texto-suave);
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.comunicados-vazio-leitura {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 320px;
+  border-style: dashed;
+}
+
+.comunicados-vazio-leitura p {
+  margin: 0;
+}
+
+/* ---------- Leitura ---------- */
+
+.comunicado-leitura {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow-wrap: anywhere;
+}
+
+.comunicado-leitura-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.comunicado-leitura-quem {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.comunicado-leitura-quem strong {
+  font-size: 0.95rem;
+}
+
+.comunicado-leitura-data {
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.comunicado-leitura-titulo {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: var(--cor-texto);
+}
+
+.comunicado-leitura-corpo {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  color: var(--cor-texto);
+}
+
+.comunicado-leitura-acoes {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.comunicado-leitura-acoes .botao {
+  color: var(--cor-perigo);
+}
+
+/* Dentro do Modal (abaixo de 1000 px) a leitura ocupa a tela toda, sem moldura extra. */
+.modal-corpo .comunicado-leitura {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---------- Formulário de novo comunicado ---------- */
+
+.comunicados-form-acoes {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
 }

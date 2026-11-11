@@ -270,6 +270,7 @@ textarea {
 .pagina-acoes {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
   max-width: 100%;
 }
@@ -295,12 +296,19 @@ textarea {
 }
 
 .cartao-indicador-valor {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--cor-primaria);
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cartao-indicador-rotulo {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85rem;
   color: var(--cor-texto-suave);
 }
 
@@ -547,6 +555,11 @@ textarea.campo-controle {
     vertical-align: middle;
   }
 
+  /* Sem quebra de linha só na tabela larga; nos cartões do celular o texto quebra. */
+  .tabela-desktop .sem-quebra {
+    white-space: nowrap;
+  }
+
   .tabela-desktop tbody tr:last-child td {
     border-bottom: none;
   }
@@ -592,4 +605,246 @@ textarea.campo-controle {
   .grade {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
+}
+
+/* ===== Espaçamento entre os blocos das páginas internas ===== */
+/* Margens verticais de bloco colapsam: .abas (margin-bottom) e .aviso não se somam ao espaço de 1rem */
+.pagina > * + * {
+  margin-top: 1rem;
+}
+
+/* Popups de posição fixa filhos diretos de .pagina não recebem o espaçamento acima */
+.pagina > .modal-fundo {
+  margin-top: 0;
+}
+
+.pagina > [role="dialog"],
+.pagina > [class$="-fundo"] {
+  margin-top: 0;
+}
+
+/* ===== Resumo (indicadores em cartões com ícone) ===== */
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+/* No celular, dois cartões por linha em vez de um embaixo do outro. */
+@media (max-width: 560px) {
+  .resumo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .resumo .resumo-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 8px;
+    min-width: 0;
+  }
+  .resumo .resumo-icone {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex: none;
+  }
+  .resumo .resumo-valor {
+    font-size: 1rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .resumo .resumo-rotulo {
+    font-size: 0.78rem;
+  }
+}
+
+.resumo-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+
+.resumo-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+
+.resumo-icone-azul {
+  background: var(--cor-azul-suave);
+  color: var(--cor-primaria);
+}
+
+.resumo-icone-roxo {
+  background: var(--cor-roxo-suave);
+  color: var(--cor-roxo);
+}
+
+.resumo-icone-verde {
+  background: var(--cor-verde-suave);
+  color: var(--cor-verde);
+}
+
+.resumo-icone-laranja {
+  background: var(--cor-laranja-suave);
+  color: var(--cor-laranja);
+}
+
+.resumo-icone-vermelho {
+  background: color-mix(in srgb, var(--cor-perigo) 14%, transparent);
+  color: var(--cor-perigo);
+}
+
+.resumo-valor {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resumo-rotulo {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+}
+
+/* ===== Barra de ferramentas (filtros + botão de ação) ===== */
+.barra-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.barra-ferramentas > .filtros {
+  flex: 1 1 320px;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.filtros > .campo {
+  margin-bottom: 0;
+}
+
+/* Abaixo de 520 px: filtros em uma coluna e botão da barra em largura total */
+@media (max-width: 519px) {
+  .filtros {
+    grid-template-columns: 1fr;
+  }
+
+  .barra-ferramentas > .botao {
+    width: 100%;
+  }
+}
+
+/* ===== Tabela: alinhamento e coluna de ações (terceira leva) ===== */
+/* Seletor .tabela .x supera a regra .tabela th/td de 720 px (text-align: left). */
+.tabela .tabela-alinhar-esquerda {
+  text-align: left;
+}
+
+.tabela .tabela-alinhar-centro {
+  text-align: center;
+}
+
+.tabela .tabela-alinhar-direita {
+  text-align: right;
+}
+
+.tabela .tabela-coluna-acoes {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Cartão do celular: a célula de ações fica no fim, alinhada à direita, sem rótulo. */
+.tabela-par-acoes {
+  align-items: flex-end;
+}
+
+/* Texto que só os leitores de tela leem (cabeçalho da coluna de ações sem título visível). */
+.tabela-oculto-visual {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ===== Avatar (foto ou iniciais, redondo) ===== */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===== Controle segmentado (alterna visões) ===== */
+.segmentado {
+  display: inline-flex;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.25rem;
+  overflow-x: auto;
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+}
+
+.segmentado-item {
+  min-height: 40px;
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cor-texto-suave);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmentado-item:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+.segmentado-item[aria-pressed="true"] {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
 }

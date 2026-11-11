@@ -14,6 +14,8 @@ export const GRUPOS: GrupoMenu[] = [
   { titulo: 'Ensino', icones: ['diario', 'boletim', 'historico', 'pos'] },
   { titulo: 'Gestão', icones: ['financeiro', 'biblioteca'] },
   { titulo: 'Agenda', icones: ['horarios', 'calendario', 'comunicados'] },
+  { titulo: 'Comunidade', icones: ['forum', 'suporte'] },
+  { titulo: 'Sistema', icones: ['atividade', 'log'] },
   { titulo: 'Conta', icones: ['perfil'] },
 ];
 

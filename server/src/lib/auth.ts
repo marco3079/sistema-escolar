@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import type { Perfil } from '@prisma/client';
 
 export interface UsuarioToken {
   id: number;
-  perfil: Perfil;
+  perfil: Perfil; // efetivo: nunca 'TI' depois de `autenticar` (TI vira 'ADMIN')
+  perfilReal?: Perfil; // preenchido por `autenticar` com o perfil verdadeiro
   alunoId: number | null;
   professorId: number | null;
 }
@@ -17,8 +19,24 @@ declare global {
   }
 }
 
+const SEGREDO_DE_EXEMPLO = 'troque-este-segredo-de-exemplo';
+const SEGREDO_ANTIGO_PADRAO = 'dev-secret';
+
+// Calculado uma vez na subida. Se o segredo estiver ausente ou for de exemplo
+// (valores conhecidos do repositório público), gera um aleatório para a execução.
+const SEGREDO_JWT: string = (() => {
+  const valor = process.env.JWT_SECRET ?? '';
+  if (valor.length < 16 || valor === SEGREDO_DE_EXEMPLO || valor === SEGREDO_ANTIGO_PADRAO) {
+    console.warn(
+      'Aviso: JWT_SECRET ausente ou de exemplo. Um segredo aleatório foi gerado para esta execução; os logins expiram quando o servidor reiniciar. Defina JWT_SECRET no .env (o instalador faz isso).'
+    );
+    return crypto.randomBytes(48).toString('hex');
+  }
+  return valor;
+})();
+
 function segredo(): string {
-  return process.env.JWT_SECRET ?? 'dev-secret';
+  return SEGREDO_JWT;
 }
 
 export function gerarToken(u: UsuarioToken): string {
@@ -38,9 +56,12 @@ export const autenticar: RequestHandler = (req: Request, res: Response, next: Ne
   const token = cabecalho.slice('Bearer '.length).trim();
   try {
     const payload = jwt.verify(token, segredo()) as jwt.JwtPayload;
+    const perfilVerdadeiro = payload.perfil as Perfil;
     req.usuario = {
       id: payload.id,
-      perfil: payload.perfil,
+      // TI tem o mesmo acesso do ADMIN nas permissões; o verdadeiro fica em perfilReal.
+      perfil: perfilVerdadeiro === 'TI' ? 'ADMIN' : perfilVerdadeiro,
+      perfilReal: perfilVerdadeiro,
       alunoId: payload.alunoId ?? null,
       professorId: payload.professorId ?? null,
     };

@@ -38,6 +38,14 @@ export const rotas: RotaModulo[] = [
     ordem: 90,
   },
   {
+    caminho: '/admin/perfil',
+    rotulo: 'Meu perfil',
+    icone: 'perfil',
+    perfis: ['ADMIN', 'SECRETARIA'],
+    elemento: <MeuPerfil />,
+    ordem: 90,
+  },
+  {
     caminho: '/professor/perfil',
     rotulo: 'Meu perfil',
     icone: 'perfil',

@@ -1,0 +1,321 @@
+/* Biblioteca: capas, alternância tabela/cartões e campo de capa.
+   Cores, raios e sombras só por variáveis de ui/estilo.css. */
+
+/* ===== Capa (miniatura, média e grande) ===== */
+.biblioteca-capa {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: var(--raio-pequeno);
+  box-shadow: var(--sombra);
+  color: var(--cor-sobre-primaria);
+  background: var(--cor-capa, var(--cor-primaria));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.biblioteca-capa-mini {
+  width: 40px;
+  height: 60px;
+  gap: 0.1rem;
+}
+
+.biblioteca-capa-media {
+  width: 96px;
+  height: 144px;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+}
+
+.biblioteca-capa-grande {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  height: auto;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+}
+
+.biblioteca-capa-imagem {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.biblioteca-capa-lombada {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  min-width: 3px;
+  background: color-mix(in srgb, var(--cor-capa, var(--cor-primaria)) 70%, var(--cor-texto));
+}
+
+.biblioteca-capa-iniciais {
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.biblioteca-capa-mini .biblioteca-capa-iniciais {
+  font-size: 0.8rem;
+}
+
+.biblioteca-capa-media .biblioteca-capa-iniciais,
+.biblioteca-capa-grande .biblioteca-capa-iniciais {
+  font-size: 1.6rem;
+}
+
+.biblioteca-capa-titulo {
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.biblioteca-capa-grande .biblioteca-capa-titulo {
+  font-size: 0.85rem;
+}
+
+.biblioteca-capa-azul {
+  --cor-capa: var(--cor-primaria);
+}
+
+.biblioteca-capa-roxo {
+  --cor-capa: var(--cor-roxo);
+}
+
+.biblioteca-capa-verde {
+  --cor-capa: var(--cor-verde);
+}
+
+.biblioteca-capa-laranja {
+  --cor-capa: var(--cor-laranja);
+}
+
+/* ===== Título com miniatura (tabela e empréstimos) ===== */
+.biblioteca-titulo-celula {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.biblioteca-titulo-celula > div {
+  min-width: 0;
+}
+
+.biblioteca-titulo-livro {
+  display: block;
+  font-weight: 600;
+  color: var(--cor-texto);
+  overflow-wrap: anywhere;
+}
+
+.biblioteca-autor {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+  overflow-wrap: anywhere;
+}
+
+/* Ações pequenas em texto, com cor de perigo */
+.biblioteca-acao-perigo .botao {
+  color: var(--cor-perigo);
+}
+
+.biblioteca-acoes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* ===== Barra de ferramentas: busca à esquerda, alinhada ao alternador e ao botão ===== */
+.biblioteca-busca {
+  min-height: var(--altura-toque);
+}
+
+/* A busca ocupa a largura do bloco de filtros (sem rótulo em cima) */
+.filtros > .biblioteca-busca {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+/* ===== Barra de ferramentas: alternador e ações à direita ===== */
+.biblioteca-acoes-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.biblioteca-alternar {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.biblioteca-alternar-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--altura-toque);
+  height: var(--altura-toque);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cor-texto-suave);
+  cursor: pointer;
+}
+
+.biblioteca-alternar-botao + .biblioteca-alternar-botao {
+  border-left: 1px solid var(--cor-borda);
+}
+
+.biblioteca-alternar-botao[aria-pressed='true'] {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+}
+
+.biblioteca-alternar-botao:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: -2px;
+}
+
+/* ===== Cartões do acervo ===== */
+.biblioteca-cartoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 1rem;
+}
+
+/* Abaixo de 520 px: sempre duas colunas (360 px inclui margens) */
+@media (max-width: 519px) {
+  .biblioteca-cartoes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+.biblioteca-cartao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra);
+}
+
+/* Menu de ações no canto superior direito do cartão */
+.biblioteca-cartao-menu {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  z-index: 1;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra);
+}
+
+.biblioteca-cartao-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.biblioteca-cartao-titulo {
+  font-weight: 600;
+  color: var(--cor-texto);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.biblioteca-cartao-texto {
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+  overflow-wrap: anywhere;
+}
+
+.biblioteca-cartao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* ===== Campo de capa no formulário ===== */
+.biblioteca-campo-capa {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.biblioteca-campo-capa-corpo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.biblioteca-campo-capa-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.biblioteca-arquivo-botao {
+  align-self: flex-start;
+  position: relative;
+  cursor: pointer;
+}
+
+.biblioteca-arquivo-desabilitado {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Input de arquivo escondido visualmente, mas focável pelo teclado via label */
+.biblioteca-arquivo-entrada {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.biblioteca-arquivo-botao:focus-within {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+/* A busca do acervo pode ser mais larga que os demais filtros. */
+.filtros:has(> .biblioteca-busca) {
+  grid-template-columns: minmax(0, 420px);
+}
