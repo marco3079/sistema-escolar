@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useChatNaoLidas } from '../modules/chat/naoLidas';
 import { useAuth } from '../lib/auth';
+import { usePlataforma } from '../lib/plataforma';
 import type { RotaModulo } from '../lib/rotas';
 import { useTema } from '../lib/tema';
 import type { Perfil } from '../lib/tipos';
@@ -59,14 +61,34 @@ export function BotaoTema() {
   );
 }
 
+// Botão redondo que leva ao chat do portal, com o total de mensagens não lidas.
+function BotaoChat({ caminho, naoLidas }: { caminho: string; naoLidas: number }) {
+  const rotulo = naoLidas > 0 ? `Chat, ${naoLidas} não lidas` : 'Chat';
+  return (
+    <Link to={caminho} className="casca-botao-redondo casca-chat-botao" aria-label={rotulo} title="Chat">
+      <Icone nome="chat" tamanho={20} />
+      {naoLidas > 0 && (
+        <span className="casca-contador" aria-hidden="true">
+          {naoLidas > 99 ? '99+' : naoLidas}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function Layout({ menu }: { menu: RotaModulo[] }) {
   const { usuario, sair } = useAuth();
+  const { plataforma, logoSrc } = usePlataforma();
   const [gavetaAberta, setGavetaAberta] = useState(false);
   const [suporteAberto, setSuporteAberto] = useState(false);
   const estreita = useTelaEstreita();
   const local = useLocation();
   // No celular, o contador busca uma vez por abertura da gaveta (sem intervalo).
   const novidades = useNovidadesSuporte(gavetaAberta);
+  const caminhoChat = usuario ? `${caminhoDoPerfil(usuario.perfil)}/chat` : '';
+  // O botão some quando a pessoa já está na tela do chat.
+  const naTelaDoChat = caminhoChat !== '' && local.pathname.startsWith(caminhoChat);
+  const naoLidasChat = useChatNaoLidas(usuario !== null && !naTelaDoChat);
 
   useEffect(() => {
     setGavetaAberta(false);
@@ -116,9 +138,9 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
       {!estreita && (
         <aside className="casca-lateral">
           <div className="casca-marca">
-            <img src="/logo-simbolo.png" alt="" className="casca-marca-logo" width={40} height={40} />
+            <img src={logoSrc} alt="" className="casca-marca-logo" width={40} height={40} />
             <div className="casca-marca-texto">
-              <strong className="casca-marca-nome">Sistema Escolar</strong>
+              <strong className="casca-marca-nome">{plataforma.nome}</strong>
               <span className="casca-marca-portal">{portal}</span>
             </div>
           </div>
@@ -128,11 +150,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
           </nav>
 
           <div className="casca-cartao">
-            <p className="casca-cartao-frase">
-              Construindo
-              <br />
-              um futuro melhor.
-            </p>
+            <p className="casca-cartao-frase">{plataforma.slogan}</p>
             <div className="casca-cartao-ilustracao" aria-hidden="true" />
           </div>
         </aside>
@@ -141,9 +159,10 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
       {estreita && (
         <header className="casca-topo-celular">
           <div className="casca-topo-celular-barra">
-            <img src="/logo-simbolo.png" alt="" className="casca-topo-celular-logo" width={28} height={28} />
+            <img src={logoSrc} alt="" className="casca-topo-celular-logo" width={28} height={28} />
             <span className="casca-topo-celular-nome">{portal}</span>
             <div className="casca-topo-celular-acoes">
+              {caminhoChat && !naTelaDoChat && <BotaoChat caminho={caminhoChat} naoLidas={naoLidasChat} />}
               <Notificacoes raiz={raizPortal} />
               <BotaoTema />
               <button
@@ -168,6 +187,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
             <header className="casca-topo">
               <Busca telas={menu} />
               <div className="casca-topo-acoes">
+                {caminhoChat && !naTelaDoChat && <BotaoChat caminho={caminhoChat} naoLidas={naoLidasChat} />}
                 <Notificacoes raiz={raizPortal} />
                 <BotaoTema />
                 <MenuUsuario />
@@ -209,7 +229,7 @@ export function Layout({ menu }: { menu: RotaModulo[] }) {
           >
             <div className="casca-gaveta-cabecalho">
               <div className="casca-marca-texto">
-                <strong className="casca-marca-nome">Sistema Escolar</strong>
+                <strong className="casca-marca-nome">{plataforma.nome}</strong>
                 <span className="casca-marca-portal">{portal}</span>
               </div>
               <button

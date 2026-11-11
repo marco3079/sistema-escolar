@@ -58,6 +58,7 @@ const ROTULOS_MODULO: Record<string, string> = {
   busca: 'Busca',
   perfil: 'Perfil',
   auth: 'Sessão',
+  chat: 'Chat',
 };
 
 // Ações: POST cujo último segmento do caminho está aqui vira ALTERACAO.
@@ -176,6 +177,39 @@ export function registrarLog(dados: DadosLog): void {
   }
 }
 
+// Chat: descrições genéricas, sem o conteúdo das mensagens nem nomes de pessoas.
+function descreverChat(
+  metodo: string,
+  segmentos: string[]
+): { tipo: TipoLog; modulo: string; descricao: string } {
+  const modulo = 'Chat';
+  const metodoMaiusculo = metodo.toUpperCase();
+  const envolveMensagem = segmentos.includes('mensagens');
+  const envolveParticipantes = segmentos.includes('participantes');
+  if (metodoMaiusculo === 'GET') {
+    return { tipo: 'CONSULTA', modulo, descricao: 'Consultou o chat' };
+  }
+  if (metodoMaiusculo === 'POST' && envolveMensagem) {
+    return { tipo: 'CRIACAO', modulo, descricao: 'Enviou mensagem no chat' };
+  }
+  if (metodoMaiusculo === 'POST' && envolveParticipantes) {
+    return { tipo: 'ALTERACAO', modulo, descricao: 'Adicionou pessoas a um grupo no chat' };
+  }
+  if (metodoMaiusculo === 'POST') {
+    return { tipo: 'CRIACAO', modulo, descricao: 'Criou conversa no chat' };
+  }
+  if (metodoMaiusculo === 'PUT' || metodoMaiusculo === 'PATCH') {
+    return { tipo: 'ALTERACAO', modulo, descricao: 'Alterou um grupo no chat' };
+  }
+  if (metodoMaiusculo === 'DELETE' && envolveParticipantes) {
+    return { tipo: 'EXCLUSAO', modulo, descricao: 'Saiu de um grupo ou removeu alguém no chat' };
+  }
+  if (metodoMaiusculo === 'DELETE') {
+    return { tipo: 'EXCLUSAO', modulo, descricao: 'Apagou mensagem no chat' };
+  }
+  return { tipo: 'CONSULTA', modulo, descricao: 'Consultou o chat' };
+}
+
 // Recebe o método e o caminho da API (ex.: "/api/mensalidades/5/pagar", sem query string).
 export function descreverRequisicao(
   metodo: string,
@@ -186,6 +220,9 @@ export function descreverRequisicao(
     segmentos.shift();
   }
   const segmentoModulo = segmentos[0] ?? '';
+  if (segmentoModulo === 'chat') {
+    return descreverChat(metodo, segmentos);
+  }
   const ultimo = segmentos.length > 0 ? segmentos[segmentos.length - 1] : '';
   const modulo = ROTULOS_MODULO[segmentoModulo] ?? (segmentoModulo || 'Sistema');
   const metodoMaiusculo = metodo.toUpperCase();

@@ -4,8 +4,12 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
+import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
 
 const router = Router();
+
+const MAX_DESTINATARIOS_EMAIL = 300;
+const MAX_TEXTO_EMAIL = 600;
 
 const incluirComunicado = {
   autor: { select: { nome: true } },
@@ -61,6 +65,88 @@ async function visiveisPara(usuario: UsuarioToken): Promise<Prisma.ComunicadoWhe
   }
 
   return { OR: condicoes };
+}
+
+// Quem recebe o comunicado: a regra de visibilidade do GET, invertida (ADMIN, TI e SECRETARIA só recebem
+// quando o público é "todos"). Turma e curso sem id válido não têm destinatários.
+function filtroDestinatarios(
+  publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO',
+  turmaId: number | null,
+  cursoId: number | null
+): Prisma.UsuarioWhereInput {
+  switch (publico) {
+    case 'TODOS':
+      return {};
+    case 'ALUNOS':
+      return { perfil: 'ALUNO' };
+    case 'PROFESSORES':
+      return { perfil: 'PROFESSOR' };
+    case 'TURMA':
+      if (turmaId === null) {
+        return { id: { in: [] } };
+      }
+      return {
+        OR: [
+          {
+            perfil: 'ALUNO',
+            aluno: {
+              matriculas: { some: { inscricoes: { some: { turmaId, status: { not: 'TRANCADO' } } } } },
+            },
+          },
+          { perfil: 'PROFESSOR', professor: { turmas: { some: { id: turmaId } } } },
+        ],
+      };
+    case 'CURSO':
+      if (cursoId === null) {
+        return { id: { in: [] } };
+      }
+      return {
+        OR: [
+          { perfil: 'ALUNO', aluno: { matriculas: { some: { cursoId } } } },
+          { perfil: 'PROFESSOR', professor: { turmas: { some: { disciplina: { cursoId } } } } },
+        ],
+      };
+  }
+}
+
+// Avisa por e-mail os destinatários do comunicado. Roda em segundo plano: nunca atrasa nem derruba a resposta.
+function enviarEmailsComunicado(
+  comunicado: { id: number; titulo: string; corpo: string; publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
+  autorId: number
+): void {
+  void (async () => {
+    if (!(await emailHabilitado('COMUNICADO'))) {
+      return;
+    }
+    const endereco = await enderecoDoSite();
+    if (!endereco) {
+      return;
+    }
+    const destinatarios = await prisma.usuario.findMany({
+      where: {
+        AND: [
+          { ativo: true },
+          { id: { not: autorId } },
+          filtroDestinatarios(comunicado.publico, comunicado.turmaId, comunicado.cursoId),
+        ],
+      },
+      select: { email: true },
+      orderBy: { id: 'asc' },
+      take: MAX_DESTINATARIOS_EMAIL,
+    });
+    const trecho = Array.from(comunicado.corpo).slice(0, MAX_TEXTO_EMAIL).join('');
+    const cortado = Array.from(comunicado.corpo).length > MAX_TEXTO_EMAIL;
+    for (const destinatario of destinatarios) {
+      enfileirarEmail({
+        para: destinatario.email,
+        assunto: `Novo comunicado: ${comunicado.titulo}`,
+        titulo: comunicado.titulo,
+        paragrafos: [trecho + (cortado ? '…' : '')],
+        botao: { rotulo: 'Ler no sistema', endereco: `${endereco}/login` },
+        tipo: 'COMUNICADO',
+      });
+    }
+  })().catch(() => undefined);
 }
 
 router.get(
@@ -134,6 +220,7 @@ router.post(
       },
       include: incluirComunicado,
     });
+    enviarEmailsComunicado(criado, id);
     res.status(201).json({ ...criado, lido: false });
   })
 );

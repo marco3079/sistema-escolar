@@ -1077,6 +1077,148 @@ export async function carregarDemonstracao(prisma: PrismaClient): Promise<void> 
   registros.push(registroDe(atores[1], modeloExclusao, 600, 62));
   await prisma.logAtividade.createMany({ data: registros });
 
+  // ----- Chat privado -----
+
+  type ParticipanteChatDado = { usuarioId: number; admin?: boolean; entrouHa: number; leituraHa: number | null };
+  type MsgChatDado = { autorId: number; ha: number; texto: string; sistema?: boolean; apagadaHa?: number; respostaDe?: number };
+
+  const chatChave = (a: number, b: number): string => `${Math.min(a, b)}:${Math.max(a, b)}`;
+  const chatSecretariaId = idDe('secretaria@escola.demo');
+
+  // Entrega = agora para todos; leitura conforme o dado de cada participante.
+  const chatCriarConversa = async (dados: {
+    tipo: 'INDIVIDUAL' | 'GRUPO';
+    nome?: string;
+    chaveIndividual?: string;
+    criadoPorId: number;
+    criadaHa: number;
+    atualizadaHa: number;
+    participantes: ParticipanteChatDado[];
+  }): Promise<number> => {
+    const conversa = await prisma.chatConversa.create({
+      data: {
+        tipo: dados.tipo,
+        nome: dados.nome ?? null,
+        chaveIndividual: dados.chaveIndividual ?? null,
+        criadoPorId: dados.criadoPorId,
+        criadaEm: quando(dados.criadaHa),
+        atualizadaEm: quando(dados.atualizadaHa),
+        participantes: {
+          create: dados.participantes.map((p) => ({
+            usuarioId: p.usuarioId,
+            admin: p.admin ?? false,
+            entrouEm: quando(p.entrouHa),
+            ultimaEntregaEm: new Date(instanteAtual),
+            ultimaLeituraEm: p.leituraHa !== null ? quando(p.leituraHa) : null,
+          })),
+        },
+      },
+    });
+    return conversa.id;
+  };
+
+  // Grava as mensagens em ordem; respostaDe é o índice de uma mensagem anterior da mesma lista.
+  const chatGravar = async (conversaId: number, mensagens: MsgChatDado[]): Promise<void> => {
+    const gravadas: number[] = [];
+    for (const m of mensagens) {
+      const criada = await prisma.chatMensagem.create({
+        data: {
+          conversaId,
+          autorId: m.autorId,
+          texto: m.texto,
+          sistema: m.sistema ?? false,
+          respostaAId: m.respostaDe !== undefined ? gravadas[m.respostaDe] : null,
+          criadaEm: quando(m.ha),
+          apagadaEm: m.apagadaHa !== undefined ? quando(m.apagadaHa) : null,
+        },
+      });
+      gravadas.push(criada.id);
+    }
+  };
+
+  // Individual: Marina com a professora Ana (6 mensagens; a última da Ana ainda não lida pela Marina).
+  const conversaMarinaAna = await chatCriarConversa({
+    tipo: 'INDIVIDUAL',
+    chaveIndividual: chatChave(marinaId, anaId),
+    criadoPorId: marinaId,
+    criadaHa: 30,
+    atualizadaHa: 2,
+    participantes: [
+      { usuarioId: marinaId, entrouHa: 31, leituraHa: 24 },
+      { usuarioId: anaId, entrouHa: 31, leituraHa: 2 },
+    ],
+  });
+  await chatGravar(conversaMarinaAna, [
+    { autorId: marinaId, ha: 30, texto: 'Professora Ana, posso tirar uma dúvida sobre o trabalho final?' },
+    { autorId: anaId, ha: 28, texto: 'Claro, Marina. Qual é a dúvida?' },
+    { autorId: marinaId, ha: 26, texto: 'Preciso saber se a parte de ordenação entra no trabalho ou só a de árvores.' },
+    { autorId: anaId, ha: 25.5, texto: 'Entra a ordenação também. A árvore é a parte principal, mas a comparação dos métodos conta.' },
+    { autorId: marinaId, ha: 24, texto: 'Entendi. Posso fazer o trabalho em dupla?' },
+    { autorId: anaId, ha: 2, texto: 'Pode sim, desde que a dupla entregue a mesma versão no prazo.' },
+  ]);
+
+  // Individual: Marina com Lucas (4 mensagens, tudo lido).
+  const conversaMarinaLucas = await chatCriarConversa({
+    tipo: 'INDIVIDUAL',
+    chaveIndividual: chatChave(marinaId, lucasId),
+    criadoPorId: lucasId,
+    criadaHa: 20,
+    atualizadaHa: 18.5,
+    participantes: [
+      { usuarioId: marinaId, entrouHa: 21, leituraHa: 18.5 },
+      { usuarioId: lucasId, entrouHa: 21, leituraHa: 18.5 },
+    ],
+  });
+  await chatGravar(conversaMarinaLucas, [
+    { autorId: lucasId, ha: 20, texto: 'Oi, Marina! Você viu o aviso sobre a Feira de Ciências no fórum?' },
+    { autorId: marinaId, ha: 19.5, texto: 'Vi sim, Lucas. A inscrição dos projetos vai até sexta-feira, na secretaria.' },
+    { autorId: lucasId, ha: 19, texto: 'Obrigado! Vou levar o esboço do meu projeto na quinta.' },
+    { autorId: marinaId, ha: 18.5, texto: 'Boa sorte! Qualquer dúvida, é só chamar.' },
+  ]);
+
+  // Individual: secretaria com o professor Bruno (3 mensagens; a última do Bruno ainda não lida pela secretaria).
+  const conversaSecretariaBruno = await chatCriarConversa({
+    tipo: 'INDIVIDUAL',
+    chaveIndividual: chatChave(chatSecretariaId, brunoId),
+    criadoPorId: chatSecretariaId,
+    criadaHa: 10,
+    atualizadaHa: 3,
+    participantes: [
+      { usuarioId: chatSecretariaId, entrouHa: 11, leituraHa: 9 },
+      { usuarioId: brunoId, entrouHa: 11, leituraHa: 3 },
+    ],
+  });
+  await chatGravar(conversaSecretariaBruno, [
+    { autorId: chatSecretariaId, ha: 10, texto: 'Professor Bruno, o diário de Cálculo I já foi atualizado?' },
+    { autorId: brunoId, ha: 9, texto: 'Ainda não. Vou lançar as notas da prova 2 até amanhã.' },
+    { autorId: brunoId, ha: 3, texto: 'Lançamento feito. Pode conferir no sistema quando tiver um tempo.' },
+  ]);
+
+  // Grupo: Turma de Algoritmos II, criado pela professora Ana (administradora), com Marina e João.
+  const grupoAlgoritmosII = await chatCriarConversa({
+    tipo: 'GRUPO',
+    nome: 'Turma de Algoritmos II',
+    criadoPorId: anaId,
+    criadaHa: 40,
+    atualizadaHa: 4,
+    participantes: [
+      { usuarioId: anaId, admin: true, entrouHa: 41, leituraHa: 4 },
+      { usuarioId: marinaId, entrouHa: 41, leituraHa: 20 },
+      { usuarioId: joaoId, entrouHa: 41, leituraHa: 4 },
+    ],
+  });
+  await chatGravar(grupoAlgoritmosII, [
+    { autorId: anaId, ha: 40, texto: 'Ana Ribeiro criou o grupo', sistema: true },
+    { autorId: anaId, ha: 38, texto: 'Pessoal, este grupo é para as dúvidas da turma de Algoritmos II.' },
+    { autorId: marinaId, ha: 36, texto: 'Ótimo! Vou trazer as dúvidas sobre listas encadeadas.' },
+    { autorId: joaoId, ha: 34, texto: 'Eu também tenho dúvida sobre pilhas e filas. Alguém pode explicar?' },
+    { autorId: anaId, ha: 30, texto: 'Claro. Na aula de quinta revisamos esse conteúdo com exemplos.' },
+    { autorId: marinaId, ha: 26, texto: 'Podemos estudar juntos antes da prova, João.', respostaDe: 3 },
+    { autorId: joaoId, ha: 20, texto: 'Combinado! Podemos marcar uma revisão na terça, depois da aula.' },
+    { autorId: anaId, ha: 12, texto: 'Enviei o link do material errado, desculpem. Corrijo na próxima mensagem.', apagadaHa: 11 },
+    { autorId: anaId, ha: 4, texto: 'Material da semana publicado no ambiente da disciplina.' },
+  ]);
+
   // Resumo
   console.log(
     `Dados de demonstração carregados: ${await prisma.usuario.count()} usuários, ${await prisma.turma.count()} turmas, ${await prisma.matricula.count()} matrículas.`

@@ -8,7 +8,9 @@ export type NomeIcone =
   | 'relogio' | 'raio' | 'grafico' | 'engrenagem' | 'documento' | 'lapis'
   | 'atividade' | 'log' | 'grade' | 'lista' | 'imagem' | 'pausar' | 'reproduzir'
   | 'medalha' | 'suporte' | 'forum' | 'voto-cima' | 'voto-baixo' | 'comentario'
-  | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado' | 'sol' | 'lua' | 'monitor';
+  | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado' | 'sol' | 'lua' | 'monitor'
+  | 'chat' | 'email' | 'paleta' | 'visto' | 'visto-duplo' | 'responder' | 'lixeira' | 'grupo'
+  | 'mais-circulo' | 'seta-esquerda';
 
 export const NOMES_ICONES: NomeIcone[] = [
   'inicio', 'alunos', 'professores', 'usuarios', 'cursos', 'periodos', 'turmas',
@@ -19,6 +21,8 @@ export const NOMES_ICONES: NomeIcone[] = [
   'atividade', 'log', 'grade', 'lista', 'imagem', 'pausar', 'reproduzir',
   'medalha', 'suporte', 'forum', 'voto-cima', 'voto-baixo', 'comentario',
   'anexo', 'estrela', 'enviar', 'fixar', 'cadeado', 'sol', 'lua', 'monitor',
+  'chat', 'email', 'paleta', 'visto', 'visto-duplo', 'responder', 'lixeira', 'grupo',
+  'mais-circulo', 'seta-esquerda',
 ];
 
 // Desenhos sólidos em grade 24 x 24 (área útil 2.5 a 21.5). Preenchidos com currentColor.
@@ -330,6 +334,64 @@ const DESENHOS: Record<NomeIcone, ReactNode> = {
       <path d="M10 16.5H14V18.5H17V20.5H7V18.5H10Z" />
     </>
   ),
+
+  // Balão de conversa sólido com duas linhas recortadas.
+  chat: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5.5 3H18.5Q21 3 21 5.5V14Q21 16.5 18.5 16.5H10.5L6.5 20.5V16.5H5.5Q3 16.5 3 14V5.5Q3 3 5.5 3ZM7 7.8H17V9.4H7ZM7 11.6H14V13.2H7Z" />
+  ),
+
+  // Envelope sólido com a aba em V recortada.
+  email: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M2.5 5H21.5V19H2.5ZM4.5 7.2V17H19.5V7.2L12 13Z" />
+  ),
+
+  // Paleta de pintor sólida com três furos recortados (cores).
+  paleta: (
+    <>
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 2.5C6.8 2.5 2.5 6.6 2.5 11.8C2.5 17 6.6 21.5 11.5 21.5C13 21.5 13.5 20.6 13.5 19.7C13.5 18.8 12.8 18.3 12.8 17.4C12.8 16.5 13.5 15.8 14.4 15.8H16.5C19.5 15.8 21.5 13.8 21.5 10.8C21.5 6 17.4 2.5 12 2.5ZM5.4 10A1.6 1.6 0 1 0 8.6 10A1.6 1.6 0 1 0 5.4 10ZM9.4 6.2A1.6 1.6 0 1 0 12.6 6.2A1.6 1.6 0 1 0 9.4 6.2ZM15.2 7.4A1.6 1.6 0 1 0 18.4 7.4A1.6 1.6 0 1 0 15.2 7.4Z" />
+    </>
+  ),
+
+  // Um tique sólido.
+  visto: <path d="M3.5 12.5L5.6 10.4L9.2 14L18.4 4.8L20.5 6.9L9.2 18.2Z" />,
+
+  // Dois tiques sólidos sobrepostos (o segundo deslocado para a direita).
+  'visto-duplo': (
+    <path d="M1.5 12.5L3.6 10.4L7 13.8L14.9 5.9L17 8L7 18ZM6 12.5L8.1 10.4L11.5 13.8L19.4 5.9L21.5 8L11.5 18Z" />
+  ),
+
+  // Seta curva para a esquerda saindo para a direita embaixo (resposta citada), sólida.
+  responder: (
+    <path d="M9.5 8V4.5L2.5 11.5L9.5 18.5V15C15.5 15 19.5 16.5 21.5 20.5C20.5 14.5 16.5 10.5 9.5 10Z" />
+  ),
+
+  // Lixeira sólida: tampa com alça e corpo com duas ranhuras recortadas.
+  lixeira: (
+    <>
+      <path d="M9 2.5H15V4.5H21V6.5H3V4.5H9Z" />
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 8H19L18.2 20.8Q18 21.5 17 21.5H7Q6 21.5 5.8 20.8ZM9 10.5V19H10.5V10.5ZM13.5 10.5V19H15V10.5Z" />
+    </>
+  ),
+
+  // Dois grupos de pessoas: uma em destaque na frente e duas menores nas laterais.
+  grupo: (
+    <>
+      <circle cx="12" cy="7.5" r="3.5" />
+      <path d="M5.5 21.5C5.5 16.5 8.3 13.8 12 13.8C15.7 13.8 18.5 16.5 18.5 21.5Z" />
+      <circle cx="5" cy="9.6" r="2.6" />
+      <path d="M1.8 21.5V19.6C1.8 17.4 3.2 16 5 16C6.8 16 8.2 17.4 8.2 19.6V21.5Z" />
+      <circle cx="19" cy="9.6" r="2.6" />
+      <path d="M22.2 21.5V19.6C22.2 17.4 20.8 16 19 16C17.2 16 15.8 17.4 15.8 19.6V21.5Z" />
+    </>
+  ),
+
+  // Círculo sólido com um sinal de mais recortado no centro.
+  'mais-circulo': (
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2.5A9.5 9.5 0 1 0 12 21.5A9.5 9.5 0 1 0 12 2.5ZM11 6.8H13V11H17.2V13H13V17.2H11V13H6.8V11H11Z" />
+  ),
+
+  // Seta para a esquerda (traço puro com ponta).
+  'seta-esquerda': <path d="M19.5 12H4.5M10.5 6L4.5 12L10.5 18" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />,
 };
 
 export function Icone({

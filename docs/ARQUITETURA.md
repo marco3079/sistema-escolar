@@ -46,7 +46,7 @@ client/
 
 O arquivo `server/src/app.ts` percorre as pastas de `server/src/modules/` em ordem alfabética. Cada pasta que tem um `routes.ts` é carregada. As regras são:
 
-- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login e o teste de saúde.
+- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login, o teste de saúde e a senha por e-mail, e o módulo `plataforma` para `GET /api/plataforma`.
 - O `default` do módulo é um roteador do Express montado em `/api` com o middleware `autenticar`, que exige o token JWT.
 - As rotas fixas (por exemplo, `/turmas/minhas`) são declaradas antes das rotas com parâmetro (`/turmas/:id`), para não haver conflito.
 - Rotas que não existem recebem `404` com `{ "erro": "Rota não encontrada" }`.
@@ -90,7 +90,7 @@ Algumas rotas aplicam regras além do perfil, dentro do código. Exemplos: um pr
 
 O servidor registra a atividade dos usuários em uma tabela própria (`LogAtividade`), que é consultada pelas telas Atividades e Log do sistema, só para ADMIN e TI.
 
-- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio) e as requisições `OPTIONS`.
+- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio), as requisições `OPTIONS` e as quatro consultas de tempo real do chat (`/api/chat/sincronizar`, `/api/chat/nao-lidas`, `/api/chat/conversas/:id/digitando` e `/api/chat/conversas/:id/lida`).
 - Entradas e saídas são registradas: `LOGIN` no sucesso, `FALHA_LOGIN` quando a senha ou o e-mail não batem, e `SAIDA` quando o usuário sai (`POST /api/auth/sair`).
 - Telas abertas: o site envia `POST /api/logs/tela` a cada troca de tela. Se o mesmo usuário abrir o mesmo caminho em menos de 5 segundos, não é gravado de novo.
 - Consultas repetidas: uma consulta (`CONSULTA`) do mesmo usuário no mesmo caminho, em menos de 90 segundos, não é gravada de novo. Assim, telas que se atualizam sozinhas não enchem o log.
@@ -145,6 +145,43 @@ Os componentes compartilhados (`Pagina`, `Tabela`, `Campo`, `Modal`, `Aviso` e o
 - As variáveis principais são `--cor-fundo`, `--cor-superficie`, `--cor-superficie-2`, `--cor-texto`, `--cor-texto-suave`, `--cor-borda`, `--cor-primaria`, `--cor-primaria-escura`, `--gradiente-primario`, `--cor-roxo`, `--cor-verde`, `--cor-laranja`, `--cor-perigo`, `--cor-sucesso`, `--cor-aviso`, `--cor-info`, `--raio`, `--raio-pequeno`, `--sombra` e `--sombra-primaria`.
 - Cada variável tem um valor para o tema claro e outro para o escuro.
 
+## Configurações da plataforma e identidade visual
+
+- Nome, slogan, logo e cores ficam numa única linha da tabela `ConfiguracaoPlataforma` (id 1). A linha é criada na primeira leitura, com os valores padrão.
+- A tela de configurações (menu Sistema, perfil ADMIN e TI) grava a identidade por `PUT /api/configuracoes/identidade`. Qualquer pessoa, antes do login, lê `GET /api/plataforma`, que devolve só o necessário para a tela de entrada: nome, slogan, logo, cores e se a recuperação de senha por e-mail está disponível.
+- A leitura da configuração no servidor usa um cache de 30 segundos. Ao gravar, o cache é limpo na hora.
+- A logo é uma data URL (JPEG, PNG ou WebP) ou um endereço `http(s)`. `null` volta à logo padrão do sistema.
+- O site aplica as cores como variáveis CSS no elemento raiz do documento (`--cor-primaria`, `--cor-primaria-escura`, `--gradiente-primario` e as demais que dependem da primária). Com as cores padrão, nada é aplicado e valem as cores do tema. O nome também vai para o título da aba e a logo para o ícone do navegador.
+
+## E-mail (SMTP, fila e histórico)
+
+- O envio usa SMTP, pela biblioteca `nodemailer`. Servidor, porta, conexão segura, usuário, senha e remetente vêm da configuração gravada pela tela.
+- Há dois caminhos. `enviarEmailAgora` espera o resultado e lança erro se falhar; é o usado pelo teste de envio. `enfileirarEmail` põe a mensagem na fila e volta na hora; é o usado pelos avisos (recuperação de senha, boas-vindas, comunicados e respostas do suporte), que nunca atrasam nem derrubam a resposta da rota.
+- Antes de enfileirar, a fila confere se o envio está ligado e se o tipo de aviso está marcado. O teste ignora essas chaves e só exige o servidor configurado.
+- A fila envia um e-mail por vez, com 300 ms entre um envio e o seguinte. Ela aceita até 500 mensagens pendentes; o excedente é registrado como falha ("Fila cheia"). A fila fica na memória do servidor: mensagens pendentes se perdem se o servidor reiniciar.
+- Cada envio, com sucesso ou falha, grava uma linha em `EmailEnviado` (destinatário, assunto, tipo, situação, erro e data). O corpo do e-mail não é gravado. A tela mostra os 30 registros mais recentes.
+- O e-mail tem versão HTML (cabeçalho com o nome da plataforma na cor primária, título, parágrafos, botão e rodapé) e versão texto. O texto enviado pela tela é escapado antes de virar HTML.
+- Erros do servidor de e-mail são cortados em 300 caracteres e têm a senha removida antes de ir para a resposta e para o histórico. Cada etapa da conexão tem limite de 15 segundos.
+- A senha do servidor fica cifrada no banco (veja `SECURITY.md`).
+
+## Senha por e-mail
+
+- Tabela `TokenSenha`. O token tem 32 bytes aleatórios, em hexadecimal. Ele só aparece no link enviado; o banco guarda apenas o SHA-256, e a busca é feita pelo hash.
+- Dois tipos: `RECUPERACAO`, válido por 1 hora, e `BOAS_VINDAS`, válido por 7 dias, enviado no cadastro de uma conta nova para a pessoa criar a própria senha. Criar um novo token de recuperação invalida os anteriores da mesma conta.
+- Ao usar o link, a troca da senha e a marcação do token como usado acontecem numa única transação. Só marca como usado se o token ainda estiver livre, o que evita uso duplo em pedidos simultâneos. Depois, os outros tokens da conta são invalidados.
+- O pedido de recuperação responde igual, exista ou não a conta. O envio roda em segundo plano, separado da resposta.
+- Os limites de pedidos ficam na memória, como o limite de login. Os pedidos são contados por IP e por IP com e-mail.
+
+## Chat (consulta periódica, presença e tiques em memória)
+
+- O chat não usa WebSocket. Com uma conversa aberta, o site consulta `GET /api/chat/sincronizar` a cada 2 segundos; sem conversa aberta, a cada 5 segundos. A aba oculta pausa a consulta. Assim, o chat funciona com o nginx e o Docker que já existem, sem configuração extra.
+- `GET /api/chat/sincronizar` aceita `desde` e devolve só o que mudou. O `agora` devolvido vem recuado 2 segundos, para não perder uma mensagem gravada no mesmo instante. O cliente elimina repetidas pelo `id`.
+- Três tabelas guardam o chat: `ChatConversa` (individual ou grupo; a individual tem uma chave única "menorId:maiorId", que impede duas conversas para o mesmo par), `ChatParticipante` (administrador do grupo, entrada, saída e as datas da última entrega e da última leitura de cada pessoa) e `ChatMensagem` (texto, imagem, resposta citada, aviso de sistema e data de apagada).
+- Ficam só na memória do servidor, em `server/src/modules/chat/estado.ts`: a presença (online quem sincronizou ou consultou as não lidas nos últimos 20 segundos), quem está digitando (5 segundos por aviso) e o limite de 30 envios por minuto por pessoa. Esses mapas são limpos a cada minuto, para não crescerem sem limite. Ao reiniciar o servidor, todos aparecem offline e o limite de envio recomeça.
+- Os tiques são calculados na leitura: cada mensagem minha ganha o menor estado entre os outros participantes ativos, pelas datas de entrega e leitura guardadas em `ChatParticipante`.
+- As não lidas de todas as conversas saem numa consulta agregada, e a lista de conversas traz a última mensagem de cada uma numa única consulta. Não há uma consulta por conversa.
+- Quem entra num grupo, ou volta depois de sair, só vê o que foi enviado a partir da data de entrada.
+
 ## Modelo de dados
 
 O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas áreas abaixo (só os nomes principais):
@@ -162,6 +199,10 @@ O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas 
 - **Perfil e medalhas**: `MedalhaConcedida`, só as medalhas manuais (veja a seção "Perfil, medalhas e níveis").
 - **Suporte**: `Chamado` e `ChamadoMensagem`.
 - **Fórum**: `ForumComunidade`, `ForumPublicacao`, `ForumComentario` e `ForumVoto`.
+- **Plataforma**: `ConfiguracaoPlataforma`, uma linha com a identidade visual e as configurações de e-mail (veja a seção "Configurações da plataforma e identidade visual").
+- **E-mail**: `EmailEnviado`, o histórico de envios, sem o corpo do e-mail.
+- **Senha por e-mail**: `TokenSenha`, guardado só como hash.
+- **Chat**: `ChatConversa`, `ChatParticipante` e `ChatMensagem`.
 
 Os relacionamentos principais estão no diagrama abaixo. Os campos ficam de fora para manter o diagrama legível.
 
@@ -207,6 +248,18 @@ erDiagram
   ForumPublicacao |o--o{ ForumVoto : "recebe"
   ForumComentario |o--o{ ForumVoto : "recebe"
   Usuario |o..o{ ForumVoto : "vota"
+  Usuario |o..o{ TokenSenha : "recebe"
+  ChatConversa ||--o{ ChatParticipante : "tem"
+  ChatConversa ||--o{ ChatMensagem : "tem"
+  Usuario |o..o{ ChatParticipante : "participa"
+  Usuario |o..o{ ChatMensagem : "escreve"
+  ChatMensagem |o..o{ ChatMensagem : "cita"
+  ConfiguracaoPlataforma {
+    int id
+  }
+  EmailEnviado {
+    int id
+  }
 ```
 
 As linhas pontilhadas (`..`) são relações lógicas: o schema guarda só o número do usuário, da turma ou do comentário pai, sem chave estrangeira. Assim, o registro continua existindo mesmo se a outra ponta for excluída. As linhas contínuas são relações com chave estrangeira. `ForumVoto` tem um campo para a publicação e outro para o comentário, e cada voto preenche só um deles.

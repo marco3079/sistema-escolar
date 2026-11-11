@@ -45,6 +45,13 @@
   height: 40px;
   border-radius: 22%;
   flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Botão do chat (ao lado do sino): link redondo com contador */
+.casca-chat-botao {
+  text-decoration: none;
+  color: var(--cor-texto);
 }
 
 .casca-marca-texto {
@@ -643,6 +650,7 @@
 .casca-topo-celular-logo {
   flex-shrink: 0;
   border-radius: 22%;
+  object-fit: contain;
 }
 
 .casca-topo-celular-nome {

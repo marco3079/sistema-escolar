@@ -61,6 +61,8 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Horários, calendário, comunicados e busca geral
 - Painel com indicadores e gráfico
 - Perfil TI, com o mesmo acesso do administrador
+- Configurações da plataforma (só administrador e TI): nome, slogan, logo e cores, aplicados na tela de entrada e no menu
+- E-mails da plataforma, com teste de envio e histórico: recuperação de senha, boas-vindas a novos usuários, comunicados e respostas do suporte
 - Painel "Atividades" com o registro de ações em tempo real, visível só para administrador e TI; os registros são guardados por 90 dias
 
 **Professor**
@@ -83,6 +85,8 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Perfil com medalhas, nível e foto
 - Suporte por chamados (tickets), com atendimento por categoria
 - Fórum com comunidades, votos e comentários
+- Chat privado entre usuários, com conversas individuais e grupos, imagens, confirmação de entrega e de leitura, "digitando...", quem está online, respostas citando uma mensagem e apagar a própria mensagem
+- Recuperação de senha pelo próprio e-mail, com link de uso único
 - Temas claro e escuro
 - Uso no celular, com opção de instalar como app (PWA)
 
@@ -185,6 +189,10 @@ O arquivo `.env` na raiz do projeto é lido pelo Docker Compose. O instalador cr
 | `DB_PORT` | `5432` | Porta do banco, publicada somente em `127.0.0.1` |
 
 Os valores padrão são exemplos. Os instaladores geram segredos aleatórios no `.env`. Não envie o `.env` para o Git.
+
+### Como conectar um e-mail
+
+Entre como administrador e abra **Configurações**, no menu, na seção Sistema, e depois a aba **E-mail**. Preencha o endereço do site (por exemplo, `http://localhost:8090`, ou o endereço público, se houver), o servidor de envio (SMTP) e a porta, o usuário e a senha da conta de e-mail, e o e-mail e o nome do remetente. Marque **Envio de e-mails ligado** e escolha quais avisos saem. A porta 587 costuma usar conexão comum que passa a TLS (deixe **Conexão segura** desmarcada); a porta 465 usa TLS direto (marque **Conexão segura**). Contas com verificação em duas etapas costumam exigir uma **senha de aplicativo**, em vez da senha comum. Depois de salvar, use **Enviar e-mail de teste** com um endereço seu: a tela mostra se o envio deu certo ou o erro devolvido pelo servidor, e o histórico de envios aparece embaixo. A senha fica guardada cifrada e não volta para a tela; deixe o campo em branco para manter a senha atual.
 
 ## Arquitetura
 

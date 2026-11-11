@@ -4,8 +4,51 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
+import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
 
 const router = Router();
+
+const TRECHO_EMAIL_MENSAGEM = 400;
+
+// Aviso por e-mail de mensagem nova: da equipe avisa o autor; do autor avisa o responsável.
+// Roda em segundo plano: nunca atrasa nem derruba a resposta.
+function avisarNovaMensagem(
+  chamado: { assunto: string; autorId: number; responsavelId: number | null },
+  daEquipe: boolean,
+  texto: string
+): void {
+  const destinoId = daEquipe ? chamado.autorId : chamado.responsavelId;
+  if (destinoId === null) {
+    return;
+  }
+  void (async () => {
+    if (!(await emailHabilitado('SUPORTE'))) {
+      return;
+    }
+    const endereco = await enderecoDoSite();
+    if (!endereco) {
+      return;
+    }
+    const destino = await prisma.usuario.findUnique({
+      where: { id: destinoId },
+      select: { email: true, ativo: true },
+    });
+    if (!destino || !destino.ativo) {
+      return;
+    }
+    const caracteres = Array.from(texto);
+    const trecho = caracteres.slice(0, TRECHO_EMAIL_MENSAGEM).join('');
+    const cortado = caracteres.length > TRECHO_EMAIL_MENSAGEM;
+    enfileirarEmail({
+      para: destino.email,
+      assunto: `Suporte: ${chamado.assunto}`,
+      titulo: daEquipe ? 'A equipe respondeu o seu chamado' : 'Nova mensagem em um chamado de suporte',
+      paragrafos: [`Chamado: ${chamado.assunto}`, trecho + (cortado ? '…' : '')],
+      botao: { rotulo: 'Abrir o suporte', endereco: `${endereco}/login` },
+      tipo: 'SUPORTE',
+    });
+  })().catch(() => undefined);
+}
 
 // ---------- Tipos e constantes ----------
 
@@ -607,6 +650,7 @@ router.post(
       throw new HttpError(404, 'Usuário não encontrado');
     }
 
+    avisarNovaMensagem(chamado, souEquipe, dados.texto);
     res.status(201).json({
       id: mensagem.id,
       texto: mensagem.texto,

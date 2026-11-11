@@ -56,3 +56,29 @@ Rodada de 10/11/2026 (três levas mais um passe de polimento). Todas as partes f
 - Integração contínua (GitHub Actions) ficou de fora: a credencial usada para enviar ao GitHub não tem permissão para arquivos de workflow.
 - A instalação no celular ("Adicionar à tela inicial") continua sem teste em aparelho real.
 - No calendário, o fim dos eventos de demonstração é gravado às 23:59; em fuso a leste de UTC o último dia pode aparecer no dia seguinte.
+
+## Quarta leva (11/11/2026): configurações da plataforma, e-mail e chat
+
+Plano e contratos em [quarta-leva.md](quarta-leva.md). Todas as partes aprovadas pelo revisor.
+
+| Parte | Gerador |
+|---|---|
+| Configurações e e-mail no servidor (SMTP, fila, histórico, senha cifrada) | g08 |
+| Senha por e-mail, boas-vindas e avisos de comunicados e suporte | g15 |
+| Chat no servidor | g16 |
+| Base do cliente (identidade da plataforma, ícones, botão do chat) | g18 |
+| Tela de configurações | g19 |
+| Telas "Esqueci minha senha" e "Redefinir senha" | g20 |
+| Tela do chat | g21 |
+| Dados de demonstração do chat | g01 |
+| Documentação | g04 |
+
+Testes: e-mail e chat testados de verdade pelo revisor (API, banco e servidor de e-mail de teste descartáveis); regressão da API (169 verificações); chat e configurações abertos no navegador numa instalação temporária (mensagem em tempo real entre duas contas, tiques, troca de cores).
+
+Rodadas menores do mesmo dia: senha padrão do administrador ([u-g01-senha-padrao.md](u-g01-senha-padrao.md)), botão de tema e aba "Dados e segurança" ([v-tema-e-perfil.md](v-tema-e-perfil.md)).
+
+Pontos em aberto desta leva:
+
+- O envio de e-mail pela tela (botão "Enviar e-mail de teste") foi testado pela API; pela tela, não.
+- O chat não foi aberto em celular real nem em 360 px no navegador (conferido por leitura do CSS).
+- As mensagens do chat ficam no banco em texto puro (sem criptografia de ponta a ponta).

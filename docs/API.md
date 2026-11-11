@@ -6,7 +6,7 @@ Esta referência é para quem vai integrar com o sistema escolar ou consultar a 
 
 - **Endereço base**: `http://localhost:3090/api` com as portas padrão (`API_PORT=3090`). A porta direta da API (3090) é publicada só em `127.0.0.1`, ou seja, só o próprio computador a acessa. A porta do site (8090, `WEB_PORT`) é publicada em todas as interfaces e encaminha `/api` para a API; por isso `http://localhost:8090/api` funciona e também responde a outros aparelhos da rede local.
 - **Formato**: corpo e resposta em JSON (`Content-Type: application/json`).
-- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude` e `POST /api/auth/login`.
+- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude`, `POST /api/auth/login`, `GET /api/plataforma` (nome, logo e cores da tela de entrada) e as rotas de senha por e-mail (`/api/auth/esqueci-senha` e `/api/auth/redefinir-senha`, veja a seção "Senha por e-mail").
 - **Datas**: string ISO 8601 (por exemplo, `2026-03-02T00:00:00.000Z`).
 - **Dinheiro**: número em reais (por exemplo, `1250.5`).
 - **IDs**: inteiros. Um `:id` que não seja número devolve `400`.
@@ -44,6 +44,9 @@ Imagens são enviadas como data URL (texto em base64) no próprio JSON. Valem as
 | Capa de livro (`capa` em `/livros`) | o mesmo | 200.000 caracteres | Aceito, até 500 caracteres |
 | Anexo de chamado (`anexo` em `/chamados`) | o mesmo | 200.000 caracteres | Não aceito |
 | Imagem de publicação (`imagem` em `/forum/publicacoes`) | o mesmo | 200.000 caracteres | Não aceito |
+| Logo da plataforma (`logo` em `PUT /configuracoes/identidade`) | o mesmo | 200.000 caracteres | Aceito, até 500 caracteres |
+| Foto de grupo do chat (`foto` em `/chat/conversas`) | o mesmo | 200.000 caracteres | Não aceito |
+| Imagem de mensagem do chat (`imagem` em `/chat/conversas/:id/mensagens`) | o mesmo | 200.000 caracteres | Não aceito |
 
 Enviar `null` ou texto vazio remove a imagem. Qualquer outro formato, ou um tamanho acima do limite, devolve `400`. O site reduz a imagem no navegador antes de enviar, por isso a maioria das fotos cabe no limite.
 
@@ -120,6 +123,189 @@ Quando a permissão depende de regra extra, a coluna explica (por exemplo, "P do
 | POST `/auth/trocar-senha` | todos | `{ senhaAtual, novaSenha }` (mínimo 6 caracteres) | `204` |
 | POST `/auth/sair` | todos | | `204`. Registra a saída no log. |
 | GET `/painel` | todos | | `{ cartoes: [{ rotulo, valor }] }`, com os cartões de acordo com o perfil |
+
+## Senha por e-mail (módulo `auth`)
+
+Rotas públicas, sem login. A recuperação só funciona com o envio de e-mails ligado, com o endereço do site gravado e com a caixa "recuperação de senha" marcada (veja "Plataforma e configurações").
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| POST `/auth/esqueci-senha` | público | `{ email }` | `200 { mensagem: "Se o e-mail estiver cadastrado, enviaremos as instruções." }`, exista ou não a conta. `400 { erro: "A recuperação de senha por e-mail não está disponível. Procure a secretaria." }` se a recuperação estiver desligada. |
+| GET `/auth/redefinir-senha/:token` | público | | `200 { valido: true, nome, tipo }`, com `tipo` `RECUPERACAO` ou `BOAS_VINDAS`; ou `200 { valido: false }`. |
+| POST `/auth/redefinir-senha` | público | `{ token, novaSenha }` (mínimo 6 caracteres, como na troca de senha) | `204`. `400 { erro: "Link inválido ou vencido. Peça um novo." }` se o link não servir. |
+
+Regras:
+
+- O pedido de recuperação responde do mesmo jeito para e-mail cadastrado ou não, e para conta inativa. Só conta ativa recebe o e-mail, e o envio acontece em segundo plano: a resposta não espera nem revela o cadastro.
+- O link enviado é `{endereço do site}/redefinir-senha/{token}`. O endereço do site é o gravado nas configurações da plataforma, não o de quem faz o pedido.
+- Validade: 1 hora para a recuperação e 7 dias para o link de criação de senha que chega no cadastro de uma conta nova (`BOAS_VINDAS`). Cada link vale uma vez.
+- Um novo pedido de recuperação invalida o link anterior da mesma conta. Ao redefinir a senha, os outros links da conta deixam de valer.
+- Limites de pedidos, guardados só na memória do servidor: 3 pedidos por 15 minutos para o mesmo IP e e-mail, e 20 por 15 minutos para o mesmo IP. Acima disso, a resposta é a mesma `200`, mas nada é enviado.
+- O log de atividades registra "Pediu a recuperação de senha por e-mail" e "Redefiniu a senha pelo link enviado por e-mail", sem senha e sem token.
+
+## Plataforma e configurações (módulo `plataforma`)
+
+Nome, slogan, logo, cores e envio de e-mails da plataforma. Só o perfil ADMIN (inclui TI) lê e altera as configurações. A rota pública `GET /plataforma` devolve apenas o que a tela de entrada precisa.
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/plataforma` | público | | `PlataformaPublica`. Cabeçalho `Cache-Control: no-store`. |
+| GET `/configuracoes` | A | | `ConfiguracoesDTO` |
+| PUT `/configuracoes/identidade` | A | `{ nome, slogan, logo, corPrimaria, corSecundaria }` | `ConfiguracoesDTO`. `400` se algum campo for inválido. |
+| PUT `/configuracoes/email` | A | `{ enderecoSite, smtpServidor, smtpPorta, smtpSeguro, smtpUsuario, smtpSenha?, emailRemetente, emailNomeRemetente, emailAtivo, emailRecuperacao, emailBoasVindas, emailComunicados, emailSuporte }` | `ConfiguracoesDTO`. `400` se algum campo for inválido ou se faltar o que o envio ligado exige. |
+| POST `/configuracoes/email/teste` | A | `{ para }` (um e-mail) | `200 { ok: true }`. `400 { erro: "Não foi possível enviar: <motivo>" }` quando o servidor recusa. |
+| GET `/configuracoes/email/historico` | A | | `HistoricoEmailDTO[]`, os 30 registros mais recentes, do mais novo para o mais antigo. |
+
+Formatos:
+
+```ts
+interface PlataformaPublica {
+  nome: string;
+  slogan: string;
+  logo: string | null;          // null = logo padrão do sistema
+  corPrimaria: string;          // "#rrggbb"
+  corSecundaria: string;        // "#rrggbb"
+  emailAtivo: boolean;          // servidor SMTP preenchido e envio ligado
+  recuperacaoSenha: boolean;    // emailAtivo e caixa de recuperação marcada
+}
+
+interface ConfiguracoesDTO extends PlataformaPublica {
+  enderecoSite: string | null;
+  smtpServidor: string | null;
+  smtpPorta: number;
+  smtpSeguro: boolean;          // true = TLS direto (porta 465)
+  smtpUsuario: string | null;
+  smtpSenhaDefinida: boolean;   // a senha nunca é devolvida
+  emailRemetente: string | null;
+  emailNomeRemetente: string | null;
+  emailRecuperacao: boolean;
+  emailBoasVindas: boolean;
+  emailComunicados: boolean;
+  emailSuporte: boolean;
+  atualizadoEm: string;
+}
+
+interface HistoricoEmailDTO {
+  id: number;
+  para: string;
+  assunto: string;
+  tipo: 'TESTE' | 'RECUPERACAO' | 'BOAS_VINDAS' | 'COMUNICADO' | 'SUPORTE';
+  status: 'ENVIADO' | 'FALHOU';
+  erro: string | null;
+  criadoEm: string;
+}
+```
+
+Regras:
+
+- Sem linha de configuração gravada, `GET /plataforma` devolve os padrões: `Sistema Escolar`, `Construindo um futuro melhor.`, logo `null`, `#2563eb`, `#1d4ed8`, e os dois e-mails desligados. A linha é criada na primeira leitura.
+- Identidade: `nome` de 2 a 40 caracteres; `slogan` até 80 (pode ficar vazio). `logo` aceita data URL de imagem ou endereço `http(s)` (veja "Imagens"); `null` ou vazio volta à logo padrão. As cores precisam ser `#rrggbb` e são gravadas em minúsculas.
+- `enderecoSite`: precisa começar com `http://` ou `https://`, até 200 caracteres. Barras no fim são removidas. Vazio vira `null`.
+- `smtpPorta`: de 1 a 65535. Com `smtpSeguro` falso, a conexão começa sem criptografia e passa a TLS se o servidor pedir (costuma ser a porta 587). Com `smtpSeguro` verdadeiro, a conexão já começa com TLS (costuma ser a porta 465).
+- `smtpSenha`: se for omitida ou `null`, a senha gravada continua; string vazia apaga a senha; outro texto substitui a senha, que é guardada cifrada. A senha nunca volta pela API.
+- `emailRemetente`: formato de e-mail, senão `400`.
+- `emailAtivo: true` exige servidor SMTP, e-mail do remetente e endereço do site. Se faltar algum, `400` com a lista, por exemplo: `"Para ligar o envio de e-mails, preencha: servidor SMTP, endereço do site."`.
+- Teste: envia com a configuração gravada mesmo com o envio desligado, e espera o resultado do servidor. Cada etapa da conexão tem limite de 15 segundos. A mensagem de erro sai sem a senha e com no máximo 300 caracteres. O teste também entra no histórico, com o tipo `TESTE`.
+- O histórico guarda destinatário, assunto, tipo, situação e erro. O corpo do e-mail não é guardado.
+
+## Chat (módulo `chat`)
+
+Chat privado entre usuários de qualquer perfil. Todas as rotas exigem login. Todos podem conversar com todos. Só participantes ativos acessam uma conversa; quem não participa, ou saiu do grupo, recebe `404`.
+
+Formatos:
+
+```ts
+interface PessoaChat {
+  id: number;
+  nome: string;
+  perfil: 'ADMIN' | 'TI' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO';
+  foto: string | null;
+  online: boolean;              // visto nos últimos 20 segundos
+}
+
+interface MensagemChat {
+  id: number;
+  conversaId: number;
+  autor: { id: number; nome: string; foto: string | null };
+  texto: string;                // "" quando apagada
+  imagem: string | null;        // null quando apagada
+  apagada: boolean;
+  sistema: boolean;             // aviso do sistema (grupo criado, entrou, saiu, removido)
+  respostaA: { id: number; autorNome: string; texto: string; temImagem: boolean; apagada: boolean } | null; // texto cortado em 120 caracteres
+  criadaEm: string;
+  minha: boolean;
+  estado: 'ENVIADA' | 'ENTREGUE' | 'LIDA' | null; // só nas minhas mensagens, sem as de sistema
+}
+
+interface ConversaChat {
+  id: number;
+  tipo: 'INDIVIDUAL' | 'GRUPO';
+  nome: string;                 // grupo: o nome; individual: o nome da outra pessoa
+  foto: string | null;
+  outro: PessoaChat | null;     // só em INDIVIDUAL
+  participantes: number;        // quantidade de participantes ativos
+  souAdmin: boolean;            // administrador do grupo
+  ultima: { texto: string; autorNome: string; minha: boolean; temImagem: boolean; apagada: boolean; criadaEm: string; estado: MensagemChat['estado'] } | null; // texto cortado em 80 caracteres
+  naoLidas: number;
+  digitando: string[];          // primeiros nomes de quem está digitando, sem mim
+  atualizadaEm: string;
+}
+
+interface ConversaDetalhe extends ConversaChat {
+  membros: (PessoaChat & { admin: boolean })[];  // ordenados por nome
+}
+
+interface Sincronizacao {
+  agora: string;                // usar como "desde" na próxima chamada (já vem recuado 2 segundos)
+  naoLidasTotal: number;
+  conversas: ConversaChat[];    // todas (sem "desde") ou só as que mudaram desde "desde"
+  aberta: null | {              // só com conversaId de uma conversa minha
+    mensagens: MensagemChat[];  // novas ou apagadas desde "desde"; [] sem "desde"
+    digitando: string[];
+    leitura: { entregueAte: string | null; lidaAte: string | null }; // menor entrega e menor leitura entre os outros participantes ativos; null se algum ainda não tem
+    online: boolean | null;     // presença do outro (individual); null em grupo
+  };
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/chat/contatos` | todos | `?busca=` (até 80 caracteres; contém o termo, sem diferenciar maiúsculas) | `PessoaChat[]`, por nome, até 40. Não traz eu mesmo nem usuários inativos. |
+| GET `/chat/conversas` | todos | | `ConversaChat[]`, da mais recente para a mais antiga (`atualizadaEm`). |
+| POST `/chat/conversas` | todos | Individual: `{ tipo: "INDIVIDUAL", usuarioId }`. Grupo: `{ tipo: "GRUPO", nome, participantes: number[], foto? }` | Individual: `201` com `ConversaDetalhe` quando cria, ou `200` com a conversa que já existia. Grupo: `201` `ConversaDetalhe`. |
+| GET `/chat/conversas/:id` | participante | | `ConversaDetalhe` |
+| PUT `/chat/conversas/:id` | administrador do grupo | `{ nome?, foto? }` (`foto` vazia ou `null` remove a foto) | `ConversaDetalhe` |
+| POST `/chat/conversas/:id/participantes` | administrador do grupo | `{ usuarioIds: number[] }` (de 1 a 99) | `ConversaDetalhe` |
+| DELETE `/chat/conversas/:id/participantes/:usuarioId` | administrador do grupo, ou a própria pessoa (sair) | | `204` |
+| GET `/chat/conversas/:id/mensagens` | participante | `?antesDe=&limite=` (`limite` de 1 a 50, padrão 30; `antesDe` é um id de mensagem) | `{ itens: MensagemChat[], haMais: boolean }`, em ordem crescente de data |
+| POST `/chat/conversas/:id/mensagens` | participante | `{ texto?, imagem?, respostaAId? }` | `201` `MensagemChat` |
+| DELETE `/chat/mensagens/:id` | autor da mensagem | | `204` |
+| POST `/chat/conversas/:id/lida` | participante | | `204` |
+| POST `/chat/conversas/:id/digitando` | participante | | `204` |
+| GET `/chat/sincronizar` | todos | `?desde=&conversaId=` (`desde` em ISO 8601) | `Sincronizacao`. `400` se `desde` não for uma data. |
+| GET `/chat/nao-lidas` | todos | | `{ total: number }`, soma das não lidas das minhas conversas |
+
+Erros e regras das rotas:
+
+- `POST /chat/conversas` individual: `400` se for comigo mesmo; `404` se o usuário não existir ou estiver inativo. A conversa individual é uma só por par de pessoas (`chaveIndividual`).
+- `POST /chat/conversas` grupo: nome de 2 a 60 caracteres; de 1 a 99 outras pessoas, todas ativas (senão `400`). Quem cria vira administrador. Grava a mensagem de sistema "{nome} criou o grupo".
+- `PUT /chat/conversas/:id`: `400` em conversa individual; `403` para quem não é administrador do grupo.
+- `POST /chat/conversas/:id/participantes`: `400` em conversa individual, ou se o grupo passar de 100 participantes ativos, ou se alguém não estiver disponível; `403` para quem não é administrador. Quem já saiu volta com uma nova data de entrada, e não vê o que foi enviado enquanto esteve fora. Grava a mensagem de sistema.
+- `DELETE .../participantes/:usuarioId`: `400` em conversa individual; `404` se a pessoa não estiver no grupo; `403` se quem pede não é administrador e não é a própria pessoa. Se o último administrador sair, o participante ativo mais antigo vira administrador. Grava a mensagem de sistema.
+- `GET .../mensagens`: quem entrou depois num grupo só vê o que foi enviado a partir da data de entrada.
+- `POST .../mensagens`: o texto é aparado nas pontas e tem no máximo 4.000 caracteres. A mensagem precisa de texto ou de imagem (`400`). `respostaAId` precisa ser uma mensagem da mesma conversa (`400`). Enviar conta como leitura da própria conversa. Limite de 30 mensagens por minuto por pessoa (contado em uma janela de 60 segundos a partir do primeiro envio dela); acima disso, `429` com `"Muitas mensagens em pouco tempo. Aguarde um instante."`.
+- `DELETE /chat/mensagens/:id`: `404` se a mensagem não existir ou se eu não participar da conversa; `403` se eu não for o autor. Marca a mensagem como apagada: texto e imagem deixam de sair pela API, e quem a citou vê "Mensagem apagada".
+- `POST .../lida`: marca que li a conversa e que as mensagens chegaram até agora para mim.
+- `POST .../digitando`: vale por 5 segundos a cada chamada. Não conta como presença.
+
+Tiques, leitura e presença:
+
+- `estado` de uma mensagem minha: `ENVIADA` (um tique) enquanto ninguém a recebeu; `ENTREGUE` (dois tiques) quando todos os outros participantes ativos já receberam a conversa até a hora dela; `LIDA` quando todos já leram. Em grupo, vale só quando todos chegaram. Se eu for o único participante ativo, fica `ENVIADA`. Mensagens de sistema não têm estado.
+- A entrega é registrada quando eu sincronizo e a conversa tem mensagem nova. A leitura é registrada em `POST .../lida` e ao enviar mensagem.
+- Não lidas de uma conversa: mensagens de outras pessoas, que não são de sistema nem apagadas, criadas depois da minha última leitura (ou depois da minha entrada, se eu nunca li).
+- Presença (`online`): a pessoa fica online enquanto sincroniza ou consulta `GET /chat/nao-lidas` nos últimos 20 segundos. Não é gravada no banco.
+- `GET /chat/sincronizar`: sem `desde`, devolve todas as conversas e não devolve mensagens em `aberta`. Com `desde`, devolve só as conversas que mudaram e, em `aberta`, as mensagens criadas ou apagadas depois dele. Conversa com alguém digitando ou com mudança de presença do outro também aparece. O `agora` devolvido vem recuado 2 segundos, para não perder mensagem gravada no mesmo instante; o cliente elimina repetidas pelo `id`.
+- Não entram no registro de atividades: `GET /chat/sincronizar`, `GET /chat/nao-lidas`, `POST .../digitando` e `POST .../lida`. As demais rotas do chat entram com descrição genérica ("Enviou mensagem no chat", "Criou conversa no chat"), sem o conteúdo.
 
 ## Painel e busca (módulo `painel`)
 

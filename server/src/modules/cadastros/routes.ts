@@ -5,10 +5,40 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
+import { emailHabilitado, enderecoDoSite, enfileirarEmail, lerConfiguracao } from '../../lib/email';
+import { criarTokenSenha } from '../../lib/tokens-senha';
 
 const router = Router();
 
 // ---------- Utilitários ----------
+
+// E-mail de boas-vindas com o botão "Criar minha senha". Roda em segundo plano:
+// nunca atrasa nem derruba a resposta do cadastro.
+function avisarBoasVindas(usuario: { id: number; nome: string; email: string }): void {
+  void (async () => {
+    if (!(await emailHabilitado('BOAS_VINDAS'))) {
+      return;
+    }
+    const endereco = await enderecoDoSite();
+    if (!endereco) {
+      return;
+    }
+    const { nome: nomePlataforma } = await lerConfiguracao();
+    const token = await criarTokenSenha(usuario.id, 'BOAS_VINDAS');
+    enfileirarEmail({
+      para: usuario.email,
+      assunto: `Bem-vindo ao ${nomePlataforma}`,
+      titulo: `Bem-vindo ao ${nomePlataforma}`,
+      paragrafos: [
+        `Criamos a sua conta no ${nomePlataforma}.`,
+        `Seu e-mail de acesso é ${usuario.email}.`,
+        'Clique no botão abaixo para criar a sua senha. O link vale por 7 dias.',
+      ],
+      botao: { rotulo: 'Criar minha senha', endereco: `${endereco}/redefinir-senha/${token}` },
+      tipo: 'BOAS_VINDAS',
+    });
+  })().catch(() => undefined);
+}
 
 // Remove senhaHash de qualquer registro de usuário antes de responder.
 function semSenha<U extends { senhaHash: string }>(usuario: U): Omit<U, 'senhaHash'> {
@@ -170,6 +200,7 @@ router.post(
         perfil: dados.perfil,
       },
     });
+    avisarBoasVindas(usuario);
     res.status(201).json(semSenha(usuario));
   })
 );
@@ -301,6 +332,7 @@ router.post(
         include: incluiAluno,
       });
     });
+    avisarBoasVindas(aluno.usuario);
     res.status(201).json(paraDTO(aluno));
   })
 );
@@ -430,6 +462,7 @@ router.post(
         include: incluiProfessor,
       });
     });
+    avisarBoasVindas(professor.usuario);
     res.status(201).json(paraDTO(professor));
   })
 );

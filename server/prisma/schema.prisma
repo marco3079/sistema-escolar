@@ -645,3 +645,120 @@ model ComunicadoLeitura {
 
   @@id([comunicadoId, usuarioId])
 }
+
+// ===== Configurações da plataforma (linha única, id = 1) =====
+
+model ConfiguracaoPlataforma {
+  id            Int      @id @default(1)
+  nome          String   @default("Sistema Escolar")
+  slogan        String   @default("Construindo um futuro melhor.")
+  logo          String? // data URL (jpeg, png ou webp) ou endereço http(s); null = logo padrão
+  corPrimaria   String   @default("#2563eb")
+  corSecundaria String   @default("#1d4ed8")
+  enderecoSite  String? // endereço público do site, usado nos links dos e-mails
+
+  smtpServidor      String?
+  smtpPorta         Int      @default(587)
+  smtpSeguro        Boolean  @default(false) // true = TLS direto (porta 465)
+  smtpUsuario       String?
+  smtpSenhaCifrada  String? // AES-256-GCM; nunca sai pela API
+  emailRemetente    String?
+  emailNomeRemetente String?
+  emailAtivo        Boolean  @default(false)
+
+  emailRecuperacao Boolean @default(true)
+  emailBoasVindas  Boolean @default(true)
+  emailComunicados Boolean @default(true)
+  emailSuporte     Boolean @default(true)
+
+  atualizadoEm DateTime @updatedAt
+}
+
+enum TipoTokenSenha {
+  RECUPERACAO
+  BOAS_VINDAS
+}
+
+// Token de uso único para criar ou redefinir a senha por e-mail (só o hash fica no banco).
+model TokenSenha {
+  id        Int            @id @default(autoincrement())
+  usuarioId Int
+  tokenHash String         @unique
+  tipo      TipoTokenSenha
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime       @default(now())
+
+  @@index([usuarioId])
+}
+
+enum StatusEmail {
+  ENVIADO
+  FALHOU
+}
+
+// Histórico dos e-mails enviados (sem o corpo), para o administrador conferir.
+model EmailEnviado {
+  id       Int         @id @default(autoincrement())
+  para     String
+  assunto  String
+  tipo     String // TESTE, RECUPERACAO, BOAS_VINDAS, COMUNICADO, SUPORTE
+  status   StatusEmail
+  erro     String?
+  criadoEm DateTime    @default(now())
+
+  @@index([criadoEm])
+}
+
+// ===== Chat privado =====
+
+enum TipoConversa {
+  INDIVIDUAL
+  GRUPO
+}
+
+model ChatConversa {
+  id              Int          @id @default(autoincrement())
+  tipo            TipoConversa
+  nome            String? // só em grupo
+  foto            String? // só em grupo
+  chaveIndividual String?      @unique // "menorId:maiorId", só em conversa individual
+  criadoPorId     Int
+  criadaEm        DateTime     @default(now())
+  atualizadaEm    DateTime     @default(now()) // instante da última mensagem ou mudança
+
+  participantes ChatParticipante[]
+  mensagens     ChatMensagem[]
+
+  @@index([atualizadaEm])
+}
+
+model ChatParticipante {
+  id              Int          @id @default(autoincrement())
+  conversaId      Int
+  conversa        ChatConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  usuarioId       Int
+  admin           Boolean      @default(false) // administrador do grupo
+  entrouEm        DateTime     @default(now())
+  saiuEm          DateTime?
+  ultimaEntregaEm DateTime? // até quando as mensagens chegaram ao aparelho da pessoa
+  ultimaLeituraEm DateTime? // até quando a pessoa leu
+
+  @@unique([conversaId, usuarioId])
+  @@index([usuarioId])
+}
+
+model ChatMensagem {
+  id          Int          @id @default(autoincrement())
+  conversaId  Int
+  conversa    ChatConversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  autorId     Int
+  texto       String       @default("")
+  imagem      String? // data URL reduzida
+  respostaAId Int? // mensagem citada
+  sistema     Boolean      @default(false) // aviso do sistema (entrou, saiu, grupo criado)
+  criadaEm    DateTime     @default(now())
+  apagadaEm   DateTime?
+
+  @@index([conversaId, criadaEm])
+}

@@ -30,6 +30,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Novo layout das telas de Cursos, Períodos letivos, Turmas e Boletins.
 - Botão de tema (claro, escuro ou seguir o aparelho) no topo, no menu do usuário, na tela de login e em "Meu perfil"; a escolha fica guardada no navegador.
 - Aba "Dados e segurança" de "Meu perfil" em duas colunas, com confirmação da nova senha.
+- Configurações da plataforma, só para administrador e TI: nome, slogan, logo e cores (primária e secundária), aplicados na tela de entrada, no menu e no título da aba.
+- Envio de e-mails por SMTP, configurado na própria tela de Configurações, com botão de teste e histórico dos últimos envios. São enviados avisos de recuperação de senha, boas-vindas a novos usuários, comunicados e respostas do suporte.
+- Recuperação de senha por link enviado por e-mail, com as telas "Esqueci minha senha" e "Redefinir senha", e criação de senha por link para novos usuários.
+- Chat privado entre usuários, com conversas individuais e grupos (administração do grupo, adicionar e remover pessoas, sair do grupo), imagens, confirmação de entrega e de leitura, "digitando...", quem está online, resposta citando uma mensagem e apagar a própria mensagem.
+- Botão do chat com contador de mensagens não lidas, ao lado do sino.
 
 ### Alterado
 
@@ -42,3 +47,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Segredo JWT aleatório quando `JWT_SECRET` estiver ausente, curto ou com valor de exemplo, com aviso no log do servidor.
 - Porta direta da API e porta do banco publicadas só no próprio computador (`127.0.0.1`).
 - Cabeçalhos de segurança no site: `X-Content-Type-Options`, `X-Frame-Options` e `Referrer-Policy`.
+- Senha do servidor de e-mail guardada cifrada (AES-256-GCM) e nunca devolvida pela API.
+- Tokens de senha por e-mail de uso único, guardados só como hash, com validade, e limites para pedidos de recuperação de senha.
+- Chat só para participantes da conversa, com limite de 30 mensagens por minuto por pessoa.

@@ -39,6 +39,12 @@ function segredo(): string {
   return SEGREDO_JWT;
 }
 
+// Segredo efetivo do servidor (o do .env ou o aleatório desta execução). Usado também para
+// derivar a chave que cifra segredos guardados no banco (lib/cripto.ts).
+export function segredoDoServidor(): string {
+  return SEGREDO_JWT;
+}
+
 export function gerarToken(u: UsuarioToken): string {
   return jwt.sign(
     { id: u.id, perfil: u.perfil, alunoId: u.alunoId, professorId: u.professorId },

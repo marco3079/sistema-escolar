@@ -59,6 +59,9 @@ function tratarErro(e: unknown, req: Request, res: Response, _next: NextFunction
   res.status(500).json({ erro: 'Erro interno' });
 }
 
+// Consultas de tempo real do chat ficam fora do log (sincronizar, não lidas, digitando e lida).
+const REGEX_CHAT_SEM_LOG = /^\/api\/chat\/(sincronizar|nao-lidas|conversas\/\d+\/(digitando|lida))$/;
+
 // Registra toda requisição autenticada sob /api ao terminar a resposta (sem atrasá-la).
 function registrarAtividade(req: Request, res: Response, next: NextFunction): void {
   const inicio = Date.now();
@@ -75,7 +78,8 @@ function registrarAtividade(req: Request, res: Response, next: NextFunction): vo
         caminho === '/api/logs' ||
         caminho.startsWith('/api/logs/') ||
         caminho === '/api/auth/login' ||
-        caminho === '/api/auth/sair'
+        caminho === '/api/auth/sair' ||
+        REGEX_CHAT_SEM_LOG.test(caminho)
       ) {
         return;
       }

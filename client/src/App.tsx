@@ -5,6 +5,8 @@ import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 import { caminhoDoPerfil, Layout } from './layout/Layout';
 import { Login } from './layout/Login';
+import { EsqueciSenha } from './layout/EsqueciSenha';
+import { RedefinirSenha } from './layout/RedefinirSenha';
 import { Pagina } from './ui';
 import type { RotaModulo } from './lib/rotas';
 import type { Perfil } from './lib/tipos';
@@ -74,6 +76,8 @@ export default function App() {
       <RegistroDeTelas />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+        <Route path="/redefinir-senha/:token" element={<RedefinirSenha />} />
         <Route path="/" element={<Raiz />} />
         <Route element={<LayoutDoPerfil />}>
           {ROTAS.map((r) => (

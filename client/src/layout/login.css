@@ -37,6 +37,20 @@
   height: 56px;
   border-radius: 22%;
   flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Link "Esqueci minha senha", embaixo do botão Entrar (só com recuperação ligada). */
+.entrada-esqueci {
+  align-self: center;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cor-primaria);
+  text-decoration: none;
+}
+
+.entrada-esqueci:hover {
+  text-decoration: underline;
 }
 
 .entrada-marca-nome {

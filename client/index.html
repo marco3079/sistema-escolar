@@ -14,6 +14,35 @@
         // Sem armazenamento: vale o aparelho.
       }
     </script>
+    <script>
+      // Identidade guardada (chave escola.plataforma), aplicada antes do CSS para não piscar o padrão.
+      // O PlataformaProvider refaz tudo depois com a resposta de GET /plataforma.
+      try {
+        var guardada = JSON.parse(window.localStorage.getItem('escola.plataforma') || 'null');
+        if (guardada && typeof guardada === 'object') {
+          if (typeof guardada.nome === 'string' && guardada.nome) document.title = guardada.nome;
+          if (typeof guardada.logo === 'string' && guardada.logo) {
+            document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(function (l) {
+              l.href = guardada.logo;
+            });
+          }
+          var corOk = /^#[0-9a-fA-F]{6}$/;
+          var primaria = corOk.test(guardada.corPrimaria) ? guardada.corPrimaria : '#2563eb';
+          var secundaria = corOk.test(guardada.corSecundaria) ? guardada.corSecundaria : '#1d4ed8';
+          if (primaria !== '#2563eb' || secundaria !== '#1d4ed8') {
+            var estilo = document.documentElement.style;
+            estilo.setProperty('--cor-primaria', primaria);
+            estilo.setProperty('--cor-primaria-escura', 'color-mix(in srgb, ' + primaria + ' 82%, black)');
+            estilo.setProperty('--cor-primaria-suave', 'color-mix(in srgb, ' + primaria + ' 14%, var(--cor-superficie))');
+            estilo.setProperty('--cor-azul-suave', 'color-mix(in srgb, ' + primaria + ' 14%, var(--cor-superficie))');
+            estilo.setProperty('--gradiente-primario', 'linear-gradient(135deg, ' + primaria + ', ' + secundaria + ')');
+            estilo.setProperty('--sombra-primaria', '0 6px 16px color-mix(in srgb, ' + primaria + ' 30%, transparent)');
+          }
+        }
+      } catch (e) {
+        // Identidade guardada inválida: vale o padrão.
+      }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" href="/logo-simbolo.png" />
     <link rel="apple-touch-icon" href="/logo-simbolo.png" />
