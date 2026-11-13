@@ -31,6 +31,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Responsável só vê alunos com vínculo, conferido pelas funções `acessoAoAluno` e `acessoAMatricula`. O fórum fica fechado ao perfil Responsável.
 - Documentos do pedido de matrícula com tipo conferido pela extensão e pelo tipo enviado, e nome em disco aleatório.
 - O professor passa a ver só os alunos das próprias turmas, sem dados de contato.
+- Biblioteca de envio de e-mail (`nodemailer`) atualizada para a versão 10.5.0, que corrige alertas de segurança conhecidos.
 
 ## [1.0.0] - 2026-11-10
 

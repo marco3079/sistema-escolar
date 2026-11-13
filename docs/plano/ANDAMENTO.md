@@ -175,8 +175,8 @@ Decisões do main nesta leva: matrícula online nasce fechada; fórum e perfil p
 
 Pontos em aberto:
 
-- Os e-mails desta leva (convite do responsável, confirmação e parecer da matrícula, aviso de ocorrência) não foram vistos chegando: os testes rodaram sem servidor de e-mail.
 - Os limites por IP das rotas públicas ficam na memória do processo e zeram quando a API reinicia.
 - A logo no cabeçalho do PDF só foi vista com a logo padrão (sem imagem); logo enviada em PNG ou JPEG não foi testada.
-- A biblioteca de e-mail (`nodemailer` 6.9.16) tem alertas de segurança conhecidos; a correção exige a versão 10, com mudanças incompatíveis, e ficou para uma rodada própria.
 - A ficha do aluno ainda aceita professor com inscrição trancada na turma (critério diferente do novo `GET /alunos`).
+
+Depois da leva, a pedido do usuário: `nodemailer` atualizado de 6.9.16 para 10.5.0 (zero alertas no `npm audit`). Testado numa instalação temporária com um servidor de e-mail local de teste: chegaram o e-mail de teste, a confirmação, o parecer e a aprovação da matrícula online, as boas-vindas do aluno, o convite do responsável, o aviso de ocorrência (sem a descrição) e a recuperação de senha. Não foi testado com um provedor real nem com conexão cifrada (TLS).
