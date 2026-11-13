@@ -17,9 +17,10 @@ const MOTIVO_RESPOSTA_INVALIDA = 'O serviço de atualização respondeu de forma
 const MOTIVO_TOKEN = 'O serviço de atualização recusou a conexão. Rode o instalador de novo na pasta do projeto.';
 const ERRO_EM_ANDAMENTO = 'Já existe uma atualização em andamento';
 
-const TIMEOUT_VERIFICAR_MS = 40_000;
-const TIMEOUT_CONSULTA_MS = 8_000;
-const TIMEOUT_INICIAR_MS = 8_000;
+// Abaixo dos 60 s do nginx e acima dos 45 s que o atualizador dá ao `git fetch`.
+const TIMEOUT_VERIFICAR_MS = 55_000;
+const TIMEOUT_CONSULTA_MS = 20_000;
+const TIMEOUT_INICIAR_MS = 20_000;
 
 const commitSchema = z.object({
   commit: z.string(),

@@ -317,6 +317,10 @@ if ($envCriadoAgora -or $adminSenhaExistente -eq '' -or $adminSenhaExistente -eq
 }
 $ipComputador = Obter-IP
 
+# Registra no atualizador a versao que acabou de subir (o botao de atualizar compara com ela).
+# Sem Git na pasta ou sem o servico, o comando falha em silencio e nada muda.
+[void](Executar-Comando -Programa 'docker' -Argumentos @('compose', 'exec', '-T', 'atualizador', 'sh', '-c', 'git -C /projeto rev-parse HEAD > /dados/implantado.novo && mv /dados/implantado.novo /dados/implantado') -Silencioso)
+
 Write-Host ''
 Write-Host '============================================================'
 Write-Host ' Sistema escolar instalado e no ar'

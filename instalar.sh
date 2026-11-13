@@ -328,6 +328,10 @@ else
 fi
 IP_COMPUTADOR=$(obter_ip)
 
+# Registra no atualizador a versao que acabou de subir (o botao de atualizar compara com ela).
+# Sem Git na pasta ou sem o servico, o comando falha em silencio e nada muda.
+docker compose exec -T atualizador sh -c 'git -C /projeto rev-parse HEAD > /dados/implantado.novo && mv /dados/implantado.novo /dados/implantado' >/dev/null 2>&1 || true
+
 echo ""
 echo "============================================================"
 echo " Sistema escolar instalado e no ar"

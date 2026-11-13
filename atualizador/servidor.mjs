@@ -19,8 +19,9 @@ const ARQ_PROJ_SERVIDOR = '/projeto/atualizador/servidor.mjs';
 const ARQ_PROJ_DOCKERFILE = '/projeto/atualizador/Dockerfile';
 
 const MINUTO = 60 * 1000;
-const TEMPO_LEITURA = 15 * 1000;
-const TEMPO_VERIFICAR = 30 * 1000;
+// Folgas largas: em pasta sincronizada ou com o Docker ocupado, o Git pode levar dezenas de segundos.
+const TEMPO_LEITURA = 30 * 1000;
+const TEMPO_VERIFICAR = 45 * 1000;
 const TEMPO_GIT = 5 * MINUTO;
 const TEMPO_BUILD = 20 * MINUTO;
 const TEMPO_UP = 5 * MINUTO;
@@ -334,8 +335,18 @@ async function atualizadorMudou() {
 // Para a tela acompanhar o progresso sem travar, devolve as informações do Git já conhecidas
 // e só a tarefa atualizada.
 let ultimoEstado = null;
-async function montarEstado() {
-  if (tarefa.estado === 'EXECUTANDO' && ultimoEstado) {
+// Verdadeiro enquanto um `git fetch` de verificação está rodando (as leituras esperariam por ele).
+let verificandoAgora = false;
+// Instante e estado da tarefa em que `ultimoEstado` foi lido: por 10 s, sem mudança na tarefa, a
+// resposta vem da memória (cada comando Git pode levar segundos em pasta montada pelo Docker).
+let ultimoEstadoEm = 0;
+let ultimoEstadoTarefa = '';
+const VALIDADE_ESTADO_MS = 10 * 1000;
+
+async function montarEstado(forcar = false) {
+  const recente =
+    !forcar && Date.now() - ultimoEstadoEm < VALIDADE_ESTADO_MS && ultimoEstadoTarefa === tarefa.estado;
+  if ((tarefa.estado === 'EXECUTANDO' || verificandoAgora || recente) && ultimoEstado) {
     return {
       ...ultimoEstado,
       implantado,
@@ -350,10 +361,19 @@ async function montarEstado() {
     };
   }
   ultimoEstado = await montarEstadoCompleto();
+  ultimoEstadoEm = Date.now();
+  ultimoEstadoTarefa = tarefa.estado;
   return ultimoEstado;
 }
 
 async function montarEstadoCompleto() {
+  // O instalador regrava este arquivo quando reconstrói tudo por fora do botão: relê a cada consulta.
+  try {
+    const lido = ((await lerArquivo(ARQ_IMPLANTADO)) ?? '').trim();
+    if (HASH_COMMIT.test(lido)) implantado = lido;
+  } catch {
+    // segue com o valor em memória
+  }
   const ramo = await lerRamo();
   const repositorio = await lerRepositorio();
   const instalado = await lerCommit('HEAD');
@@ -403,6 +423,15 @@ function resumoFalha(r) {
 }
 
 async function verificarRemoto() {
+  verificandoAgora = true;
+  try {
+    await verificarRemotoDeFato();
+  } finally {
+    verificandoAgora = false;
+  }
+}
+
+async function verificarRemotoDeFato() {
   const em = agora();
   const ramo = await lerRamo();
   if (!ramo) {
@@ -652,10 +681,12 @@ async function tratar(req, res) {
     if (req.method !== 'GET') {
       return enviarJson(res, 405, { erro: 'Método não permitido.' }, { Allow: 'GET' });
     }
-    if (url.searchParams.get('verificar') === '1') {
+    const verificar = url.searchParams.get('verificar') === '1';
+    if (verificar) {
       await comGitExclusivo(verificarRemoto);
     }
-    return enviarJson(res, 200, await montarEstado());
+    // Depois de verificar, relê tudo; sem verificar, pode vir da memória recente.
+    return enviarJson(res, 200, await montarEstado(verificar));
   }
 
   if (url.pathname === '/atualizar') {

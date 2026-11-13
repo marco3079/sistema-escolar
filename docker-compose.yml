@@ -56,6 +56,8 @@ services:
   # Tem acesso ao Docker deste computador (soquete montado). Não publica porta: só a API fala com ele.
   atualizador:
     build: ./atualizador
+    # init recolhe os processos filhos do Git que terminam depois do tempo limite
+    init: true
     environment:
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-de-exemplo}
       PROJETO_COMPOSE: ${COMPOSE_PROJECT_NAME}
