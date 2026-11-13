@@ -43,7 +43,7 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Chat sem criptografia de ponta a ponta**: as mensagens e as imagens do chat ficam no banco em texto puro (imagem em data URL). Quem tem acesso ao banco pode lê-las, e a API as devolve aos participantes da conversa. Não há criptografia de ponta a ponta. Não use o chat para dados que exijam esse nível de sigilo sem avaliar essa limitação.
 
 - **Limite de tentativas de login**: 10 falhas em 10 minutos para o mesmo endereço de IP e e-mail fazem as próximas tentativas receberem `429` (`Muitas tentativas. Aguarde alguns minutos.`). Um login bem-sucedido zera a contagem. A contagem fica na memória do servidor.
-- **Limite de tamanho**: o corpo de cada requisição é limitado a 1 MB. Acima disso, a API responde `413`. A exceção é o envio de arquivo de cópia de segurança, que aceita até 200 MB (veja a seção "Cópias de segurança e planilhas").
+- **Limite de tamanho**: o corpo de cada requisição é limitado a 1 MB. Acima disso, a API responde `413`. As exceções são o envio de arquivo de cópia de segurança, que aceita até 200 MB (veja a seção "Cópias de segurança e planilhas"), e o envio de arquivo das salas de aula, que aceita até 20 MB (veja a seção "Sala de aula").
 - **E-mail sem diferenciar maiúsculas**: o e-mail é gravado aparado e em minúsculas. Login, recuperação de senha e a checagem de e-mail já usado comparam sem diferenciar maiúsculas, para que `Ana@X.com` e `ana@x.com` não sejam duas contas.
 - **Central de avisos**: cada pessoa lê, marca e apaga só os próprios avisos. Aviso de outra pessoa devolve `404`, como se não existisse.
 - **Validação de imagens**: foto de perfil, capa de livro, anexo de chamado e imagem de publicação só aceitam JPEG, PNG ou WebP (em data URL), com até 200.000 caracteres. Foto e capa também aceitam endereço `http(s)`, de até 500 caracteres. Qualquer outro formato é recusado com `400`.
@@ -63,6 +63,31 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Envio de arquivo**: só aceita um arquivo com a assinatura gzip, de até 200 MB. A assinatura não garante o conteúdo: a restauração executa o SQL do arquivo com o usuário do banco, pelo `psql` (com `ON_ERROR_STOP`). Envie só cópias geradas pelo próprio sistema.
 - **Planilhas exportadas**: o CSV neutraliza fórmulas. Célula que começa com `=`, `+`, `-`, `@`, TAB ou CR, e não é número simples, ganha um apóstrofo antes, para o Excel não executar a fórmula.
 - **Importação de planilhas**: a validação é feita no servidor, com as mesmas regras do cadastro individual, e a gravação é tudo ou nada. A importação define **uma senha inicial igual para todas as pessoas do lote** (mínimo de 8 caracteres). Oriente cada pessoa a trocá-la no primeiro acesso. A senha inicial não é gravada em log.
+
+## Sala de aula (arquivos, provas e chamada)
+
+**O que o sistema garante:**
+
+- **Arquivos: tipos e tamanho.** Só as extensões da lista (`pdf`, imagens, documentos do Office e do OpenDocument, `txt`, `csv` e `zip`) são gravadas. O tipo enviado precisa combinar com a extensão. O limite é de 20 MB por arquivo, conferido durante a leitura do envio.
+- **Arquivos: nome em disco.** O nome do arquivo no disco é aleatório (32 caracteres hexadecimais). O nome original fica só no banco, sem caminho, e não é usado para gravar nada.
+- **Arquivos: download.** A resposta traz `X-Content-Type-Options: nosniff` e `Cache-Control: private, no-store`. Só PNG, JPEG, WebP e GIF abrem no navegador; os demais tipos baixam como anexo.
+- **Arquivos: acesso.** Material e tarefa seguem as regras de acesso à turma. Entrega é vista só pelo aluno dono e pelo professor e pela gestão da turma. Quem não tem acesso recebe `404`, sem saber se o arquivo existe.
+- **Provas: gabarito.** Nenhuma rota do aluno devolve a alternativa correta antes de a prova fechar. O gabarito só aparece depois do envio, com a prova fechada e com `mostrarGabarito` ligado.
+- **Provas: tempo do servidor.** O término da tentativa é calculado e conferido pelo servidor. Horário enviado pelo cliente não define prazo, e respostas enviadas depois do tempo (com 15 segundos de tolerância) são recusadas.
+- **Chamada: segredo.** O segredo da chamada nunca sai pela API nem vai para o log. O código de 6 dígitos é comparado em tempo constante.
+- **Chamada: código rotativo.** O código troca a cada 20 segundos. Reabrir a chamada troca o segredo, e os códigos anteriores deixam de valer.
+- **Acesso às salas.** Toda rota da sala, de tarefas, de provas e da chamada confere o vínculo com a turma (professor, gestão ou aluno com inscrição não trancada) antes de agir.
+
+**O que não é garantido:**
+
+- **O conteúdo dos arquivos não é verificado.** O sistema confere a extensão e o tipo declarado, não o conteúdo, e não há antivírus. Um arquivo pode ter a extensão de um documento e conter outra coisa. Quem baixa deve tratar o arquivo como de origem desconhecida.
+- **Os arquivos não são cifrados.** Ficam em texto puro no volume `dados_arquivos`. Quem tem acesso ao disco do servidor lê os arquivos.
+- **Os arquivos não entram na cópia de segurança do banco.** Uma restauração do banco não traz os arquivos de volta, e se o volume `dados_arquivos` for perdido, a cópia do banco não recupera nada dele. O volume precisa de cópia à parte (veja `INSTALAR.md`).
+- **Os links não são verificados.** Materiais aceitam link `http` ou `https` sem checar o destino.
+- **Provas: consulta e troca de respostas não são impedidas.** O sistema não bloqueia outros sites, materiais ou conversas durante a prova, não impede copiar e colar, não detecta troca de aba e não confirma quem está respondendo. Não há fiscalização por câmera.
+- **Provas: quem tem acesso ao banco** lê respostas e gabarito em texto puro, como os demais dados.
+- **Chamada: presença não prova que a pessoa está na sala.** O código vale a janela atual e a anterior, ou seja, até cerca de 40 segundos. Quem está fora da sala e vê o QR ou o código digitado nesse intervalo, por foto ou repasse, consegue marcar presença. A troca a cada 20 segundos reduz esse repasse, mas não o elimina. O sistema não confere a localização.
+- **Limites em memória.** O limite de 10 tentativas por minuto da chamada fica na memória do servidor e recomeça quando ele reinicia.
 
 ## Atualização pelo painel (serviço `atualizador`)
 
@@ -93,3 +118,4 @@ Para desligar o recurso, remova o serviço `atualizador` do `docker-compose.yml`
 
 - O token de login fica guardado no armazenamento local do navegador. Em um computador compartilhado, faça sempre o logout ao sair.
 - A cópia automática fica no mesmo computador. Ela não substitui uma cópia guardada fora dele.
+- Os arquivos das salas de aula ficam no volume `dados_arquivos`, fora da cópia de segurança do banco.

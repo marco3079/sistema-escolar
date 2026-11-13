@@ -10,7 +10,8 @@ export type NomeIcone =
   | 'medalha' | 'suporte' | 'forum' | 'voto-cima' | 'voto-baixo' | 'comentario'
   | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado' | 'sol' | 'lua' | 'monitor'
   | 'chat' | 'email' | 'paleta' | 'visto' | 'visto-duplo' | 'responder' | 'lixeira' | 'grupo'
-  | 'mais-circulo' | 'seta-esquerda';
+  | 'mais-circulo' | 'seta-esquerda'
+  | 'sala' | 'pasta' | 'tarefa' | 'prova' | 'qr' | 'link' | 'arquivo' | 'plano';
 
 export const NOMES_ICONES: NomeIcone[] = [
   'inicio', 'alunos', 'professores', 'usuarios', 'cursos', 'periodos', 'turmas',
@@ -23,6 +24,7 @@ export const NOMES_ICONES: NomeIcone[] = [
   'anexo', 'estrela', 'enviar', 'fixar', 'cadeado', 'sol', 'lua', 'monitor',
   'chat', 'email', 'paleta', 'visto', 'visto-duplo', 'responder', 'lixeira', 'grupo',
   'mais-circulo', 'seta-esquerda',
+  'sala', 'pasta', 'tarefa', 'prova', 'qr', 'link', 'arquivo', 'plano',
 ];
 
 // Desenhos sólidos em grade 24 x 24 (área útil 2.5 a 21.5). Preenchidos com currentColor.
@@ -392,6 +394,45 @@ const DESENHOS: Record<NomeIcone, ReactNode> = {
 
   // Seta para a esquerda (traço puro com ponta).
   'seta-esquerda': <path d="M19.5 12H4.5M10.5 6L4.5 12L10.5 18" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />,
+
+  // Porta de sala sólida: moldura com janela recortada e maçaneta recortada.
+  sala: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5 2.5H19V21.5H5ZM8 5.5V12.5H16V5.5ZM14.3 15.5A1.2 1.2 0 1 0 16.7 15.5A1.2 1.2 0 1 0 14.3 15.5Z" />
+  ),
+
+  // Pasta de arquivos sólida com a aba no topo esquerdo.
+  pasta: <path d="M2.5 5H9.5L11.5 7.5H21.5V19.5Q21.5 21.5 19.5 21.5H4.5Q2.5 21.5 2.5 19.5Z" />,
+
+  // Prancheta sólida com a aba no topo e um visto recortado no corpo.
+  tarefa: (
+    <>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 4H19V21.5H5ZM8.2 13.2L9.6 11.8L11.2 13.4L14.6 10L16 11.4L11.2 16.2Z" />
+      <path d="M8.5 2H15.5V5.5H8.5Z" />
+    </>
+  ),
+
+  // Folha de prova sólida com bolinhas de resposta recortadas em três linhas.
+  prova: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5 2.5H19V21.5H5ZM7.3 8A1.2 1.2 0 1 0 9.7 8A1.2 1.2 0 1 0 7.3 8ZM11.3 8A1.2 1.2 0 1 0 13.7 8A1.2 1.2 0 1 0 11.3 8ZM15.3 8A1.2 1.2 0 1 0 17.7 8A1.2 1.2 0 1 0 15.3 8ZM7.3 12.5A1.2 1.2 0 1 0 9.7 12.5A1.2 1.2 0 1 0 7.3 12.5ZM11.3 12.5A1.2 1.2 0 1 0 13.7 12.5A1.2 1.2 0 1 0 11.3 12.5ZM15.3 12.5A1.2 1.2 0 1 0 17.7 12.5A1.2 1.2 0 1 0 15.3 12.5ZM7.3 17A1.2 1.2 0 1 0 9.7 17A1.2 1.2 0 1 0 7.3 17ZM11.3 17A1.2 1.2 0 1 0 13.7 17A1.2 1.2 0 1 0 11.3 17ZM15.3 17A1.2 1.2 0 1 0 17.7 17A1.2 1.2 0 1 0 15.3 17Z" />
+  ),
+
+  // Código QR sólido: três marcas de canto com centro recortado e alguns módulos.
+  qr: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M3 3H9.5V9.5H3ZM4.5 4.5V8H8V4.5ZM5.4 5.4V7.1H7.1V5.4ZM14.5 3H21V9.5H14.5ZM16 4.5V8H19.5V4.5ZM16.9 5.4V7.1H18.6V5.4ZM3 14.5H9.5V21H3ZM4.5 16V19.5H8V16ZM5.4 16.9V18.6H7.1V16.9ZM12 12H13.5V13.5H12ZM14.5 14.5H16V16H14.5ZM17.5 12H19V13.5H17.5ZM12 17.5H13.5V19H12ZM17.5 17.5H21V19H17.5ZM14.5 19.5H16V21H14.5Z" />
+  ),
+
+  // Dois elos de corrente em traço.
+  link: (
+    <path d="M10 14L14 10M7.6 12.4L5.5 14.5A3.5 3.5 0 0 0 10.5 19.5L12.6 17.4M11.4 6.6L13.5 4.5A3.5 3.5 0 0 1 18.5 9.5L16.4 11.6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+  ),
+
+  // Página sólida com canto dobrado e duas linhas recortadas.
+  arquivo: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5 2.5H13.8L19.5 8.2V21.5H5ZM13.8 2.5V8.2H19.5ZM8 12H16V13.6H8ZM8 15.6H16V17.2H8Z" />
+  ),
+
+  // Bandeira sólida numa haste: marco de um plano de aula.
+  plano: <path d="M4 2.5H6.2V21.5H4ZM6.2 3H19.5L16.2 8.2L19.5 13.4H6.2Z" />,
 };
 
 export function Icone({

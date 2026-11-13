@@ -1,0 +1,287 @@
+/* Sala de aula: lista de turmas, cabeçalho, materiais, plano de aula e andamento.
+   Cores, raios e sombras vêm só das variáveis de ui/estilo.css. Classes com prefixo sala-. */
+
+.sala-codigo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-weight: 700;
+  font-size: 0.85rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.sala-texto-suave {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+/* Texto vindo da API: quebras de linha preservadas, nunca como HTML. */
+.sala-quebra {
+  margin: 0.4rem 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.sala-secao {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.sala-barra {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sala-acoes-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sala-celula-dupla {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sala-abas {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ----- Cabeçalho da turma ----- */
+.sala-cabecalho {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+
+.sala-cabecalho-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.95rem;
+}
+
+/* ----- Lista de turmas (cartões) ----- */
+.sala-cartoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 1rem;
+}
+
+.sala-cartao {
+  display: grid;
+  gap: 0.4rem;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  color: var(--cor-texto);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.sala-cartao:hover,
+.sala-cartao:focus-visible {
+  border-color: var(--cor-primaria);
+}
+
+.sala-cartao-titulo {
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.sala-cartao-linha {
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.sala-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+/* ----- Grupos e cartões de materiais ----- */
+.sala-grupo {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.sala-grupo-titulo {
+  margin: 0.5rem 0 0;
+  font-size: 1.05rem;
+  color: var(--cor-texto);
+}
+
+.sala-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sala-material {
+  display: grid;
+  gap: 0.5rem;
+  padding: 14px 16px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  min-width: 0;
+}
+
+.sala-material-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sala-material-texto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sala-material-titulo {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.sala-link {
+  color: var(--cor-primaria);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* ----- Plano de aula ----- */
+.sala-progresso-bloco {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sala-progresso {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.sala-progresso-trilho {
+  flex: 1 1 auto;
+  height: 8px;
+  min-width: 80px;
+  border-radius: 999px;
+  background: var(--cor-superficie-2);
+  overflow: hidden;
+}
+
+.sala-progresso-preench {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cor-primaria);
+}
+
+.sala-progresso-texto {
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.sala-plano {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sala-plano-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 14px 16px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  min-width: 0;
+}
+
+.sala-plano-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sala-plano-corpo {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* ----- Andamento (resumo e tabela) ----- */
+.sala-numero {
+  font-weight: 700;
+}
+
+.resumo-icone-laranja {
+  background: var(--cor-laranja-suave);
+  color: var(--cor-laranja);
+}
+
+/* ----- Telas pequenas (360 px) ----- */
+@media (max-width: 480px) {
+  .sala-cartao,
+  .sala-material,
+  .sala-plano-item {
+    padding: 12px;
+  }
+
+  .sala-plano-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sala-plano-numero {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sala-progresso-trilho {
+    min-width: 60px;
+  }
+}

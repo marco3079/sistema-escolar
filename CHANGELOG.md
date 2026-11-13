@@ -41,6 +41,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Importar planilhas (CSV) de alunos e professores, com modelo para baixar, conferência linha a linha antes de gravar e importação tudo ou nada, com uma senha inicial para o lote. RA do aluno e registro do professor são gerados em sequência, como no cadastro individual.
 - Exportar para CSV (abre no Excel em português) as listas e tabelas do sistema, a partir das linhas exibidas.
 - Nome e ícone do aplicativo instalado (PWA) passam a vir das configurações da plataforma: manifesto em `/api/plataforma/manifesto` e logo em `/api/plataforma/logo`.
+- Sala de aula por turma, com as abas Materiais, Plano de aula, Tarefas, Provas e Chamada (esta última só para quem pode editar). A lista de salas mostra as turmas de cada pessoa, e o aluno vê as pendências de tarefas e provas.
+- Materiais com link e arquivos, agrupados por tópico, com aviso aos alunos.
+- Plano de aula com temas em ordem, data prevista e ligação com as aulas do diário, e andamento das aulas por turma para administrador, TI e secretaria.
+- Tarefas com prazo, entrega de texto e de arquivos (reenviável até a correção), aceite de atraso opcional, correção com nota e comentário e ligação com a avaliação do diário.
+- Provas online com questões objetivas, verdadeiro ou falso e dissertativas. O tempo é controlado pelo servidor, as respostas são salvas automaticamente e a prova é enviada sozinha quando o tempo acaba. Correção automática, correção manual das dissertativas, gabarito opcional e nota no diário.
+- Chamada por QR code: o código muda a cada 20 segundos, a lista de presença atualiza em tempo real, o aluno marca a presença lendo o código ou digitando-o, e o professor pode marcar falta ao encerrar.
+- Arquivos das salas de aula: até 20 MB por arquivo e 10 por material, tarefa ou entrega, em tipos fixos (texto, planilha, apresentação, imagem, PDF e ZIP). Ficam no servidor, no volume `dados_arquivos`, fora da cópia de segurança do banco.
 
 ### Alterado
 
@@ -58,5 +65,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Tokens de senha por e-mail de uso único, guardados só como hash, com validade, e limites para pedidos de recuperação de senha.
 - Chat só para participantes da conversa, com limite de 30 mensagens por minuto por pessoa.
 - Serviço de atualização sem porta publicada, com token derivado de `JWT_SECRET`, só duas ordens fixas, só avanço rápido a partir do `origin` do checkout e sem ações que apaguem dados.
+- Arquivos das salas de aula: tipo conferido pela extensão e pelo tipo enviado, nome em disco aleatório, download com `X-Content-Type-Options: nosniff` e como anexo (exceto imagens), e acesso conferido pela turma.
+- Provas: nenhuma rota do aluno devolve a resposta certa antes de a prova fechar, e o tempo da tentativa é conferido pelo servidor.
+- Chamada por QR code: código de 6 dígitos derivado de um segredo que não sai pela API, troca a cada 20 segundos, e limite de 10 leituras por minuto por pessoa.
 - Cópias de segurança: nomes de arquivo validados antes de tocar no disco; ferramentas do PostgreSQL chamadas sem shell, com a senha só no ambiente do processo; restauração em transação única com cópia do estado anterior; cópias sem criptografia, guardadas no volume do Docker (veja `SECURITY.md`).
 - Planilhas exportadas neutralizam fórmulas (célula que começa com `=`, `+`, `-` ou `@` ganha apóstrofo).

@@ -20,7 +20,7 @@ Três peças aparecem em muitos itens e por isso vêm primeiro:
 | Cópia de segurança do banco | Diária e automática, com baixar e restaurar em Configurações |
 | Importar e exportar planilhas | Alunos e professores em lote por CSV; exportar qualquer lista |
 
-## Leva 6: sala de aula
+## Leva 6: sala de aula (concluída em 13/11/2026)
 
 | Item | Observação |
 |---|---|

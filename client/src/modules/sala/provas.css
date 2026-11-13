@@ -1,0 +1,640 @@
+/* ===== Sala de aula: aba Provas (professor, gestão e aluno) =====
+   Cores, raios e sombras só por variáveis de ui/estilo.css. Classes com prefixo prova-.
+   Importado pelos arquivos que usam as classes (Provas.tsx e Prova*.tsx). */
+
+/* ---------- Estrutura geral ---------- */
+
+.prova-aba {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.prova-cabecalho-aba {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.prova-cabecalho-aba h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.prova-titulo {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.prova-texto,
+.prova-enunciado,
+.prova-opcao-texto,
+.prova-comentario p,
+.prova-resposta-texto p,
+.prova-instrucoes p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0.35rem 0;
+  color: var(--cor-texto);
+  line-height: 1.5;
+}
+
+.prova-enunciado {
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.prova-rotulo-pequeno {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.prova-nota-pequena {
+  font-size: 0.88rem;
+  color: var(--cor-texto-suave);
+  margin: 0.5rem 0;
+}
+
+.prova-nota-destaque {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+  margin: 0;
+}
+
+.prova-opcao-letra {
+  font-weight: 700;
+  color: var(--cor-primaria);
+  min-width: 1.25rem;
+  flex-shrink: 0;
+}
+
+.prova-acoes,
+.prova-acoes-modal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.prova-texto-atencao {
+  color: var(--cor-aviso);
+}
+
+/* ---------- Cartões do aluno (grade) ---------- */
+
+.prova-cartoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.prova-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+}
+
+.prova-cartao-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.prova-cartao-titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.prova-cartao-dados {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+  color: var(--cor-texto-suave);
+}
+
+.prova-cartao-dados span {
+  display: block;
+}
+
+.prova-cartao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+/* ---------- Formulário da prova ---------- */
+
+.prova-formulario {
+  min-width: 0;
+}
+
+.prova-linha-duas {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 1rem;
+  min-width: 0;
+}
+
+.prova-travado {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.prova-travado:disabled {
+  opacity: 0.6;
+}
+
+/* ---------- Editor de questões ---------- */
+
+.prova-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.prova-editor-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.prova-total {
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.prova-editor-adicionar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.prova-editor-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.prova-questao-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.prova-questao-editor-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.prova-questao-editor-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.prova-alternativas-editor {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prova-alternativas-editor legend {
+  padding: 0;
+  margin-bottom: 0.25rem;
+}
+
+.prova-alternativas-editor:disabled {
+  opacity: 0.6;
+}
+
+.prova-alternativa-editor {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prova-alternativa-editor .campo-controle {
+  min-width: 0;
+}
+
+.prova-alternativa-editor > .botao {
+  grid-column: 3;
+  justify-self: start;
+}
+
+/* ---------- Realização da prova ---------- */
+
+.prova-realizar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.prova-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.prova-topo-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.prova-titulo-grande {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.prova-realizar-contagem {
+  font-size: 0.9rem;
+  color: var(--cor-texto-suave);
+}
+
+.prova-tempo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.prova-tempo-numero {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Courier New', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+}
+
+.prova-tempo-alerta .prova-tempo-numero {
+  color: var(--cor-perigo);
+}
+
+.prova-tempo-alerta .prova-rotulo-pequeno {
+  color: var(--cor-perigo);
+}
+
+.prova-instrucoes {
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  padding: 0.75rem 1rem;
+  background: var(--cor-superficie);
+}
+
+.prova-instrucoes summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.prova-questao-aluno {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.1rem 1.25rem;
+}
+
+.prova-questao-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.prova-questao-titulo {
+  font-size: 0.95rem;
+  color: var(--cor-texto);
+}
+
+/* Pontos num selo à direita. */
+.prova-questao-pontos {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.prova-dissertativa {
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+}
+
+/* Alternativas: uma por linha, cada uma um rótulo clicável em bloco. */
+.prova-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.prova-opcao {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--altura-toque);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  cursor: pointer;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.prova-opcao:hover {
+  border-color: var(--cor-primaria);
+}
+
+.prova-opcao-marcada {
+  background: var(--cor-primaria-suave);
+  border-color: var(--cor-primaria);
+}
+
+.prova-opcao-radio {
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--cor-primaria);
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.prova-opcao-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.prova-navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Mapa de questões: botões do tema, sem a aparência cinza do navegador. */
+.prova-mapa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.prova-mapa-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: 50%;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.prova-mapa-feita {
+  background: var(--cor-primaria);
+  border-color: var(--cor-primaria);
+  color: var(--cor-sobre-primaria);
+}
+
+.prova-mapa-atual {
+  box-shadow: 0 0 0 2px var(--cor-superficie), 0 0 0 4px var(--cor-primaria);
+}
+
+.prova-mapa-item:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+/* Barra de ações separada do conteúdo. */
+.prova-realizar-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.prova-final-cartao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 1.5rem 1.25rem;
+}
+
+.prova-final-cartao h2 {
+  margin: 0;
+}
+
+/* ---------- Gabarito e resultados ---------- */
+
+.prova-gabarito-final {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.prova-gabarito-final h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.prova-questao-gabarito {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.prova-questao-tipo {
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+}
+
+.prova-opcoes-gabarito {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.prova-opcao-gabarito {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--raio-pequeno);
+  border: 1px solid var(--cor-borda);
+  min-width: 0;
+}
+
+.prova-opcao-gabarito .prova-opcao-texto {
+  flex: 1 1 10rem;
+}
+
+.prova-opcao-certa {
+  background: var(--cor-verde-suave);
+  border-color: var(--cor-verde);
+}
+
+.prova-opcao-errada {
+  background: var(--cor-laranja-suave);
+  border-color: var(--cor-laranja);
+}
+
+.prova-opcao-marca {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.prova-resposta-texto,
+.prova-comentario {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.prova-detalhe-tentativa {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.prova-detalhe-cabecalho {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.prova-detalhe-cabecalho p {
+  margin: 0;
+}
+
+.prova-correcao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--cor-borda);
+}
+
+/* ---------- Telas estreitas (360 px) e largas ---------- */
+
+@media (min-width: 640px) {
+  .prova-linha-duas {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .prova-topo {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .prova-tempo {
+    align-items: flex-start;
+  }
+
+  .prova-alternativa-editor {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .prova-realizar-rodape > .botao,
+  .prova-navegacao > .botao {
+    flex: 1 1 100%;
+  }
+
+  .prova-cartoes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

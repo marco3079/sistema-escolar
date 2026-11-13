@@ -12,6 +12,7 @@ export type TipoNotificacao =
   | 'FINANCEIRO'
   | 'MEDALHA'
   | 'BIBLIOTECA'
+  | 'AULA'
   | 'SISTEMA';
 
 export interface NovaNotificacao {

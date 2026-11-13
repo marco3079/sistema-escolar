@@ -1,0 +1,196 @@
+import fs from 'fs';
+import path from 'path';
+import { prisma } from './prisma';
+import { HttpError } from './erros';
+import { registrarTarefaPeriodica } from './agendador';
+
+// Arquivos das salas de aula (materiais, tarefas e entregas). Contrato A em docs/plano/sexta-leva.md.
+// O nome em disco é gerado pelo servidor (32 hexadecimais + extensão); nunca vem do cliente.
+
+export type ContextoArquivo = 'MATERIAL' | 'TAREFA' | 'ENTREGA';
+export interface ArquivoDTO { id: number; nome: string; tipo: string; tamanho: number; criadoEm: string }
+export const MAX_ARQUIVOS_POR_ITEM = 10;
+
+export const LIMITE_ARQUIVO_BYTES = 20 * 1024 * 1024;
+export const MAX_ARQUIVOS_SOLTOS_POR_USUARIO = 30;
+
+const IDADE_SOLTO_MS = 24 * 60 * 60 * 1000;
+const IDADE_PARCIAL_MS = 60 * 60 * 1000;
+const MINUTOS_LIMPEZA = 60;
+const REGEX_CAMINHO_EM_DISCO = /^[0-9a-f]{32}\.[a-z]{2,4}$/;
+
+// Tabela fixa: extensão → tipos MIME aceitos para ela. O tipo enviado tem de estar nesta lista.
+export const TIPOS_POR_EXTENSAO: Record<string, string[]> = {
+  pdf: ['application/pdf'],
+  png: ['image/png'],
+  jpg: ['image/jpeg'],
+  jpeg: ['image/jpeg'],
+  webp: ['image/webp'],
+  gif: ['image/gif'],
+  txt: ['text/plain'],
+  csv: ['text/csv', 'text/plain', 'application/vnd.ms-excel'],
+  doc: ['application/msword'],
+  docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  xls: ['application/vnd.ms-excel'],
+  xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+  ppt: ['application/vnd.ms-powerpoint'],
+  pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+  odt: ['application/vnd.oasis.opendocument.text'],
+  ods: ['application/vnd.oasis.opendocument.spreadsheet'],
+  odp: ['application/vnd.oasis.opendocument.presentation'],
+  zip: ['application/zip', 'application/x-zip-compressed'],
+};
+
+// Só estes tipos abrem no navegador (inline); o resto baixa.
+export const TIPOS_DE_IMAGEM_INLINE = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+export function diretorioArquivos(): string {
+  return process.env.DIRETORIO_ARQUIVOS ?? '/dados/arquivos';
+}
+
+// Apaga um arquivo do disco pelo nome gerado pelo servidor. Falha de disco só é registrada.
+export async function apagarDoDisco(caminho: string): Promise<void> {
+  if (!REGEX_CAMINHO_EM_DISCO.test(caminho)) return;
+  await fs.promises
+    .rm(path.join(diretorioArquivos(), caminho), { force: true })
+    .catch((erro) => console.error('Não foi possível apagar arquivo:', erro instanceof Error ? erro.message : erro));
+}
+
+interface LinhaArquivo {
+  id: number;
+  nomeOriginal: string;
+  tipo: string;
+  tamanho: number;
+  criadoEm: Date;
+}
+
+export function paraDTO(linha: LinhaArquivo): ArquivoDTO {
+  return {
+    id: linha.id,
+    nome: linha.nomeOriginal,
+    tipo: linha.tipo,
+    tamanho: linha.tamanho,
+    criadoEm: linha.criadoEm.toISOString(),
+  };
+}
+
+// Define o conjunto de arquivos de um item. Os ids que já pertencem a este mesmo item ficam; os novos
+// precisam ser arquivos soltos (sem contexto) enviados por `usuarioId` (senão HttpError 400); os que
+// pertenciam ao item e não vieram na lista são apagados (linha e disco). Mais de 10: HttpError 400.
+export async function definirArquivos(
+  usuarioId: number,
+  ids: number[],
+  contexto: ContextoArquivo,
+  contextoId: number
+): Promise<void> {
+  const desejados = [...new Set(ids)];
+  if (desejados.length > MAX_ARQUIVOS_POR_ITEM) {
+    throw new HttpError(400, `Cada item aceita até ${MAX_ARQUIVOS_POR_ITEM} arquivos`);
+  }
+
+  const atuais = await prisma.arquivo.findMany({
+    where: { contexto, contextoId },
+    select: { id: true, caminho: true },
+  });
+  const atuaisIds = new Set(atuais.map((a) => a.id));
+  const novos = desejados.filter((id) => !atuaisIds.has(id));
+  const removidos = atuais.filter((a) => !desejados.includes(a.id));
+
+  await prisma.$transaction(async (tx) => {
+    if (novos.length > 0) {
+      // Condições no próprio update: se algo mudou entre a leitura e a gravação, a transação desfaz.
+      const { count } = await tx.arquivo.updateMany({
+        where: { id: { in: novos }, donoId: usuarioId, contexto: null },
+        data: { contexto, contextoId },
+      });
+      if (count !== novos.length) {
+        throw new HttpError(400, 'Arquivo inválido ou não enviado por você');
+      }
+    }
+    if (removidos.length > 0) {
+      await tx.arquivo.deleteMany({
+        where: { id: { in: removidos.map((a) => a.id) }, contexto, contextoId },
+      });
+    }
+  });
+
+  for (const removido of removidos) {
+    await apagarDoDisco(removido.caminho);
+  }
+}
+
+// Arquivos de vários itens de uma vez (sem consulta por item). Todo id pedido vem no Map, mesmo sem arquivos.
+export async function arquivosDe(
+  contexto: ContextoArquivo,
+  contextoIds: number[]
+): Promise<Map<number, ArquivoDTO[]>> {
+  const mapa = new Map<number, ArquivoDTO[]>();
+  for (const id of contextoIds) {
+    mapa.set(id, []);
+  }
+  if (contextoIds.length === 0) return mapa;
+
+  const linhas = await prisma.arquivo.findMany({
+    where: { contexto, contextoId: { in: contextoIds } },
+    orderBy: { id: 'asc' },
+  });
+  for (const linha of linhas) {
+    if (linha.contextoId === null) continue;
+    const lista = mapa.get(linha.contextoId) ?? [];
+    lista.push(paraDTO(linha));
+    mapa.set(linha.contextoId, lista);
+  }
+  return mapa;
+}
+
+// Apaga linha e disco de todos os arquivos dos itens (ao excluir material, tarefa ou entrega).
+export async function apagarArquivosDe(contexto: ContextoArquivo, contextoIds: number[]): Promise<void> {
+  if (contextoIds.length === 0) return;
+  const arquivos = await prisma.arquivo.findMany({
+    where: { contexto, contextoId: { in: contextoIds } },
+    select: { id: true, caminho: true },
+  });
+  if (arquivos.length === 0) return;
+
+  await prisma.arquivo.deleteMany({ where: { id: { in: arquivos.map((a) => a.id) } } });
+  for (const arquivo of arquivos) {
+    await apagarDoDisco(arquivo.caminho);
+  }
+}
+
+// Tarefa periódica: apaga arquivos soltos com mais de 24 horas e arquivos .parcial esquecidos (mais de 1 hora).
+async function limparArquivos(): Promise<void> {
+  const velhos = await prisma.arquivo.findMany({
+    where: { contexto: null, criadoEm: { lt: new Date(Date.now() - IDADE_SOLTO_MS) } },
+    select: { id: true, caminho: true },
+  });
+  if (velhos.length > 0) {
+    await prisma.arquivo.deleteMany({ where: { id: { in: velhos.map((v) => v.id) } } });
+    for (const velho of velhos) {
+      await apagarDoDisco(velho.caminho);
+    }
+  }
+
+  const dir = diretorioArquivos();
+  let nomes: string[];
+  try {
+    nomes = await fs.promises.readdir(dir);
+  } catch {
+    return; // pasta ainda não criada (nenhum envio até agora)
+  }
+  const limiteParcial = Date.now() - IDADE_PARCIAL_MS;
+  for (const nome of nomes) {
+    if (!nome.endsWith('.parcial')) continue;
+    const caminho = path.join(dir, nome);
+    try {
+      const estado = await fs.promises.stat(caminho);
+      if (estado.isFile() && estado.mtimeMs < limiteParcial) {
+        await fs.promises.rm(caminho, { force: true });
+      }
+    } catch {
+      // Sumiu ou está em uso: a próxima rodada tenta de novo.
+    }
+  }
+}
+
+registrarTarefaPeriodica('limpeza-arquivos', MINUTOS_LIMPEZA, limparArquivos);

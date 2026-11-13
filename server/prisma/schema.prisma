@@ -786,3 +786,169 @@ model Notificacao {
   @@unique([usuarioId, chave])
   @@index([usuarioId, criadaEm])
 }
+
+// ===== Arquivos enviados (leva 6) =====
+
+// O conteúdo fica em disco (volume dados_arquivos); aqui ficam os dados e o vínculo.
+// Um arquivo nasce sem vínculo (contexto nulo) e é ligado pela rota de quem o usa.
+model Arquivo {
+  id           Int      @id @default(autoincrement())
+  nomeOriginal String
+  tipo         String // tipo MIME conferido pelo servidor
+  tamanho      Int // bytes
+  caminho      String   @unique // nome do arquivo em disco (gerado pelo servidor)
+  donoId       Int // usuário que enviou
+  contexto     String? // MATERIAL, TAREFA, ENTREGA
+  contextoId   Int?
+  criadoEm     DateTime @default(now())
+
+  @@index([contexto, contextoId])
+  @@index([donoId, contexto])
+}
+
+// ===== Sala de aula =====
+
+model MaterialAula {
+  id          Int      @id @default(autoincrement())
+  turmaId     Int
+  titulo      String
+  descricao   String   @default("")
+  topico      String   @default("") // agrupador livre: "Unidade 1", "Aula 3"...
+  link        String? // endereço http(s) externo (vídeo, site)
+  criadoPorId Int
+  criadoEm    DateTime @default(now())
+
+  @@index([turmaId])
+}
+
+model Tarefa {
+  id           Int      @id @default(autoincrement())
+  turmaId      Int
+  titulo       String
+  enunciado    String   @default("")
+  prazo        DateTime
+  notaMaxima   Float    @default(10)
+  aceitaAtraso Boolean  @default(true)
+  avaliacaoId  Int? // quando ligada a uma avaliação do diário, a nota corrigida vai para lá
+  criadoPorId  Int
+  criadaEm     DateTime @default(now())
+
+  entregas TarefaEntrega[]
+
+  @@index([turmaId])
+}
+
+model TarefaEntrega {
+  id             Int       @id @default(autoincrement())
+  tarefaId       Int
+  tarefa         Tarefa    @relation(fields: [tarefaId], references: [id], onDelete: Cascade)
+  inscricaoId    Int
+  texto          String    @default("")
+  entregueEm     DateTime  @default(now())
+  atrasada       Boolean   @default(false)
+  nota           Float?
+  comentario     String    @default("")
+  corrigidaEm    DateTime?
+  corrigidaPorId Int?
+
+  @@unique([tarefaId, inscricaoId])
+}
+
+// Item do plano de aula da turma. Quando a aula acontece, o item é ligado à aula do diário.
+model PlanoAula {
+  id           Int       @id @default(autoincrement())
+  turmaId      Int
+  ordem        Int
+  tema         String
+  objetivos    String    @default("")
+  dataPrevista DateTime?
+  aulaId       Int? // aula do diário em que o tema foi dado
+  criadoEm     DateTime  @default(now())
+
+  @@index([turmaId, ordem])
+}
+
+enum TipoQuestao {
+  OBJETIVA
+  VERDADEIRO_FALSO
+  DISSERTATIVA
+}
+
+model Prova {
+  id              Int      @id @default(autoincrement())
+  turmaId         Int
+  titulo          String
+  instrucoes      String   @default("")
+  abreEm          DateTime
+  fechaEm         DateTime
+  duracaoMin      Int      @default(60)
+  embaralhar      Boolean  @default(false)
+  notaMaxima      Float    @default(10)
+  mostrarGabarito Boolean  @default(false) // depois de fechada, o aluno vê as respostas certas
+  publicada       Boolean  @default(false)
+  avaliacaoId     Int? // quando ligada a uma avaliação do diário, a nota final vai para lá
+  criadoPorId     Int
+  criadaEm        DateTime @default(now())
+
+  questoes   ProvaQuestao[]
+  tentativas ProvaTentativa[]
+
+  @@index([turmaId])
+}
+
+model ProvaQuestao {
+  id           Int         @id @default(autoincrement())
+  provaId      Int
+  prova        Prova       @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  ordem        Int
+  tipo         TipoQuestao
+  enunciado    String
+  alternativas Json        @default("[]") // lista de textos (OBJETIVA); vazio nos outros tipos
+  correta      Int? // índice da alternativa certa (OBJETIVA) ou 1 = verdadeiro, 0 = falso
+  pontos       Float       @default(1)
+
+  respostas ProvaResposta[]
+
+  @@index([provaId, ordem])
+}
+
+model ProvaTentativa {
+  id           Int       @id @default(autoincrement())
+  provaId      Int
+  prova        Prova     @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  inscricaoId  Int
+  iniciadaEm   DateTime  @default(now())
+  expiraEm     DateTime // o menor entre início + duração e o fechamento da prova
+  enviadaEm    DateTime?
+  notaObjetiva Float? // soma dos pontos das questões corrigidas sozinhas
+  notaFinal    Float? // em escala de 0 a notaMaxima, depois de corrigidas as dissertativas
+  corrigida    Boolean   @default(false)
+
+  respostas ProvaResposta[]
+
+  @@unique([provaId, inscricaoId])
+}
+
+model ProvaResposta {
+  id          Int            @id @default(autoincrement())
+  tentativaId Int
+  tentativa   ProvaTentativa @relation(fields: [tentativaId], references: [id], onDelete: Cascade)
+  questaoId   Int
+  questao     ProvaQuestao   @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+  alternativa Int? // índice escolhido (OBJETIVA) ou 1/0 (VERDADEIRO_FALSO)
+  texto       String         @default("")
+  pontos      Float? // nulo enquanto a dissertativa não foi corrigida
+  comentario  String         @default("")
+
+  @@unique([tentativaId, questaoId])
+}
+
+// Chamada por QR code: o professor abre para uma aula e o código muda a cada poucos segundos.
+model ChamadaQr {
+  id       Int       @id @default(autoincrement())
+  aulaId   Int       @unique
+  segredo  String // base do código rotativo; nunca sai pela API
+  abertaEm DateTime  @default(now())
+  fechaEm  DateTime
+  fechada  Boolean   @default(false)
+}

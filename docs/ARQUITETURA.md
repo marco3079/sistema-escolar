@@ -93,7 +93,7 @@ Algumas rotas aplicam regras além do perfil, dentro do código. Exemplos: um pr
 
 O servidor registra a atividade dos usuários em uma tabela própria (`LogAtividade`), que é consultada pelas telas Atividades e Log do sistema, só para ADMIN e TI.
 
-- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio), as requisições `OPTIONS` e as quatro consultas de tempo real do chat (`/api/chat/sincronizar`, `/api/chat/nao-lidas`, `/api/chat/conversas/:id/digitando` e `/api/chat/conversas/:id/lida`). Também ficam de fora as rotas de cópia de segurança (`/api/backups`), que registram a atividade à mão, sem conteúdo; a importação de planilhas (`/api/alunos/importar` e `/api/professores/importar`), que registra só o total de registros criados; e o modelo de planilha. Na central de avisos, ficam de fora a consulta do sino (`GET /api/notificacoes` e `GET /api/notificacoes/nao-lidas`) e as marcações como lido.
+- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio), as requisições `OPTIONS` e as quatro consultas de tempo real do chat (`/api/chat/sincronizar`, `/api/chat/nao-lidas`, `/api/chat/conversas/:id/digitando` e `/api/chat/conversas/:id/lida`). Também ficam de fora as rotas de cópia de segurança (`/api/backups`), que registram a atividade à mão, sem conteúdo; a importação de planilhas (`/api/alunos/importar` e `/api/professores/importar`), que registra só o total de registros criados; e o modelo de planilha. Na central de avisos, ficam de fora a consulta do sino (`GET /api/notificacoes` e `GET /api/notificacoes/nao-lidas`) e as marcações como lido. Na sala de aula, ficam de fora o download de arquivos (`GET /api/arquivos/:id`), a consulta da chamada por QR code a cada 2 segundos (`GET /api/aulas/:id/chamada-qr`) e o salvamento automático das respostas da prova (`PUT /api/provas/:id/respostas`).
 - Entradas e saídas são registradas: `LOGIN` no sucesso, `FALHA_LOGIN` quando a senha ou o e-mail não batem, e `SAIDA` quando o usuário sai (`POST /api/auth/sair`).
 - Telas abertas: o site envia `POST /api/logs/tela` a cada troca de tela. Se o mesmo usuário abrir o mesmo caminho em menos de 5 segundos, não é gravado de novo.
 - Consultas repetidas: uma consulta (`CONSULTA`) do mesmo usuário no mesmo caminho, em menos de 90 segundos, não é gravada de novo. Assim, telas que se atualizam sozinhas não enchem o log.
@@ -255,6 +255,66 @@ A cópia de segurança do banco inteiro é feita pelo módulo `backups` (`server
 - **Leitura**: `lerCsv` aceita `;` ou `,` (o separador é detectado pela primeira linha), aspas, quebras de linha dentro de aspas e BOM. Ignora linhas vazias. Não apara os valores: essa parte é feita pelo servidor.
 - **Importação**: a tela "Importar planilha" aparece em Alunos e Professores, para quem pode criar. Ela baixa o modelo (CSV), lê o arquivo escolhido, faz a conferência (`simular: true`), mostra linha a linha o que está certo e o que tem erro, e só libera "Importar" sem erros. O servidor valida tudo de novo e grava tudo numa transação, ou nada. Veja as colunas e as regras em `API.md`, em "Importar alunos e professores por planilha".
 
+## Arquivos enviados
+
+Os arquivos das salas de aula (materiais, tarefas e entregas) ficam no disco da API, não no banco. Código em `server/src/lib/arquivos.ts` e rotas em `server/src/modules/arquivos/routes.ts`. Veja `API.md`.
+
+- **Onde ficam**: no diretório `DIRETORIO_ARQUIVOS` (padrão `/dados/arquivos`). No Compose, o volume `dados_arquivos` é montado só no contêiner `api`. Esse volume não entra na cópia de segurança do banco.
+- **Vínculo por contexto**: a tabela `Arquivo` guarda o nome original, o tipo, o tamanho, o nome em disco e o dono. Um arquivo solto não tem contexto. Quando o material, a tarefa ou a entrega é salvo, o arquivo ganha `contexto` (`MATERIAL`, `TAREFA` ou `ENTREGA`) e `contextoId`. `definirArquivos` troca a lista de um item; `arquivosDe` busca os arquivos de vários itens numa consulta só; `apagarArquivosDe` apaga linha e disco quando o item é excluído.
+- **Nome em disco**: gerado pelo servidor (32 caracteres hexadecimais aleatórios mais a extensão). O nome do cliente nunca vai para o disco. Antes do nome final, o arquivo é gravado como `.parcial` e renomeado no fim; se algo falhar, o parcial é apagado.
+- **Limpeza**: a tarefa periódica roda a cada 60 minutos. Apaga arquivos soltos com mais de 24 horas e arquivos `.parcial` com mais de 1 hora (envio que não terminou).
+- **Limite e tipos**: 20 MB por arquivo, conferido pelo `Content-Length` e de novo durante a leitura do corpo. A extensão e o tipo do envio precisam combinar com a tabela fixa de tipos (`TIPOS_POR_EXTENSAO`).
+- **Nginx**: `client/nginx.conf` tem um `location ~ ^/api/arquivos(/|$)` com `client_max_body_size 25m` e `proxy_request_buffering off`, para o arquivo seguir direto para a API. As demais rotas `/api/` continuam com o limite de 2 MB.
+
+## Sala de aula
+
+A sala de aula é a turma vista por três papéis. O módulo `server/src/modules/sala/routes.ts` cuida de salas, materiais, plano de aula e andamento. As regras de acesso ficam em `server/src/lib/turmas.ts`:
+
+- `acessoTurma(req, turmaId)` devolve o papel de quem pede: `PROFESSOR` (o da turma), `GESTAO` (administrador, TI e secretaria) ou `ALUNO` (inscrição não trancada). Sem vínculo, `403`.
+- `acessoDeEdicao` exige quem pode editar (professor da turma ou administrador). A secretaria só lê.
+- `acessoDeAluno` exige a inscrição do aluno, e devolve o id da inscrição para as outras rotas.
+- `usuariosDosAlunosDaTurma` lista os usuários com inscrição não trancada, para os avisos.
+
+Toda rota da sala, de tarefas, de provas e da chamada passa por essas funções. Não há outra checagem de acesso à turma.
+
+- **Telas**: a pasta `client/src/modules/sala/` tem a lista de salas (`Salas.tsx`), a tela da turma (`Sala.tsx`) com as abas Materiais, Plano de aula, Tarefas, Provas e, só com permissão de edição, Chamada, e o andamento das aulas (`Andamento.tsx`, só administrador, TI e secretaria). A aba ativa fica na query (`?aba=tarefas`), para que os links dos avisos abram a aba certa.
+- **Rotas do cliente**: `index.tsx` registra `/aluno/sala`, `/professor/sala` e `/admin/sala` (no menu), `/{portal}/sala/:turmaId` (fora do menu), `/admin/andamento` e `/aluno/presenca`.
+- **Pendências**: a lista de salas do aluno conta tarefas sem entrega e provas abertas sem tentativa com consultas em lote (uma por tipo, para todas as turmas), não uma consulta por turma.
+- **Avisos**: materiais, tarefas, provas e correções chamam `notificar` com o tipo `AULA`. Os avisos são gravados depois do evento e não atrasam a resposta.
+
+## Tarefas
+
+Código em `server/src/modules/tarefas/routes.ts`. Tela em `client/src/modules/sala/Tarefas.tsx`, com `TarefaAluno.tsx` (entrega do aluno), `TarefaEntregas.tsx` (lista de entregas e correção), `TarefaFormulario.tsx` e `TarefaTipos.tsx`.
+
+- **Situação**: calculada no servidor, com o relógio do servidor, a cada consulta. O aluno nunca envia a própria situação.
+- **Entrega**: uma por aluno e tarefa (chave única). Enquanto não foi corrigida, pode ser substituída. Depois do prazo, só entra se a tarefa aceita atraso.
+- **Correção**: grava a nota e o comentário e, se a tarefa tem avaliação do diário, grava ou atualiza a `Nota` com a escala da avaliação, na mesma transação. Depois do commit, a média da inscrição é recalculada, como no diário.
+- **Contagens do professor**: `entregues` e `corrigidas` consideram só inscrições não trancadas.
+
+## Provas online
+
+Código em `server/src/modules/provas/`: `routes.ts` (rotas), `schemas.ts` (validação com zod) e `servico.ts` (DTOs, tempo, correção, embaralhamento e nota no diário). Telas em `client/src/modules/sala/`: `Provas.tsx` (aba), `ProvaEditor.tsx` e `ProvaFormulario.tsx` (edição, com as questões), `ProvaRealizar.tsx` (tela de realização), `ProvaGabarito.tsx`, `ProvaResultados.tsx` (correção) e `ProvaTipos.ts`.
+
+- **Modelo**: `Prova` tem as questões em `ProvaQuestao`. Cada aluno tem no máximo uma `ProvaTentativa` por prova (chave única), com `iniciadaEm` e `expiraEm`. As respostas ficam em `ProvaResposta`, uma por questão, com `pontos` nulo enquanto a dissertativa não foi corrigida.
+- **Tempo**: `expiraEm` é o menor valor entre o início mais a duração e o fechamento da prova. O servidor decide se uma resposta chega a tempo, com 15 segundos de tolerância. O cliente só mostra o cronômetro a partir de `agora` e `expiraEm` recebidos do servidor.
+- **Finalização**: o envio e a finalização automática usam a mesma função (`finalizarNaTransacao`). Ela começa com um `updateMany` que só troca `enviadaEm` quando está nulo, então uma segunda chamada não finaliza de novo. A tarefa periódica de 5 minutos e a consulta da prova cuidam das tentativas vencidas.
+- **Correção**: objetivas e verdadeiro ou falso são corrigidas na transação. A dissertativa espera o professor (`PUT /tentativas/:id/correcao`).
+- **Embaralhamento**: a ordem das questões é dada por um hash SHA-256 de `tentativaId:questaoId`. É estável para a mesma tentativa e muda entre tentativas. As alternativas não são embaralhadas.
+- **Gabarito**: o campo `correta` nunca sai nas rotas do aluno antes de a prova fechar. `questaoAluno` monta a questão sem esse campo.
+- **Nota no diário**: quando a tentativa fica corrigida e a prova tem avaliação, a `Nota` é gravada na mesma transação, escalada pela nota máxima da avaliação. A média é recalculada depois do commit.
+- **Respostas no cliente**: a tela de realização salva a cada mudança (com espera de 1 segundo) e a cada 20 segundos. Enquanto a prova está em andamento, o navegador pede confirmação antes de sair ou recarregar a página. Quando o tempo acaba, o cliente envia a prova sozinho.
+
+## Chamada por QR code
+
+Código em `server/src/modules/chamada/routes.ts`. Telas em `client/src/modules/sala/`: `Chamada.tsx` (aba do professor), `MarcarPresenca.tsx` (tela do aluno, em `/aluno/presenca`) e o componente `client/src/ui/QrCode.tsx`.
+
+- **Código rotativo**: 6 dígitos tirados de HMAC-SHA256 do segredo da chamada e do número da janela de 20 segundos. O servidor aceita a janela atual e a anterior. A comparação é feita com `timingSafeEqual`.
+- **Segredo**: 32 bytes aleatórios, uma vez por chamada (reabrir troca o segredo). Não sai pela API.
+- **Limite de tentativas**: 10 por minuto por usuário, em memória, com limpeza a cada minuto. Não é compartilhado entre processos.
+- **Presença**: a leitura grava (ou atualiza) a linha de `Presenca` da aula. A frequência da inscrição é calculada no fechamento do diário, como nas demais presenças.
+- **Tela do professor**: consulta o estado a cada 2 segundos, uma consulta por vez, e pausa com a aba oculta. Tem botão de tela cheia para projetar.
+- **QR code**: `QrCode` desenha o SVG com a biblioteca `qrcode-generator` (correção de erro M), com fundo branco e módulos pretos, nos dois temas.
+
 ## Modelo de dados
 
 O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas áreas abaixo (só os nomes principais):
@@ -277,6 +337,7 @@ O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas 
 - **Central de avisos**: `Notificacao`, um aviso por pessoa e evento. Tem `chave` opcional, que não se repete para a mesma pessoa, e `lidaEm`, que fica vazio enquanto o aviso não foi lido.
 - **Senha por e-mail**: `TokenSenha`, guardado só como hash.
 - **Chat**: `ChatConversa`, `ChatParticipante` e `ChatMensagem`.
+- **Sala de aula**: `Arquivo` (arquivo solto ou ligado a material, tarefa ou entrega), `MaterialAula`, `PlanoAula` (com o id da aula do diário), `Tarefa` e `TarefaEntrega`, `Prova`, `ProvaQuestao`, `ProvaTentativa` e `ProvaResposta`, e `ChamadaQr` (uma chamada por aula). A presença da chamada usa `Presenca`.
 
 Os relacionamentos principais estão no diagrama abaixo. Os campos ficam de fora para manter o diagrama legível.
 
@@ -328,6 +389,18 @@ erDiagram
   Usuario |o..o{ ChatParticipante : "participa"
   Usuario |o..o{ ChatMensagem : "escreve"
   ChatMensagem |o..o{ ChatMensagem : "cita"
+  Turma |o..o{ MaterialAula : "tem"
+  Turma |o..o{ PlanoAula : "planeja"
+  Aula |o..o{ PlanoAula : "é ligada a"
+  Turma |o..o{ Tarefa : "tem"
+  Tarefa ||--o{ TarefaEntrega : "recebe"
+  Turma |o..o{ Prova : "tem"
+  Prova ||--o{ ProvaQuestao : "tem"
+  Prova ||--o{ ProvaTentativa : "recebe"
+  ProvaTentativa ||--o{ ProvaResposta : "tem"
+  ProvaQuestao ||--o{ ProvaResposta : "é respondida em"
+  Aula |o..o| ChamadaQr : "tem"
+  Usuario |o..o{ Arquivo : "envia"
   ConfiguracaoPlataforma {
     int id
   }

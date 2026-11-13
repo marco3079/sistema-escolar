@@ -68,12 +68,14 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Cópia de segurança do banco (só administrador e TI): cópia automática diária, criar, baixar, enviar um arquivo e restaurar
 - Importar planilhas (CSV) de alunos e professores, com modelo, conferência antes de gravar e importação tudo ou nada
 - Exportar para CSV, que abre direto no Excel em português, as listas e tabelas do sistema
+- Sala de aula de cada turma, com andamento das aulas por turma (a gestão lê; administrador e TI editam)
 
 **Professor**
 
 - Diário de classe com notas e frequência
 - Orientações de pós-graduação
 - Horário, calendário, biblioteca e comunicados
+- Sala de aula: materiais com arquivos e links, plano de aula ligado às aulas do diário, tarefas com correção, provas online e chamada por QR code
 
 **Aluno**
 
@@ -81,6 +83,7 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Boletim e histórico
 - Mensalidades e biblioteca
 - Horário, calendário e comunicados
+- Sala de aula: materiais, plano de aula, tarefas com envio de arquivo, provas online com tempo e gabarito, e presença lendo o QR code da aula
 
 **Geral**
 
@@ -94,6 +97,14 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Recuperação de senha pelo próprio e-mail, com link de uso único
 - Temas claro e escuro
 - Uso no celular, com opção de instalar como app (PWA)
+
+### Sala de aula
+
+Cada turma tem uma sala com as abas Materiais, Plano de aula, Tarefas, Provas e (para quem edita) Chamada. Tarefas e provas avisam os alunos e ligam a nota ao diário quando a avaliação é escolhida.
+
+- **Arquivos**: até 20 MB por arquivo e 10 por item, em formatos de texto, planilha, apresentação, imagem e ZIP. Vídeos entram como link. Os arquivos ficam no servidor, fora da cópia de segurança do banco; veja [INSTALAR.md](INSTALAR.md).
+- **Provas**: o tempo é controlado pelo servidor, e o gabarito só aparece depois do envio, com a prova fechada. Não há bloqueio de consulta nem fiscalização durante a prova; veja [SECURITY.md](SECURITY.md).
+- **Chamada**: o código do QR muda a cada 20 segundos.
 
 ## Telas
 

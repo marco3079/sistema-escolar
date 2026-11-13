@@ -12,7 +12,7 @@ Esta referência é para quem vai integrar com o sistema escolar ou consultar a 
 - **IDs**: inteiros. Um `:id` que não seja número devolve `400`.
 - **E-mail**: é gravado sem espaços nas pontas e em minúsculas, em todo cadastro e alteração. O login, o pedido de recuperação de senha e a checagem de e-mail já usado comparam sem diferenciar maiúsculas de minúsculas.
 - **Listas**: devolvem um array JSON simples, sem paginação. Os filtros vão na query string (`?busca=...`). A exceção é o log de atividades, que devolve `{ itens, haMais }`.
-- **Tamanho do corpo**: até 1 MB por requisição. Capas de livro em data URL cabem nesse limite. Exceção: o envio de arquivo de cópia de segurança (`POST /backups/enviar`), que aceita até 200 MB.
+- **Tamanho do corpo**: até 1 MB por requisição. Capas de livro em data URL cabem nesse limite. Exceções: o envio de arquivo de cópia de segurança (`POST /backups/enviar`), que aceita até 200 MB, e o envio de arquivo das salas de aula (`POST /arquivos`), que aceita até 20 MB.
 - **Criação**: devolve `201` com o registro criado.
 - **Exclusão**: devolve `204` sem corpo. Em alguns casos, a exclusão só marca o registro como inativo (veja a tabela de cada módulo).
 
@@ -31,7 +31,7 @@ Todo erro tem o formato:
 | `403` | Usuário logado sem permissão para a rota (`{ "erro": "Sem permissão" }`). |
 | `404` | Registro ou rota não encontrada. |
 | `409` | Conflito de regra de negócio, por exemplo, e-mail ou código repetido, ou inscrição sem vaga. |
-| `413` | Corpo da requisição maior que 1 MB (`{ "erro": "Corpo da requisição grande demais" }`). No envio de cópia de segurança, maior que 200 MB. |
+| `413` | Corpo da requisição maior que 1 MB (`{ "erro": "Corpo da requisição grande demais" }`). No envio de cópia de segurança, maior que 200 MB; no envio de arquivo das salas de aula (`POST /arquivos`), maior que 20 MB. |
 | `429` | Muitas tentativas de login (`{ "erro": "Muitas tentativas. Aguarde alguns minutos." }`). Veja "Limite de tentativas de login". |
 | `500` | Erro interno. O detalhe fica só no log do servidor. |
 
@@ -1039,3 +1039,292 @@ Regras:
 - Limite de 40 cópias guardadas no total. Depois de cada cópia automática, as automáticas além de `backupManter` são apagadas, da mais antiga para a mais nova. Manuais, enviadas e de pré-restauração não são apagadas sozinhas.
 - A cópia automática roda uma vez por dia, a partir da hora de `backupHora`, se `backupAutomatico` estiver ligado. Se o servidor estava desligado na hora, roda ao subir, no mesmo dia. Se naquele momento já houver cópia ou restauração em andamento, a automática do dia é pulada e um aviso vai para o log do servidor.
 - O registro de atividades não guarda conteúdo: "Criou uma cópia de segurança", "Enviou uma cópia de segurança", "Baixou uma cópia de segurança", "Apagou uma cópia de segurança" e "Restaurou o banco a partir de uma cópia". As demais rotas de `/backups` ficam fora do registro automático.
+
+## Arquivos (módulo `arquivos`)
+
+Arquivos anexados às salas de aula: materiais, tarefas e entregas. O conteúdo fica no disco do servidor, no diretório `DIRETORIO_ARQUIVOS` (padrão `/dados/arquivos`; no Compose, o volume `dados_arquivos`). O banco guarda só os dados do arquivo e o vínculo com o item.
+
+```ts
+interface ArquivoDTO {
+  id: number;
+  nome: string;     // nome original, limpo (até 150 caracteres, com a extensão)
+  tipo: string;     // tipo MIME conferido pelo servidor
+  tamanho: number;  // bytes
+  criadoEm: string;
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| POST `/arquivos` | todos | Corpo bruto do arquivo. Cabeçalho `Content-Type` = tipo do arquivo; cabeçalho `X-Nome-Arquivo` = nome com `encodeURIComponent` | `201 ArquivoDTO`. Arquivo solto: ainda não está anexado a nada. |
+| GET `/arquivos/:id` | conforme o item (veja as regras) | | O arquivo, com o tipo gravado. `404` se não existir ou se quem pede não tem acesso. |
+| DELETE `/arquivos/:id` | só quem enviou, e só arquivo solto | | `204`. `404` se não for solto ou não for de quem pede. |
+
+Regras de envio:
+
+- **Tipos aceitos**: `pdf`, `png`, `jpg`, `jpeg`, `webp`, `gif`, `txt`, `csv`, `doc`, `docx`, `xls`, `xlsx`, `ppt`, `pptx`, `odt`, `ods`, `odp` e `zip`. A extensão precisa estar nessa lista e o `Content-Type` precisa ser um dos tipos daquela extensão (por exemplo, `.pdf` só com `application/pdf`). Senão, `400`. Vídeos não são aceitos como arquivo: entram como link no material.
+- **Tamanho**: até 20 MB por arquivo. Passou do limite, a resposta é `413` ("O arquivo passa do limite de 20 MB") e o que já tinha sido gravado é apagado. Arquivo vazio: `400`.
+- **Nome**: o servidor usa só o último pedaço do caminho, tira caracteres de controle, apara as pontas e corta em 150 caracteres (a extensão é mantida). Sem extensão ou com extensão fora da lista: `400`.
+- **Arquivos soltos**: cada pessoa pode ter no máximo 30 arquivos soltos. Passou disso, `400`. Soltos com mais de 24 horas são apagados (linha e disco) pela limpeza automática, que roda a cada 60 minutos.
+- **Anexar**: material, tarefa e entrega recebem `arquivoIds` (até 10 por item). Só pode anexar arquivo solto enviado pela própria pessoa; senão, `400`. Arquivos que já estavam no item e saíram da lista são apagados.
+- **Nome em disco**: 32 caracteres hexadecimais aleatórios e a extensão. O nome original não é usado no disco.
+
+Regras de download:
+
+- **Arquivo solto**: só quem enviou.
+- **Material e tarefa**: quem tem acesso à turma (professor da turma, administrador, TI, secretaria e aluno com inscrição não trancada).
+- **Entrega**: o aluno dono da entrega, e o professor e a gestão da turma. Outros alunos da turma não baixam a entrega de colegas.
+- Sem acesso, a resposta é `404`, sem dizer se o arquivo existe.
+- A resposta traz `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` e `Content-Disposition`. Com `inline` só para `image/png`, `image/jpeg`, `image/webp` e `image/gif`. Os demais tipos baixam como anexo (`attachment`), com o nome original.
+- O download não entra no registro de atividades.
+
+## Sala de aula (módulo `sala`)
+
+A sala de aula é a turma vista pelo professor, pelos alunos e pela gestão. Este módulo cuida das salas, dos materiais, do plano de aula e do andamento. Tarefas, provas e chamada têm seções próprias, abaixo.
+
+Papéis dentro da turma (`server/src/lib/turmas.ts`). Toda rota da sala confere o acesso por eles:
+
+| Papel | Quem | O que pode |
+|---|---|---|
+| `PROFESSOR` | o professor da turma | Vê e edita tudo da turma, corrige entregas e provas. |
+| `GESTAO` | administrador, TI e secretaria | Vê tudo. Só o administrador e o TI editam. |
+| `ALUNO` | aluno com inscrição não trancada na turma | Vê o que está publicado e entrega ou responde. |
+
+Turma inexistente: `404`. Sem vínculo com a turma: `403` (`{ "erro": "Sem permissão" }`). Na tabela de rotas, **Edição** quer dizer professor da turma ou administrador (inclui TI). A secretaria só lê.
+
+```ts
+type Papel = 'PROFESSOR' | 'GESTAO' | 'ALUNO';
+
+interface SalaResumo {
+  id: number;
+  codigo: string;
+  disciplina: { nome: string; codigo: string };
+  periodoLetivo: { id: number; nome: string };
+  professor: { nome: string };
+  papel: Papel;
+  pendencias: { tarefas: number; provas: number }; // só para aluno; zeros para os demais
+}
+
+interface SalaDetalhe extends SalaResumo {
+  podeEditar: boolean;
+  alunos: number; // inscrições não trancadas
+}
+
+interface MaterialDTO {
+  id: number;
+  titulo: string;
+  descricao: string;
+  topico: string;                   // agrupador livre, como "Unidade 1"
+  link: string | null;
+  criadoEm: string;
+  autor: { nome: string };
+  arquivos: ArquivoDTO[];
+}
+
+interface PlanoDTO {
+  id: number;
+  ordem: number;
+  tema: string;
+  objetivos: string;
+  dataPrevista: string | null;
+  aula: { id: number; data: string; conteudo: string | null } | null; // aula do diário ligada (ministrado)
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/salas` | todos | `?periodoLetivoId=` | `SalaResumo[]`. Professor: as turmas dele. Aluno: turmas com inscrição não trancada. A/S: todas. Até 300 turmas. |
+| GET `/salas/:turmaId` | quem tem acesso à turma | | `SalaDetalhe` |
+| GET `/salas/:turmaId/materiais` | quem tem acesso à turma | | `MaterialDTO[]`, por `topico` e depois por `criadoEm` |
+| POST `/salas/:turmaId/materiais` | Edição | `{ titulo (2 a 120), descricao (até 2.000), topico (até 60), link? (http ou https, até 500), arquivoIds (até 10) }` | `201 MaterialDTO`. Exige link, arquivo ou descrição. Avisa os alunos. |
+| PUT `/materiais/:id` | Edição | Mesmo corpo | `MaterialDTO` |
+| DELETE `/materiais/:id` | Edição | | `204`. Apaga também os arquivos do material. |
+| GET `/salas/:turmaId/plano` | quem tem acesso à turma | | `{ itens: PlanoDTO[], resumo: { planejadas, ministradas, aulasRegistradas } }`. Ministrado = tema com aula ligada. |
+| POST `/salas/:turmaId/plano` | Edição | `{ tema (2 a 160), objetivos (até 2.000), dataPrevista? }` | `201 PlanoDTO`. O tema entra no fim da ordem. |
+| PUT `/plano/:id` | Edição | `{ tema, objetivos, dataPrevista, aulaId }`. `dataPrevista` e `aulaId` podem ser `null`. | `PlanoDTO`. `aulaId` precisa ser de aula da mesma turma (`400`). |
+| PUT `/salas/:turmaId/plano/ordem` | Edição | `{ ids: number[] }` com todos os temas da turma | `204`. `400` se faltar algum tema, se repetir ou se tiver tema de outra turma. |
+| DELETE `/plano/:id` | Edição | | `204`. A aula do diário não é apagada. |
+| GET `/salas/:turmaId/aulas` | quem tem acesso à turma | | `{ id, data, conteudo }[]` do diário, da mais recente para a mais antiga. É a lista para ligar um tema a uma aula. |
+| GET `/salas/andamento` | A ou S | `?periodoLetivoId=` | `{ turmaId, codigo, disciplina, professor, planejadas, ministradas, aulas, ultimaAula }[]`, uma linha por turma. `ultimaAula` é a data da última aula ou `null`. |
+
+Regras:
+
+- **Lista de salas**: a ordem é a do período letivo mais recente, depois a disciplina.
+- **Pendências do aluno**: tarefas com prazo ainda não vencido e sem entrega dele, e provas publicadas abertas agora e sem tentativa enviada. Para os demais papéis, as pendências vêm zeradas.
+- **Datas do plano**: `dataPrevista` aceita data e hora em ISO ou só `AAAA-MM-DD`. Data só é guardada ao meio-dia, para não mudar de dia conforme o fuso.
+- **Material com link**: o link precisa começar com `http://` ou `https://`. O sistema não confere o destino do link.
+- **Avisos**: ao criar material, os alunos com inscrição não trancada recebem "Novo material em {disciplina}: {título}", com link para a sala. O tipo do aviso é `AULA`.
+- **Andamento**: a rota fica antes de `/salas/:turmaId`, para que `andamento` não seja tratado como número de turma. Não é o relatório do diário: mostra só o avanço do plano e a quantidade de aulas registradas.
+
+## Tarefas (módulo `tarefas`)
+
+Tarefas da turma, com entrega do aluno e correção do professor. A situação do aluno é calculada pelo relógio do servidor.
+
+```ts
+type Situacao = 'PENDENTE' | 'ENTREGUE' | 'CORRIGIDA' | 'ENCERRADA';
+
+interface EntregaDTO {
+  id: number;
+  texto: string;
+  entregueEm: string;
+  atrasada: boolean;          // entregue depois do prazo (só quando a tarefa aceita atraso)
+  nota: number | null;
+  comentario: string;
+  corrigidaEm: string | null;
+  arquivos: ArquivoDTO[];
+}
+
+interface TarefaDTO {
+  id: number;
+  titulo: string;
+  enunciado: string;
+  prazo: string;
+  notaMaxima: number;
+  aceitaAtraso: boolean;
+  avaliacaoId: number | null;   // avaliação do diário ligada à nota
+  criadaEm: string;
+  arquivos: ArquivoDTO[];
+  // só para aluno:
+  situacao?: Situacao;          // ENCERRADA = prazo vencido, sem entrega e sem aceitar atraso
+  minhaEntrega?: EntregaDTO | null;
+  // só para professor e gestão:
+  resumo?: { alunos: number; entregues: number; corrigidas: number };
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/salas/:turmaId/tarefas` | quem tem acesso à turma | | `TarefaDTO[]`, da mais recente para a mais antiga |
+| GET `/salas/:turmaId/avaliacoes` | Edição | | `{ id, nome, notaMaxima }[]` do diário da turma, para ligar a nota |
+| POST `/salas/:turmaId/tarefas` | Edição | `{ titulo (2 a 120), enunciado (até 10.000), prazo (ISO com data e hora), notaMaxima (0,1 a 100), aceitaAtraso, avaliacaoId? (da mesma turma), arquivoIds (até 10) }` | `201 TarefaDTO`. Avisa os alunos. |
+| PUT `/tarefas/:id` | Edição | Mesmo corpo | `TarefaDTO` |
+| DELETE `/tarefas/:id` | Edição | | `204`. Apaga as entregas e os arquivos da tarefa e das entregas. |
+| GET `/tarefas/:id/entregas` | P da turma ou A/S | | `{ inscricaoId, aluno: { nome, ra }, entrega: EntregaDTO \| null }[]`, todos os alunos com inscrição não trancada, por nome |
+| PUT `/tarefas/:id/entrega` | L com inscrição | `{ texto (até 10.000), arquivoIds (até 10) }` | `EntregaDTO`. Cria ou substitui a entrega. Exige texto ou arquivo. |
+| PUT `/entregas/:id/correcao` | Edição | `{ nota (0 até a nota máxima da tarefa), comentario (até 2.000) }` | `EntregaDTO`. Avisa o aluno. |
+
+Regras:
+
+- **Prazo**: até o prazo, a entrega é normal. Depois do prazo, se `aceitaAtraso` estiver ligado, a entrega é aceita e marcada como `atrasada`. Se não estiver, a resposta é `409` e a situação do aluno vira `ENCERRADA`.
+- **Reenvio**: enquanto a entrega não foi corrigida, o aluno pode reenviar. O reenvio substitui o texto e a lista de arquivos; arquivos que saem da lista são apagados. Depois de corrigida, a entrega não muda: `409`.
+- **Situação do aluno**: `CORRIGIDA` quando há correção; `ENTREGUE` quando há entrega sem correção; `ENCERRADA` quando o prazo passou sem entrega e sem aceitar atraso; `PENDENTE` nos demais casos.
+- **Resumo**: `alunos`, `entregues` e `corrigidas` contam só os alunos com inscrição não trancada.
+- **Correção**: corrigir de novo sobrescreve nota e comentário. Se a tarefa tem avaliação, a nota vai para o diário com o valor `nota × (notaMaxima da avaliação ÷ notaMaxima da tarefa)`, arredondado em 2 casas, e a média do aluno é recalculada. Avisa o aluno: "Tarefa corrigida: {título}".
+- **Avaliação ligada**: precisa ser da mesma turma (`400`). Se a avaliação foi apagada depois de ligada, a correção responde `409`. Trocar ou tirar a avaliação ligada não apaga a nota que já foi gravada na avaliação anterior; a próxima correção grava na nova.
+- **Avisos**: ao criar, os alunos recebem "Nova tarefa em {disciplina}: {título}".
+
+## Provas online (módulo `provas`)
+
+Provas com questões objetivas, verdadeiro ou falso e dissertativas. O tempo é controlado pelo servidor. A correção automática roda na hora do envio, e as dissertativas são corrigidas pelo professor.
+
+```ts
+type TipoQuestao = 'OBJETIVA' | 'VERDADEIRO_FALSO' | 'DISSERTATIVA';
+
+interface QuestaoEdicao {       // professor e gestão
+  id?: number;
+  tipo: TipoQuestao;
+  enunciado: string;
+  alternativas: string[];       // só em OBJETIVA; de 2 a 6
+  correta: number | null;       // OBJETIVA: índice da alternativa certa (0 é a primeira); VERDADEIRO_FALSO: 1 = verdadeiro, 0 = falso; DISSERTATIVA: nulo
+  pontos: number;
+}
+
+interface QuestaoAluno {        // nunca traz `correta`
+  id: number;
+  ordem: number;
+  tipo: TipoQuestao;
+  enunciado: string;
+  alternativas: string[];
+  pontos: number;
+}
+
+interface ProvaDTO {
+  id: number;
+  titulo: string;
+  instrucoes: string;
+  abreEm: string;
+  fechaEm: string;
+  duracaoMin: number;
+  embaralhar: boolean;
+  notaMaxima: number;
+  mostrarGabarito: boolean;
+  publicada: boolean;
+  avaliacaoId: number | null;
+  totalQuestoes: number;
+  totalPontos: number;
+  // só para aluno:
+  estado?: 'AGENDADA' | 'ABERTA' | 'EM_ANDAMENTO' | 'ENVIADA' | 'ENCERRADA'; // ENCERRADA = fechou sem tentativa
+  minhaNota?: number | null;    // só depois de corrigida
+  // só para professor e gestão:
+  questoes?: QuestaoEdicao[];
+  resumo?: { alunos: number; enviadas: number; corrigidas: number; temTentativa: boolean };
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/salas/:turmaId/provas` | quem tem acesso à turma | | `ProvaDTO[]`. O aluno só vê as publicadas. |
+| POST `/salas/:turmaId/provas` | Edição | `{ titulo (2 a 120), instrucoes (até 5.000), abreEm, fechaEm (depois de abreEm), duracaoMin (5 a 300), embaralhar, notaMaxima (0,1 a 100), mostrarGabarito, avaliacaoId? }` | `201 ProvaDTO`. Nasce como rascunho (não publicada). |
+| PUT `/provas/:id` | Edição | Mesmo corpo | `ProvaDTO`. Com tentativa iniciada, só `titulo`, `instrucoes`, `mostrarGabarito` e o adiamento de `fechaEm` podem mudar; o resto dá `409`. |
+| PUT `/provas/:id/questoes` | Edição | `{ questoes: QuestaoEdicao[] }` (de 1 a 60) substitui todas as questões | `ProvaDTO`. Com tentativa iniciada: `409`. |
+| POST `/provas/:id/publicar` | Edição | `{ publicada: boolean }` | `ProvaDTO`. Publicar exige ao menos uma questão. Despublicar com tentativa iniciada: `409`. |
+| DELETE `/provas/:id` | Edição | | `204`. Apaga também as tentativas e as respostas. |
+| POST `/provas/:id/iniciar` | L com inscrição | | `201` na primeira vez, `200` quando devolve a tentativa que já existia. `{ tentativa: { id, iniciadaEm, expiraEm, enviadaEm }, agora, questoes: QuestaoAluno[], respostas: { questaoId, alternativa, texto }[] }`. Exige prova publicada e dentro de `abreEm` a `fechaEm`. Prova já enviada: `409`. |
+| PUT `/provas/:id/respostas` | L com tentativa | `{ respostas: { questaoId, alternativa?: number \| null, texto? }[] }` | `204`. Salvamento automático. `409` se a tentativa já foi enviada ou se o tempo acabou. |
+| POST `/provas/:id/enviar` | L com tentativa | Mesmo formato de `respostas`, opcional | `{ enviadaEm, corrigida, notaFinal }`. Envio repetido devolve o mesmo resultado. |
+| GET `/provas/:id/minha` | L com inscrição | | `{ tentativa, corrigida, notaFinal, gabarito }`. `gabarito` é `null` enquanto a prova não fechou ou o professor não liberou (veja as regras). |
+| GET `/provas/:id/tentativas` | P da turma ou A/S | | `{ inscricaoId, aluno: { nome, ra }, tentativa: null \| { id, iniciadaEm, enviadaEm, corrigida, notaObjetiva, notaFinal, pendentes } }[]`, por nome. `pendentes` é o número de dissertativas sem pontos. |
+| GET `/tentativas/:id` | P da turma ou A/S | | Detalhe da tentativa: cada questão com a resposta, os pontos e o comentário, e o gabarito. |
+| PUT `/tentativas/:id/correcao` | Edição | `{ respostas: { questaoId, pontos (0 até os pontos da questão), comentario? (até 1.000) }[] }` | Detalhe da tentativa. Avisa o aluno quando a tentativa fica corrigida. |
+
+Regras:
+
+- **Questões**: objetiva com 2 a 6 alternativas de até 500 caracteres; verdadeiro ou falso sem alternativas; dissertativa sem `correta`. Enunciado de 1 a 5.000 caracteres e pontos de 0,1 a 100.
+- **Estado do aluno**: `AGENDADA` antes de `abreEm`; `ABERTA` dentro da janela sem tentativa; `EM_ANDAMENTO` com tentativa iniciada e não enviada; `ENVIADA`; `ENCERRADA` quando a janela fechou sem tentativa.
+- **Tempo**: a tentativa expira no menor valor entre o início mais `duracaoMin` e `fechaEm`. O cliente recebe `agora` e `expiraEm` do servidor e usa essa diferença para o cronômetro; o horário do aparelho não decide nada. Respostas são aceitas até 15 segundos depois de `expiraEm` (tolerância). Depois disso, `PUT /respostas` dá `409`.
+- **Envio no prazo**: `POST /enviar` aceita as respostas do corpo até 15 segundos depois de `expiraEm`. Depois disso, a prova é finalizada com o que já estava salvo.
+- **Finalização automática**: tentativa expirada e não enviada é finalizada sozinha, com o que foi salvo, pela tarefa que roda a cada 5 minutos e também quando alguém consulta a prova. A finalização faz a mesma correção automática do envio.
+- **Correção automática**: objetivas e verdadeiro ou falso valem os pontos da questão quando acertadas. Sem dissertativa, a tentativa já fica corrigida com `notaFinal` = (pontos obtidos ÷ total de pontos) × `notaMaxima`, arredondado em 2 casas. Com dissertativa, `corrigida` fica `false` até o professor dar pontos a todas.
+- **Correção manual**: a nota final só é calculada quando todas as dissertativas têm pontos. Corrigir de novo sobrescreve os pontos e o comentário. Pontos acima da questão: `400`. Avisa o aluno "Prova corrigida: {título}", uma vez por tentativa.
+- **Embaralhamento**: com `embaralhar`, a ordem das questões muda de uma tentativa para outra, mas é a mesma em todas as chamadas de uma mesma tentativa. A ordem das alternativas não muda.
+- **Gabarito**: `GET /provas/:id/minha` traz o `gabarito` só quando a tentativa foi enviada, `mostrarGabarito` está ligado e a prova já fechou. Nenhuma outra rota de aluno traz `correta`, e a lista de provas do aluno não traz as questões.
+- **Respostas inválidas**: alternativa fora da faixa da questão, ou questão que não é da prova: `400`.
+- **Nota no diário**: quando a tentativa fica corrigida (na hora do envio ou depois, pelo professor) e a prova tem avaliação, a nota vai para o diário com o valor `notaFinal × (notaMaxima da avaliação ÷ notaMaxima da prova)`, e a média do aluno é recalculada. Trocar a avaliação ligada não apaga a nota já gravada na anterior.
+- **Edição depois do início**: com tentativa iniciada, as questões não mudam mais (`409`). O fechamento só pode ser adiado.
+- **Avisos**: ao publicar pela primeira vez, os alunos recebem "Prova disponível em {disciplina}: {título}". Republicar não repete o aviso.
+- **Registro de atividades**: `PUT /provas/:id/respostas` (salvamento automático) fica fora do registro.
+
+## Chamada por QR code (módulo `chamada`)
+
+O professor abre a chamada de uma aula e projeta um QR code. O aluno lê o QR (ou digita o código) e marca a própria presença. O código muda a cada 20 segundos.
+
+```ts
+interface ChamadaEstado {
+  aberta: boolean;
+  fechaEm: string | null;
+  token: string | null;     // "{chamadaId}-{codigo}"; só com a chamada aberta
+  trocaEmSeg: number;       // segundos até a próxima troca de código (1 a 20)
+  presentes: number;
+  total: number;
+  lista: { inscricaoId: number; nome: string; ra: string; presente: boolean | null }[]; // presente nulo = sem registro
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| POST `/aulas/:aulaId/chamada-qr` | Edição (da turma da aula) | `{ minutos? (1 a 60; padrão 10) }` | `ChamadaEstado`. Abre a chamada, ou reabre com um segredo novo. |
+| GET `/aulas/:aulaId/chamada-qr` | Edição | | `ChamadaEstado`. A tela do professor consulta a cada 2 segundos. |
+| POST `/aulas/:aulaId/chamada-qr/fechar` | Edição | `{ marcarFaltas?: boolean }` | `204`. Com `marcarFaltas: true`, quem não tem registro recebe falta. `404` se a aula não tem chamada. |
+| POST `/presenca-qr` | L com inscrição | `{ token }` | `{ ok: true, disciplina, data }`. Marca a presença. |
+
+Regras:
+
+- **Código**: 6 dígitos derivados de HMAC-SHA256 do segredo da chamada e do número da janela de 20 segundos. Vale a janela atual e a anterior, ou seja, um código dura até cerca de 40 segundos. Texto do QR e do código digitado: `{chamadaId}-{código}`, por exemplo `12-345678`.
+- **Segredo**: 32 bytes aleatórios, guardados no banco. Nunca aparecem na API nem no log.
+- **Reabrir**: gera um segredo novo, e os códigos anteriores deixam de valer. As presenças já registradas continuam.
+- **Encerramento**: a chamada fecha quando passa `minutos` desde a abertura ou quando o professor fecha. Depois disso, a leitura responde `409` ("A chamada foi encerrada").
+- **Erros de leitura**: formato errado, código de outra janela ou chamada inexistente: `400` ("Código inválido ou vencido. Leia o código de novo.").
+- **Quem marca**: o aluno precisa ter inscrição não trancada na turma da aula; senão, `403`. A presença é gravada como `presente: true`.
+- **Limite**: 10 tentativas por minuto por pessoa, contando também as com código errado. Passou disso, `429`. O contador fica na memória do servidor e recomeça quando o servidor reinicia.
+- **Frequência**: a chamada só grava as presenças. A frequência da inscrição é calculada no fechamento do diário.
+- **Registro de atividades**: a consulta `GET` da chamada (feita a cada 2 segundos) fica fora do registro.

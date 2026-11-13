@@ -122,6 +122,25 @@ Para guardar uma cópia fora do computador, abra o menu de ações da cópia e c
 
 Antes de restaurar, o sistema guarda o estado do computador novo numa cópia "Antes de restaurar", caso você queira voltar.
 
+## Os arquivos enviados entram na cópia de segurança?
+
+Não. A cópia de segurança guarda só o banco de dados. Os arquivos das salas de aula (materiais, tarefas e entregas) ficam no volume `dados_arquivos` do Docker e precisam de uma cópia à parte. Para fazê-la, com o sistema rodando:
+
+1. Descubra o nome do volume com `docker volume ls`. Ele termina em `dados_arquivos` e começa com o nome do projeto (por exemplo, `sistema_escolar_dados_arquivos`).
+2. Copie o conteúdo do volume para uma pasta sua, trocando `NOME_DO_VOLUME` pelo nome encontrado e `PASTA_DE_DESTINO` pelo caminho completo da pasta:
+
+```bash
+docker run --rm -v NOME_DO_VOLUME:/origem -v PASTA_DE_DESTINO:/destino alpine tar -C /origem -czf /destino/arquivos-salas.tar.gz .
+```
+
+Guarde esse arquivo junto com a cópia de segurança do banco. Sem ele, os anexos das salas de aula não voltam se o volume for perdido.
+
+## Qual o tamanho máximo de arquivo?
+
+Cada arquivo anexado a um material, uma tarefa ou uma entrega pode ter até **20 MB**, e cada item aceita até 10 arquivos. Os tipos aceitos são PDF, imagens (PNG, JPG, WEBP e GIF), textos (TXT e CSV), documentos do Word, planilhas do Excel, apresentações do PowerPoint, documentos do LibreOffice (ODT, ODS e ODP) e arquivos ZIP. Vídeos não são enviados como arquivo: coloque o link do vídeo no material.
+
+Um arquivo enviado e não anexado a nada é apagado depois de 24 horas.
+
 ## Problemas comuns
 
 **O Docker não está aberto.** O instalador diz "o Docker está instalado, mas não está rodando". Abra o Docker Desktop, espere ele iniciar e rode o instalador de novo.

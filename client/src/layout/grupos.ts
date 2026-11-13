@@ -11,7 +11,7 @@ export const GRUPOS: GrupoMenu[] = [
   { titulo: '', icones: ['inicio'] },
   { titulo: 'Pessoas', icones: ['alunos', 'professores', 'usuarios'] },
   { titulo: 'Acadêmico', icones: ['cursos', 'periodos', 'turmas', 'matriculas'] },
-  { titulo: 'Ensino', icones: ['diario', 'boletim', 'historico', 'pos'] },
+  { titulo: 'Ensino', icones: ['sala', 'plano', 'diario', 'boletim', 'historico', 'pos'] },
   { titulo: 'Gestão', icones: ['financeiro', 'biblioteca'] },
   { titulo: 'Agenda', icones: ['horarios', 'calendario', 'comunicados'] },
   { titulo: 'Comunidade', icones: ['chat', 'forum', 'suporte'] },

@@ -1273,6 +1273,324 @@ export async function carregarDemonstracao(prisma: PrismaClient): Promise<void> 
     })),
   });
 
+  // ----- Sala de aula (materiais, plano, tarefas e provas) -----
+
+  // Datas: deslocamentos a partir do instante da carga (dias e horas); o plano usa datas fixas do semestre 2026.2.
+  const salaEm = (dias: number, horas = 0): Date => new Date(instanteAtual + dias * 86400000 + horas * 3600000);
+  const salaMinutos = (base: Date, minutos: number): Date => new Date(base.getTime() + minutos * 60000);
+
+  const salaTurmaAlg2 = turmaDe('2026.2', 'BCC-ALG2-A');
+  const salaTurmaCal1 = turmaDe('2026.2', 'BCC-CAL1-A');
+  const salaInscMarina = inscricaoDe('202600006', salaTurmaAlg2.id);
+  const salaInscJoao = inscricaoDe('202600007', salaTurmaAlg2.id);
+
+  // Aulas do diário (já criadas acima); se não houver três, cria três com conteúdo.
+  let salaAulas = await prisma.aula.findMany({ where: { turmaId: salaTurmaAlg2.id }, orderBy: { data: 'asc' } });
+  if (salaAulas.length < 3) {
+    salaAulas = [];
+    for (let j = 0; j < 3; j++) {
+      salaAulas.push(
+        await prisma.aula.create({
+          data: { turmaId: salaTurmaAlg2.id, data: d(2026, 8, 11 + j * 7), conteudo: `Conteúdo de demonstração ${j + 1}` },
+        })
+      );
+    }
+  }
+
+  // Avaliação "Trabalho" do diário: a tarefa de ordenação só se liga a ela (as notas do seed já são iguais).
+  const salaTrabalho = await prisma.avaliacao.findFirst({ where: { turmaId: salaTurmaAlg2.id, nome: 'Trabalho' } });
+
+  // Materiais (sem arquivos: o seed não grava em disco)
+  await prisma.materialAula.createMany({
+    data: [
+      { turmaId: salaTurmaAlg2.id, titulo: 'Slides: complexidade e ordenação', descricao: 'Slides usados nas aulas sobre notação assintótica e algoritmos de ordenação.', topico: 'Unidade 1: ordenação', link: null, criadoPorId: anaId, criadoEm: quando(300) },
+      { turmaId: salaTurmaAlg2.id, titulo: 'Lista de exercícios 1', descricao: 'Exercícios de ordenação para resolver em casa. A lista não vale nota.', topico: 'Unidade 1: ordenação', link: 'https://exemplo.escola.demo/algoritmos-ii/lista-1', criadoPorId: anaId, criadoEm: quando(200) },
+      { turmaId: salaTurmaAlg2.id, titulo: 'Notas de aula: árvores binárias', descricao: 'Resumo dos percursos e das operações de busca, inserção e remoção.', topico: 'Unidade 2: árvores', link: null, criadoPorId: anaId, criadoEm: quando(80) },
+      { turmaId: salaTurmaAlg2.id, titulo: 'Vídeo complementar: árvores balanceadas', descricao: 'Vídeo indicado para revisar as rotações.', topico: 'Unidade 2: árvores', link: 'https://exemplo.escola.demo/video/arvores-balanceadas', criadoPorId: anaId, criadoEm: quando(30) },
+    ],
+  });
+
+  // Plano de aula: oito temas; os três primeiros ligados às aulas do diário.
+  const temasPlano: { tema: string; objetivos: string; dataPrevista: Date; aulaId: number | null }[] = [
+    { tema: 'Notação assintótica', objetivos: 'Comparar o crescimento de funções e estimar o tempo de execução de laços simples.', dataPrevista: d(2026, 8, 11), aulaId: salaAulas[0].id },
+    { tema: 'Ordenação por seleção e por inserção', objetivos: 'Implementar os dois algoritmos e explicar o número de comparações de cada um.', dataPrevista: d(2026, 8, 18), aulaId: salaAulas[1].id },
+    { tema: 'Ordenação por intercalação', objetivos: 'Entender a estratégia de dividir para conquistar e a recorrência do tempo de execução.', dataPrevista: d(2026, 8, 25), aulaId: salaAulas[2].id },
+    { tema: 'Ordenação rápida', objetivos: 'Analisar a escolha do pivô e a diferença entre o caso médio e o pior caso.', dataPrevista: d(2026, 9, 15), aulaId: null },
+    { tema: 'Árvores binárias', objetivos: 'Representar uma árvore e fazer os percursos em pré-ordem, em ordem e em pós-ordem.', dataPrevista: d(2026, 10, 6), aulaId: null },
+    { tema: 'Árvores binárias de busca', objetivos: 'Inserir, buscar e remover chaves mantendo a ordem da árvore.', dataPrevista: d(2026, 10, 20), aulaId: null },
+    { tema: 'Árvores balanceadas', objetivos: 'Entender a altura balanceada e as rotações simples e duplas.', dataPrevista: d(2026, 11, 10), aulaId: null },
+    { tema: 'Revisão para a Prova 2', objetivos: 'Revisar ordenação e árvores com exercícios de provas anteriores.', dataPrevista: d(2026, 11, 24), aulaId: null },
+  ];
+  await prisma.planoAula.createMany({
+    data: temasPlano.map((t, i) => ({
+      turmaId: salaTurmaAlg2.id,
+      ordem: i + 1,
+      tema: t.tema,
+      objetivos: t.objetivos,
+      dataPrevista: t.dataPrevista,
+      aulaId: t.aulaId,
+    })),
+  });
+
+  // Tarefas
+  // 1) Prazo vencido, entregue pelos dois e corrigida. Liga ao "Trabalho" do diário.
+  const salaTarefaVencida = await prisma.tarefa.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Trabalho: comparação de algoritmos de ordenação',
+      enunciado: 'Implemente dois algoritmos de ordenação e compare o número de comparações para listas de 1.000, 5.000 e 10.000 números. Entregue o código e um relatório curto com a tabela dos resultados.',
+      prazo: salaEm(-10),
+      notaMaxima: 10,
+      aceitaAtraso: true,
+      avaliacaoId: salaTrabalho?.id ?? null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(-30),
+    },
+  });
+  await prisma.tarefaEntrega.createMany({
+    data: [
+      {
+        tarefaId: salaTarefaVencida.id,
+        inscricaoId: salaInscMarina.id,
+        texto: 'Implementei seleção e intercalação e medi as comparações para listas de 1.000, 5.000 e 10.000 números. Os resultados mostram a diferença de crescimento entre os dois.',
+        entregueEm: salaEm(-12),
+        atrasada: false,
+        nota: 9,
+        comentario: 'Relatório claro e bem organizado. Revise a análise do pior caso.',
+        corrigidaEm: salaEm(-4),
+        corrigidaPorId: anaId,
+      },
+      {
+        tarefaId: salaTarefaVencida.id,
+        inscricaoId: salaInscJoao.id,
+        texto: 'Implementei seleção e inserção e comparei o tempo de execução. Entrego com um dia de atraso.',
+        entregueEm: salaEm(-9),
+        atrasada: true,
+        nota: 7.5,
+        comentario: 'Boa comparação. Faltou explicar a diferença de crescimento no relatório.',
+        corrigidaEm: salaEm(-4),
+        corrigidaPorId: anaId,
+      },
+    ],
+  });
+
+  // 2) Prazo em 5 dias, entregue só pela Marina (sem correção).
+  const salaTarefaProxima = await prisma.tarefa.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Lista de árvores binárias',
+      enunciado: 'Resolva os exercícios de percursos e de busca da lista de árvores binárias. Escreva as respostas no campo de texto.',
+      prazo: salaEm(5),
+      notaMaxima: 10,
+      aceitaAtraso: false,
+      avaliacaoId: null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(-6),
+    },
+  });
+  await prisma.tarefaEntrega.create({
+    data: {
+      tarefaId: salaTarefaProxima.id,
+      inscricaoId: salaInscMarina.id,
+      texto: 'Percurso em ordem: 2, 3, 5, 7, 8, 9. Busca da chave 6: passa pela raiz 5 e segue à direita.',
+      entregueEm: salaEm(-1),
+      atrasada: false,
+    },
+  });
+
+  // 3) Prazo em 12 dias, sem entregas.
+  await prisma.tarefa.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Projeto: árvore binária de busca',
+      enunciado: 'Implemente uma árvore binária de busca com inserção, busca e remoção, e escreva testes para cada operação.',
+      prazo: salaEm(12),
+      notaMaxima: 10,
+      aceitaAtraso: true,
+      avaliacaoId: null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(-3),
+    },
+  });
+
+  // Provas
+  type QuestaoSala = {
+    ordem: number;
+    tipo: 'OBJETIVA' | 'VERDADEIRO_FALSO' | 'DISSERTATIVA';
+    enunciado: string;
+    alternativas: string[];
+    correta: number | null;
+    pontos: number;
+  };
+
+  // 1) Quiz de ordenação: encerrada, com tentativas enviadas dos dois alunos.
+  const salaQuestoesQuiz: QuestaoSala[] = [
+    { ordem: 1, tipo: 'OBJETIVA', enunciado: 'Qual é a complexidade do pior caso do algoritmo de ordenação por seleção?', alternativas: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'], correta: 2, pontos: 2 },
+    { ordem: 2, tipo: 'OBJETIVA', enunciado: 'Qual algoritmo divide a lista ao meio antes de intercalar as metades?', alternativas: ['Ordenação por inserção', 'Ordenação por intercalação', 'Ordenação por seleção', 'Busca binária'], correta: 1, pontos: 2 },
+    { ordem: 3, tipo: 'OBJETIVA', enunciado: 'Qual é o pior caso típico do quicksort quando o pivô é mal escolhido?', alternativas: ['O(n log n)', 'O(n²)', 'O(1)', 'O(n)'], correta: 1, pontos: 2 },
+    { ordem: 4, tipo: 'VERDADEIRO_FALSO', enunciado: 'A ordenação por inserção é estável.', alternativas: [], correta: 1, pontos: 2 },
+    { ordem: 5, tipo: 'DISSERTATIVA', enunciado: 'Explique por que a intercalação tem complexidade O(n log n) no pior caso.', alternativas: [], correta: null, pontos: 2 },
+  ];
+  const salaQuiz = await prisma.prova.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Quiz de ordenação',
+      instrucoes: 'Responda sem consultar o material. As questões objetivas valem o mesmo que as demais, salvo indicação.',
+      abreEm: salaEm(-9),
+      fechaEm: salaEm(-2),
+      duracaoMin: 20,
+      embaralhar: false,
+      notaMaxima: 10,
+      mostrarGabarito: true,
+      publicada: true,
+      avaliacaoId: null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(-10),
+      questoes: { create: salaQuestoesQuiz },
+    },
+    include: { questoes: { orderBy: { ordem: 'asc' } } },
+  });
+  const [qQuiz1, qQuiz2, qQuiz3, qQuiz4, qQuiz5] = salaQuiz.questoes;
+
+  // Marina: 6 pontos automáticos + 2 na dissertativa corrigida = 8. Nota final 8.
+  const salaTentativaMarina = await prisma.provaTentativa.create({
+    data: {
+      provaId: salaQuiz.id,
+      inscricaoId: salaInscMarina.id,
+      iniciadaEm: salaEm(-5),
+      expiraEm: salaMinutos(salaEm(-5), 20),
+      enviadaEm: salaMinutos(salaEm(-5), 12),
+      notaObjetiva: 6,
+      notaFinal: 8,
+      corrigida: true,
+    },
+  });
+  await prisma.provaResposta.createMany({
+    data: [
+      { tentativaId: salaTentativaMarina.id, questaoId: qQuiz1.id, alternativa: 2, texto: '', pontos: 2, comentario: '' },
+      { tentativaId: salaTentativaMarina.id, questaoId: qQuiz2.id, alternativa: 1, texto: '', pontos: 2, comentario: '' },
+      { tentativaId: salaTentativaMarina.id, questaoId: qQuiz3.id, alternativa: 0, texto: '', pontos: 0, comentario: '' },
+      { tentativaId: salaTentativaMarina.id, questaoId: qQuiz4.id, alternativa: 1, texto: '', pontos: 2, comentario: '' },
+      {
+        tentativaId: salaTentativaMarina.id,
+        questaoId: qQuiz5.id,
+        alternativa: null,
+        texto: 'A intercalação divide a lista em metades até restar um elemento e depois junta as metades ordenadas. Cada nível percorre n elementos e há cerca de log n níveis, então o total fica em n log n.',
+        pontos: 2,
+        comentario: 'Explicação completa e correta.',
+      },
+    ],
+  });
+
+  // João: 4 pontos automáticos; a dissertativa ainda não foi corrigida (nota final pendente).
+  const salaTentativaJoao = await prisma.provaTentativa.create({
+    data: {
+      provaId: salaQuiz.id,
+      inscricaoId: salaInscJoao.id,
+      iniciadaEm: salaEm(-4),
+      expiraEm: salaMinutos(salaEm(-4), 20),
+      enviadaEm: salaMinutos(salaEm(-4), 18),
+      notaObjetiva: 4,
+      notaFinal: null,
+      corrigida: false,
+    },
+  });
+  await prisma.provaResposta.createMany({
+    data: [
+      { tentativaId: salaTentativaJoao.id, questaoId: qQuiz1.id, alternativa: 2, texto: '', pontos: 2, comentario: '' },
+      { tentativaId: salaTentativaJoao.id, questaoId: qQuiz2.id, alternativa: 0, texto: '', pontos: 0, comentario: '' },
+      { tentativaId: salaTentativaJoao.id, questaoId: qQuiz3.id, alternativa: 1, texto: '', pontos: 2, comentario: '' },
+      { tentativaId: salaTentativaJoao.id, questaoId: qQuiz4.id, alternativa: 0, texto: '', pontos: 0, comentario: '' },
+      { tentativaId: salaTentativaJoao.id, questaoId: qQuiz5.id, alternativa: null, texto: 'A intercalação divide e junta as listas.', pontos: null, comentario: '' },
+    ],
+  });
+
+  // 2) Prova de árvores: aberta agora, sem tentativas. Seis objetivas de 1 ponto cada.
+  await prisma.prova.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Prova de árvores',
+      instrucoes: 'Marque uma alternativa em cada questão. O tempo começa ao iniciar a prova e corre no servidor.',
+      abreEm: salaEm(-1),
+      fechaEm: salaEm(6),
+      duracaoMin: 40,
+      embaralhar: true,
+      notaMaxima: 10,
+      mostrarGabarito: false,
+      publicada: true,
+      avaliacaoId: null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(-2),
+      questoes: {
+        create: [
+          { ordem: 1, tipo: 'OBJETIVA', enunciado: 'Qual é a ordem dos nós visitados no percurso em ordem de uma árvore binária de busca?', alternativas: ['Crescente', 'Decrescente', 'Da raiz para as folhas', 'Aleatória'], correta: 0, pontos: 1 },
+          { ordem: 2, tipo: 'OBJETIVA', enunciado: 'Em uma árvore binária de busca, onde fica uma chave menor que a raiz?', alternativas: ['À direita da raiz', 'À esquerda da raiz', 'Na própria raiz', 'Em qualquer lugar'], correta: 1, pontos: 1 },
+          { ordem: 3, tipo: 'OBJETIVA', enunciado: 'Qual percurso visita a raiz antes de visitar as subárvores?', alternativas: ['Em ordem', 'Pré-ordem', 'Pós-ordem', 'Inversa'], correta: 1, pontos: 1 },
+          { ordem: 4, tipo: 'OBJETIVA', enunciado: 'O que acontece com a busca em uma árvore degenerada, em forma de cadeia?', alternativas: ['Fica tão lenta quanto uma lista', 'Fica com tempo constante', 'Não é possível fazer a busca', 'Fica com tempo logarítmico'], correta: 0, pontos: 1 },
+          { ordem: 5, tipo: 'OBJETIVA', enunciado: 'Qual rotação corrige um desbalanceamento causado por inserção na subárvore esquerda da esquerda?', alternativas: ['Rotação simples à direita', 'Rotação simples à esquerda', 'Rotação dupla', 'Nenhuma rotação é necessária'], correta: 0, pontos: 1 },
+          { ordem: 6, tipo: 'OBJETIVA', enunciado: 'Na remoção de um nó com dois filhos, qual nó costuma substituí-lo?', alternativas: ['O sucessor em ordem', 'A raiz da árvore', 'Qualquer folha', 'O filho mais à direita da raiz'], correta: 0, pontos: 1 },
+        ],
+      },
+    },
+  });
+
+  // 3) Rascunho: não publicada, sem tentativas.
+  await prisma.prova.create({
+    data: {
+      turmaId: salaTurmaAlg2.id,
+      titulo: 'Simulado de árvores',
+      instrucoes: 'Simulado para treinar as operações com árvores.',
+      abreEm: salaEm(10),
+      fechaEm: salaEm(14),
+      duracaoMin: 30,
+      embaralhar: false,
+      notaMaxima: 10,
+      mostrarGabarito: false,
+      publicada: false,
+      avaliacaoId: null,
+      criadoPorId: anaId,
+      criadaEm: salaEm(0),
+      questoes: {
+        create: [
+          { ordem: 1, tipo: 'OBJETIVA', enunciado: 'Qual é a altura típica de uma árvore balanceada com n nós?', alternativas: ['Proporcional a log n', 'Proporcional a n', 'Constante', 'Proporcional a n²'], correta: 0, pontos: 5 },
+          { ordem: 2, tipo: 'VERDADEIRO_FALSO', enunciado: 'Um percurso em ordem de uma árvore binária de busca lista as chaves em ordem crescente.', alternativas: [], correta: 1, pontos: 5 },
+        ],
+      },
+    },
+  });
+
+  // Turma de Bruno (BCC-CAL1-A, 2026.2): um material, dois temas do plano e uma tarefa sem entregas.
+  await prisma.materialAula.create({
+    data: {
+      turmaId: salaTurmaCal1.id,
+      titulo: 'Lista de derivadas',
+      descricao: 'Exercícios sobre regra da cadeia e derivadas implícitas.',
+      topico: 'Unidade 1: derivadas',
+      link: null,
+      criadoPorId: brunoId,
+      criadoEm: quando(50),
+    },
+  });
+  await prisma.planoAula.createMany({
+    data: [
+      { turmaId: salaTurmaCal1.id, ordem: 1, tema: 'Limites e continuidade', objetivos: 'Calcular limites laterais e reconhecer funções contínuas.', dataPrevista: d(2026, 8, 12), aulaId: null },
+      { turmaId: salaTurmaCal1.id, ordem: 2, tema: 'Derivadas e regra da cadeia', objetivos: 'Derivar funções compostas e funções definidas implicitamente.', dataPrevista: d(2026, 9, 9), aulaId: null },
+    ],
+  });
+  await prisma.tarefa.create({
+    data: {
+      turmaId: salaTurmaCal1.id,
+      titulo: 'Lista 3: derivadas',
+      enunciado: 'Resolva os exercícios 1 a 10 da lista 3. Escreva o cálculo de cada item.',
+      prazo: salaEm(7),
+      notaMaxima: 10,
+      aceitaAtraso: true,
+      avaliacaoId: null,
+      criadoPorId: brunoId,
+      criadaEm: salaEm(-4),
+    },
+  });
+
   // Resumo
   console.log(
     `Dados de demonstração carregados: ${await prisma.usuario.count()} usuários, ${await prisma.turma.count()} turmas, ${await prisma.matricula.count()} matrículas.`

@@ -498,6 +498,9 @@ export function MinhasTurmas() {
               <Link className="botao botao-primario" to={`/professor/diario/${t.id}`}>
                 Abrir diário
               </Link>
+              <Link className="botao botao-secundario" to={`/professor/sala/${t.id}`}>
+                Sala de aula
+              </Link>
             </Cartao>
           ))}
         </Grade>

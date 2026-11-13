@@ -119,3 +119,31 @@ Pontos em aberto:
 - A cópia automática diária foi vista rodando na subida do contêiner; a execução na hora marcada, de um dia para o outro, não foi observada.
 - A restauração com falha no meio (desfazer a transação) não foi provocada.
 - O nome e o ícone do aplicativo instalado passaram a vir das configurações, mas a instalação num celular real não foi testada.
+
+## Sexta leva (13/11/2026): sala de aula
+
+Plano e contratos em [sexta-leva.md](sexta-leva.md). Todas as partes aprovadas pelo revisor.
+
+| Parte | Gerador |
+|---|---|
+| Armazenamento de arquivos (servidor e infra) | g08 |
+| Salas, materiais e plano de aula (servidor) | g15 |
+| Tarefas e entregas (servidor) | g16 |
+| Provas online (servidor) | g17 |
+| Chamada por QR code (servidor) | g05 |
+| Base do cliente (envio de arquivos, QR code, ícones) | g18 |
+| Sala, materiais e plano (telas) | g19 |
+| Tarefas (telas) | g20 |
+| Provas (telas) | g21 |
+| Chamada (telas) | g06 |
+| Dados de demonstração | g01 |
+| Documentação | g04 |
+
+Testes reais numa instalação temporária em Docker: envio e download de arquivos com permissão por contexto, material com anexo e aviso no sino, tarefa com entrega e correção, prova inteira com correção automática e correção da dissertativa, chamada por QR code com presença registrada; capturas das telas no computador e no celular (tema escuro). O revisor rodou os módulos do servidor e o seed de demonstração num banco descartável.
+
+Pontos em aberto:
+
+- Os arquivos enviados ficam no volume `dados_arquivos` e não entram na cópia de segurança do banco.
+- A leitura do QR code pela câmera de um celular real não foi testada; o código digitado e o link do QR foram.
+- O envio automático da prova ao acabar o tempo e as novas tentativas em caso de falha de rede não foram provocados na tela.
+- Se a resposta do envio da prova se perder e a nova tentativa receber "já enviada", a tela mostra erro mesmo com a prova gravada; a nota aparece na lista.

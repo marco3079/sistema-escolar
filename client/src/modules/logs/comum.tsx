@@ -108,6 +108,11 @@ const ROTULO_MODULO: Record<string, string> = {
   painel: 'Início',
   auth: 'Sessão',
   agenda: 'Agenda',
+  sala: 'Sala de aula',
+  salas: 'Sala de aula',
+  andamento: 'Andamento das aulas',
+  presenca: 'Chamada',
+  'presenca-qr': 'Chamada',
 };
 
 function chaveModulo(valor: string): string {

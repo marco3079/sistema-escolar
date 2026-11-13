@@ -62,6 +62,15 @@ const ROTULOS_MODULO: Record<string, string> = {
   atualizacao: 'Atualização',
   backups: 'Cópia de segurança',
   notificacoes: 'Avisos',
+  arquivos: 'Arquivos',
+  salas: 'Sala de aula',
+  materiais: 'Sala de aula',
+  plano: 'Plano de aula',
+  tarefas: 'Tarefas',
+  entregas: 'Tarefas',
+  provas: 'Provas',
+  tentativas: 'Provas',
+  'presenca-qr': 'Chamada',
 };
 
 // Ações: POST cujo último segmento do caminho está aqui vira ALTERACAO.

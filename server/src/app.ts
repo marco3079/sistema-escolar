@@ -68,6 +68,12 @@ const REGEX_IMPORTACAO_SEM_LOG = /^\/api\/(alunos|professores)\/importar(\/model
 // Avisos: consultados a cada 30 s pelo sino (GET); marcar como lido é ruído (POST).
 const REGEX_NOTIFICACOES_CONSULTA_SEM_LOG = /^\/api\/notificacoes(\/nao-lidas)?\/?$/;
 const REGEX_NOTIFICACOES_LEITURA_SEM_LOG = /^\/api\/notificacoes(\/\d+\/lida|\/lidas)$/;
+// Downloads de arquivos das salas de aula (GET /api/arquivos/:id) ficam fora do log.
+const REGEX_ARQUIVOS_DOWNLOAD_SEM_LOG = /^\/api\/arquivos\/\d+$/;
+// Chamada por QR code: a tela do professor consulta o estado a cada 2 s (GET).
+const REGEX_CHAMADA_CONSULTA_SEM_LOG = /^\/api\/aulas\/\d+\/chamada-qr$/;
+// Provas: salvamento automático das respostas (PUT).
+const REGEX_PROVA_RESPOSTAS_SEM_LOG = /^\/api\/provas\/\d+\/respostas$/;
 
 function ehRotaSemLog(metodo: string, caminho: string): boolean {
   if (REGEX_CHAT_SEM_LOG.test(caminho) || REGEX_BACKUPS_SEM_LOG.test(caminho)) {
@@ -77,6 +83,15 @@ function ehRotaSemLog(metodo: string, caminho: string): boolean {
     return true;
   }
   if (metodo === 'GET' && REGEX_NOTIFICACOES_CONSULTA_SEM_LOG.test(caminho)) {
+    return true;
+  }
+  if (
+    metodo === 'GET' &&
+    (REGEX_ARQUIVOS_DOWNLOAD_SEM_LOG.test(caminho) || REGEX_CHAMADA_CONSULTA_SEM_LOG.test(caminho))
+  ) {
+    return true;
+  }
+  if (metodo === 'PUT' && REGEX_PROVA_RESPOSTAS_SEM_LOG.test(caminho)) {
     return true;
   }
   return metodo === 'POST' && REGEX_NOTIFICACOES_LEITURA_SEM_LOG.test(caminho);

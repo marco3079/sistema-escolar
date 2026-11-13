@@ -1,0 +1,205 @@
+/* Chamada por QR code (aba Chamada da sala) e página de presença do aluno. Só variáveis de cor. */
+
+.chamada {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chamada-intro {
+  margin: 0 0 1rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.92rem;
+}
+
+.chamada-escolha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.chamada-escolha .campo {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.chamada-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.chamada-cartao p {
+  margin: 0;
+}
+
+.chamada-abrir {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.chamada-abrir .campo {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}
+
+/* Bloco que vai para a tela cheia: QR, código e contagens. */
+.chamada-tela {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  text-align: center;
+}
+
+.chamada-tela:fullscreen {
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 2rem;
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.chamada-aula {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Fundo branco fixo para o leitor da câmera, nos dois temas. */
+.chamada-qr {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: var(--raio-pequeno);
+  background: #ffffff;
+}
+
+.chamada-qr svg {
+  display: block;
+  width: min(100%, 300px);
+  height: auto;
+}
+
+.chamada-tela:fullscreen .chamada-qr svg {
+  width: min(80vmin, 640px);
+}
+
+.chamada-codigo {
+  margin: 0.25rem 0 0;
+  font-size: clamp(2rem, 9vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+  overflow-wrap: anywhere;
+}
+
+.chamada-tela:fullscreen .chamada-codigo {
+  font-size: clamp(3rem, 10vw, 6rem);
+}
+
+.chamada-troca {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.chamada-contagem {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cor-primaria);
+}
+
+.chamada-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.chamada-subtitulo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.chamada-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+}
+
+.chamada-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--cor-borda);
+  min-width: 0;
+}
+
+.chamada-item:last-child {
+  border-bottom: 0;
+}
+
+.chamada-nome {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chamada-ra {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+/* Página de presença do aluno */
+
+.presenca-status {
+  margin: 0 0 1rem;
+  color: var(--cor-texto-suave);
+}
+
+.presenca-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.presenca-codigo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
