@@ -47,6 +47,8 @@ const estadoSchema = z.object({
   atualizadorMudou: z.boolean(),
   verificadoEm: z.string().nullable(),
   erroVerificacao: z.string().nullable(),
+  // true enquanto o atualizador busca as novidades em segundo plano
+  verificando: z.boolean().optional(),
   tarefa: z.object({
     estado: z.enum(['PARADA', 'EXECUTANDO', 'CONCLUIDA', 'FALHOU']),
     etapa: z.string(),

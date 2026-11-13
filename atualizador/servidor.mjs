@@ -337,6 +337,8 @@ async function atualizadorMudou() {
 let ultimoEstado = null;
 // Verdadeiro enquanto um `git fetch` de verificação está rodando (as leituras esperariam por ele).
 let verificandoAgora = false;
+// Verdadeiro desde o pedido de verificação até o `git fetch` terminar (inclui a espera na fila).
+let verificacaoPendente = false;
 // Instante e estado da tarefa em que `ultimoEstado` foi lido: por 10 s, sem mudança na tarefa, a
 // resposta vem da memória (cada comando Git pode levar segundos em pasta montada pelo Docker).
 let ultimoEstadoEm = 0;
@@ -346,7 +348,7 @@ const VALIDADE_ESTADO_MS = 10 * 1000;
 async function montarEstado(forcar = false) {
   const recente =
     !forcar && Date.now() - ultimoEstadoEm < VALIDADE_ESTADO_MS && ultimoEstadoTarefa === tarefa.estado;
-  if ((tarefa.estado === 'EXECUTANDO' || verificandoAgora || recente) && ultimoEstado) {
+  if ((tarefa.estado === 'EXECUTANDO' || verificandoAgora || verificacaoPendente || recente) && ultimoEstado) {
     return {
       ...ultimoEstado,
       implantado,
@@ -681,12 +683,27 @@ async function tratar(req, res) {
     if (req.method !== 'GET') {
       return enviarJson(res, 405, { erro: 'Método não permitido.' }, { Allow: 'GET' });
     }
+    // A verificação (git fetch) roda em segundo plano: a resposta sai na hora com `verificando: true`
+    // e quem consulta repete o GET /estado até `verificando` voltar a false.
     const verificar = url.searchParams.get('verificar') === '1';
-    if (verificar) {
-      await comGitExclusivo(verificarRemoto);
+    if (verificar && !verificacaoPendente && tarefa.estado !== 'EXECUTANDO') {
+      // A marca sobe antes de qualquer espera, para duas chamadas juntas não dispararem dois fetch.
+      verificacaoPendente = true;
+      try {
+        if (!ultimoEstado) await montarEstado(true);
+      } catch (erro) {
+        verificacaoPendente = false;
+        throw erro;
+      }
+      comGitExclusivo(verificarRemoto)
+        .catch((erro) => registrar('Erro na verificação: ' + textoErro(erro)))
+        .finally(() => {
+          verificacaoPendente = false;
+          ultimoEstadoEm = 0; // força a releitura na próxima consulta
+        });
     }
-    // Depois de verificar, relê tudo; sem verificar, pode vir da memória recente.
-    return enviarJson(res, 200, await montarEstado(verificar));
+    const estado = await montarEstado();
+    return enviarJson(res, 200, { ...estado, verificando: verificacaoPendente });
   }
 
   if (url.pathname === '/atualizar') {

@@ -92,6 +92,7 @@ export interface EstadoAtualizacao {
   atualizadorMudou: boolean;
   verificadoEm: string | null;
   erroVerificacao: string | null;
+  verificando?: boolean; // a busca no GitHub ainda está rodando em segundo plano
   tarefa: {
     estado: 'PARADA' | 'EXECUTANDO' | 'CONCLUIDA' | 'FALHOU';
     etapa: string;

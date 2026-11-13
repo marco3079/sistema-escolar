@@ -175,9 +175,18 @@ export function Atualizacao() {
     setErroCarga(null);
     setErroAcompanhar(null);
     try {
-      const novo = await api.get<AtualizacaoDTO>('/atualizacao?verificar=1');
+      let novo = await api.get<AtualizacaoDTO>('/atualizacao?verificar=1');
       if (!vivo.current) return;
       setDados(novo);
+      // A busca no GitHub roda em segundo plano no servidor: acompanha até terminar (no máximo 3 minutos).
+      const limite = Date.now() + 3 * 60 * 1000;
+      while (novo.disponivel && novo.verificando && Date.now() < limite) {
+        await new Promise((resolver) => window.setTimeout(resolver, 2000));
+        if (!vivo.current) return;
+        novo = await api.get<AtualizacaoDTO>('/atualizacao');
+        if (!vivo.current) return;
+        setDados(novo);
+      }
       if (novo.disponivel && novo.tarefa.estado === 'EXECUTANDO') {
         setAcompanhando((atual) => atual ?? { aguardarInicio: false });
       }
