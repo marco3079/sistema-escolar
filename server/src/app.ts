@@ -61,6 +61,26 @@ function tratarErro(e: unknown, req: Request, res: Response, _next: NextFunction
 
 // Consultas de tempo real do chat ficam fora do log (sincronizar, não lidas, digitando e lida).
 const REGEX_CHAT_SEM_LOG = /^\/api\/chat\/(sincronizar|nao-lidas|conversas\/\d+\/(digitando|lida))$/;
+// Cópias de segurança registram a atividade à mão (sem conteúdo).
+const REGEX_BACKUPS_SEM_LOG = /^\/api\/backups(\/|$)/;
+// Importação de planilhas registra a atividade à mão (sem os dados), e o modelo é só consulta.
+const REGEX_IMPORTACAO_SEM_LOG = /^\/api\/(alunos|professores)\/importar(\/modelo)?$/;
+// Avisos: consultados a cada 30 s pelo sino (GET); marcar como lido é ruído (POST).
+const REGEX_NOTIFICACOES_CONSULTA_SEM_LOG = /^\/api\/notificacoes(\/nao-lidas)?\/?$/;
+const REGEX_NOTIFICACOES_LEITURA_SEM_LOG = /^\/api\/notificacoes(\/\d+\/lida|\/lidas)$/;
+
+function ehRotaSemLog(metodo: string, caminho: string): boolean {
+  if (REGEX_CHAT_SEM_LOG.test(caminho) || REGEX_BACKUPS_SEM_LOG.test(caminho)) {
+    return true;
+  }
+  if (REGEX_IMPORTACAO_SEM_LOG.test(caminho)) {
+    return true;
+  }
+  if (metodo === 'GET' && REGEX_NOTIFICACOES_CONSULTA_SEM_LOG.test(caminho)) {
+    return true;
+  }
+  return metodo === 'POST' && REGEX_NOTIFICACOES_LEITURA_SEM_LOG.test(caminho);
+}
 
 // Registra toda requisição autenticada sob /api ao terminar a resposta (sem atrasá-la).
 function registrarAtividade(req: Request, res: Response, next: NextFunction): void {
@@ -80,7 +100,7 @@ function registrarAtividade(req: Request, res: Response, next: NextFunction): vo
         caminho === '/api/atualizacao' ||
         caminho === '/api/auth/login' ||
         caminho === '/api/auth/sair' ||
-        REGEX_CHAT_SEM_LOG.test(caminho)
+        ehRotaSemLog(metodo, caminho)
       ) {
         return;
       }

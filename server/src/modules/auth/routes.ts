@@ -136,8 +136,8 @@ publico.post(
       }
       falhasLogin.set(chave, [...recentes, agora]);
     };
-    const usuario = await prisma.usuario.findUnique({
-      where: { email },
+    const usuario = await prisma.usuario.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
       include: { aluno: true, professor: true },
     });
     if (!usuario || !usuario.ativo) {
@@ -191,8 +191,8 @@ async function enviarInstrucoesRecuperacao(
   endereco: string,
   contexto: { ip: string | null; navegador: string | null }
 ): Promise<void> {
-  const usuario = await prisma.usuario.findUnique({
-    where: { email },
+  const usuario = await prisma.usuario.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
     select: { id: true, nome: true, ativo: true },
   });
   if (!usuario || !usuario.ativo) {

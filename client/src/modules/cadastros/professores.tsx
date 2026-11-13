@@ -10,6 +10,7 @@ import type { ProfessorDTO } from './tipos';
 import { FichaProfessor } from './FichaProfessor';
 import { MenuAcoes } from './MenuAcoes';
 import type { AcaoMenu } from './MenuAcoes';
+import { ImportarPlanilha } from './ImportarPlanilha';
 
 // ---------- Formulário (criar ou editar) ----------
 
@@ -120,11 +121,14 @@ export function Professores() {
   const [editando, setEditando] = useState<ProfessorDTO | 'novo' | null>(null);
   const [ficha, setFicha] = useState<number | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
   const { usuario } = useAuth();
   const navegar = useNavigate();
   const { dados, carregando, erro, recarregar } = useDados<ProfessorDTO[]>(
     `/professores${queryString({ busca: busca.trim() })}`
   );
+  // Mesmos perfis que o servidor aceita para criar professor (POST /professores).
+  const podeCriar = usuario?.perfil === 'ADMIN' || usuario?.perfil === 'SECRETARIA';
 
   function fechar() {
     setEditando(null);
@@ -175,7 +179,16 @@ export function Professores() {
   return (
     <Pagina
       titulo="Professores"
-      acoes={<Botao aoClicar={() => setEditando('novo')}>Novo professor</Botao>}
+      acoes={
+        <>
+          {podeCriar && (
+            <Botao variante="secundario" aoClicar={() => setImportando(true)}>
+              Importar planilha
+            </Botao>
+          )}
+          <Botao aoClicar={() => setEditando('novo')}>Novo professor</Botao>
+        </>
+      }
     >
       <Campo rotulo="Buscar por nome, e-mail ou registro" valor={busca} aoMudar={setBusca} />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
@@ -187,6 +200,7 @@ export function Professores() {
           dados={dados}
           vazio="Nenhum professor encontrado."
           aoClicarLinha={(p) => setFicha(p.id)}
+          exportar="professores"
           colunas={[
             { titulo: 'Registro', celula: (p) => p.registro },
             { titulo: 'Nome', celula: (p) => p.usuario.nome },
@@ -216,6 +230,14 @@ export function Professores() {
             setFicha(null);
             if (p) setEditando(p);
           }}
+        />
+      )}
+
+      {importando && (
+        <ImportarPlanilha
+          tipo="professores"
+          aoFechar={() => setImportando(false)}
+          aoConcluir={recarregar}
         />
       )}
 

@@ -1,22 +1,131 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { useDados } from '../lib/useDados';
-import type { ComunicadoDTO } from '../modules/comunicados/tipos';
 import { formatarDataHora } from '../ui';
 import { Icone } from '../ui/icones';
+import type { NomeIcone } from '../ui/icones';
 
-const MAXIMO_LISTA = 5;
+// Central de notificações (o sino do topo): contador de não lidas e painel com os avisos.
+// `raiz` é o caminho do portal (ex.: /admin); o link de cada aviso fica em `${raiz}${link}`.
 
-// Sino do topo: contador de comunicados não lidos e painel com os mais recentes.
-// `raiz` é o caminho do portal (ex.: /admin); a tela de comunicados fica em `${raiz}/comunicados`.
+type TipoNotificacao =
+  | 'COMUNICADO'
+  | 'SUPORTE'
+  | 'FORUM'
+  | 'NOTA'
+  | 'FINANCEIRO'
+  | 'MEDALHA'
+  | 'BIBLIOTECA'
+  | 'SISTEMA';
+
+interface NotificacaoDTO {
+  id: number;
+  tipo: TipoNotificacao;
+  titulo: string;
+  texto: string;
+  link: string | null;
+  criadaEm: string;
+  lida: boolean;
+}
+
+interface ListaNotificacoesDTO {
+  itens: NotificacaoDTO[];
+  haMais: boolean;
+  naoLidas: number;
+}
+
+// Consulta do contador a cada 30 s (pausa com a aba oculta).
+const INTERVALO_CONTADOR_MS = 30000;
+const TAMANHO_PAGINA = 20;
+
+const ICONE_POR_TIPO: Record<TipoNotificacao, NomeIcone> = {
+  COMUNICADO: 'comunicados',
+  SUPORTE: 'suporte',
+  FORUM: 'forum',
+  NOTA: 'boletim',
+  FINANCEIRO: 'financeiro',
+  MEDALHA: 'medalha',
+  BIBLIOTECA: 'biblioteca',
+  SISTEMA: 'engrenagem',
+};
+
+// Tempo relativo em português ("há 5 min"); depois de uma semana, a data.
+function tempoRelativo(iso: string): string {
+  const instante = new Date(iso).getTime();
+  if (Number.isNaN(instante)) return '';
+  const minutos = Math.floor((Date.now() - instante) / 60000);
+  if (minutos < 1) return 'agora mesmo';
+  if (minutos < 60) return `há ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 7) return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+  return formatarDataHora(iso);
+}
+
 export function Notificacoes({ raiz }: { raiz: string }) {
   const navigate = useNavigate();
-  const { dados, erro, recarregar } = useDados<ComunicadoDTO[]>('/comunicados');
+  const [naoLidas, setNaoLidas] = useState(0);
   const [aberto, setAberto] = useState(false);
+  const [itens, setItens] = useState<NotificacaoDTO[]>([]);
+  const [haMais, setHaMais] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(false);
   const area = useRef<HTMLDivElement>(null);
-  const caminhoComunicados = `${raiz}/comunicados`;
 
+  // Busca só o contador. Falha em silêncio: mantém o último valor conhecido.
+  const atualizarContador = useCallback(async (): Promise<void> => {
+    try {
+      const resposta = await api.get<{ total: number }>('/notificacoes/nao-lidas');
+      setNaoLidas(resposta.total);
+    } catch {
+      // Sem ação: o próximo ciclo tenta de novo.
+    }
+  }, []);
+
+  // Contador: consulta a cada 30 s, pausa com a aba oculta e atualiza ao voltar o foco.
+  useEffect(() => {
+    let id: number | undefined;
+
+    function iniciar(): void {
+      if (id !== undefined) return;
+      id = window.setInterval(() => void atualizarContador(), INTERVALO_CONTADOR_MS);
+    }
+
+    function parar(): void {
+      if (id === undefined) return;
+      window.clearInterval(id);
+      id = undefined;
+    }
+
+    function aoMudarVisibilidade(): void {
+      if (document.visibilityState === 'hidden') {
+        parar();
+      } else {
+        void atualizarContador();
+        iniciar();
+      }
+    }
+
+    function aoFocar(): void {
+      if (document.visibilityState !== 'hidden') void atualizarContador();
+    }
+
+    if (document.visibilityState !== 'hidden') {
+      void atualizarContador();
+      iniciar();
+    }
+    document.addEventListener('visibilitychange', aoMudarVisibilidade);
+    window.addEventListener('focus', aoFocar);
+
+    return () => {
+      parar();
+      document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+      window.removeEventListener('focus', aoFocar);
+    };
+  }, [atualizarContador]);
+
+  // Fecha com Esc e com clique fora do sino e do painel.
   useEffect(() => {
     if (!aberto) return;
     function fora(e: MouseEvent) {
@@ -33,35 +142,74 @@ export function Notificacoes({ raiz }: { raiz: string }) {
     };
   }, [aberto]);
 
-  // Atualiza o contador a cada 60 s e quando a janela volta a ter foco. recarregar é estável.
+  // Ao abrir, carrega os avisos mais recentes.
   useEffect(() => {
-    const intervalo = window.setInterval(() => recarregar(), 60000);
-    const aoFocar = () => recarregar();
-    window.addEventListener('focus', aoFocar);
+    if (!aberto) return;
+    let cancelado = false;
+    setCarregando(true);
+    setErro(false);
+    api
+      .get<ListaNotificacoesDTO>(`/notificacoes?limite=${TAMANHO_PAGINA}`)
+      .then((resposta) => {
+        if (cancelado) return;
+        setItens(resposta.itens);
+        setHaMais(resposta.haMais);
+        setNaoLidas(resposta.naoLidas);
+      })
+      .catch(() => {
+        if (!cancelado) setErro(true);
+      })
+      .finally(() => {
+        if (!cancelado) setCarregando(false);
+      });
     return () => {
-      window.clearInterval(intervalo);
-      window.removeEventListener('focus', aoFocar);
+      cancelado = true;
     };
-  }, [recarregar]);
+  }, [aberto]);
 
-  const lista = dados ?? [];
-  const naoLidos = lista.filter((c) => c.lido === false).length;
-  const recentes = [...lista]
-    .sort((a, b) => new Date(b.publicadoEm).getTime() - new Date(a.publicadoEm).getTime())
-    .slice(0, MAXIMO_LISTA);
-
-  // Marca como lido (se preciso), recarrega o contador e abre a tela de comunicados.
-  async function abrirAviso(c: ComunicadoDTO) {
-    setAberto(false);
-    if (!c.lido) {
-      try {
-        await api.post(`/comunicados/${c.id}/ler`);
-      } catch {
-        // Se não marcar como lido, a tela de comunicados mostra o erro.
-      }
-      recarregar();
+  // Carrega a página seguinte, a partir do aviso mais antigo da lista.
+  async function carregarMais(): Promise<void> {
+    const ultimo = itens[itens.length - 1];
+    if (!ultimo || carregando) return;
+    setCarregando(true);
+    setErro(false);
+    try {
+      const resposta = await api.get<ListaNotificacoesDTO>(
+        `/notificacoes?limite=${TAMANHO_PAGINA}&antesDe=${ultimo.id}`,
+      );
+      setItens((atuais) => [...atuais, ...resposta.itens]);
+      setHaMais(resposta.haMais);
+      setNaoLidas(resposta.naoLidas);
+    } catch {
+      setErro(true);
+    } finally {
+      setCarregando(false);
     }
-    navigate(caminhoComunicados);
+  }
+
+  // Marca como lido (se ainda não estiver) e, se tiver link, fecha o painel e abre a página.
+  function abrirAviso(item: NotificacaoDTO): void {
+    if (!item.lida) {
+      setItens((atuais) => atuais.map((n) => (n.id === item.id ? { ...n, lida: true } : n)));
+      setNaoLidas((total) => Math.max(0, total - 1));
+      api.post(`/notificacoes/${item.id}/lida`).catch(() => void atualizarContador());
+    }
+    // Só caminho interno do portal: link externo ou malformado não navega.
+    const linkInterno =
+      item.link && item.link.startsWith('/') && !item.link.startsWith('//') ? item.link : null;
+    if (linkInterno) {
+      setAberto(false);
+      navigate(`${raiz}${linkInterno}`);
+    }
+  }
+
+  function marcarTodas(): void {
+    setItens((atuais) => atuais.map((n) => ({ ...n, lida: true })));
+    setNaoLidas(0);
+    api.post('/notificacoes/lidas').catch(() => {
+      setErro(true);
+      void atualizarContador();
+    });
   }
 
   return (
@@ -69,49 +217,69 @@ export function Notificacoes({ raiz }: { raiz: string }) {
       <button
         type="button"
         className="casca-botao-redondo"
-        aria-label="Avisos"
+        aria-label={naoLidas > 0 ? `Avisos, ${naoLidas} não lidos` : 'Avisos'}
         aria-expanded={aberto}
         onClick={() => setAberto((v) => !v)}
       >
         <Icone nome="sino" tamanho={22} />
-        {naoLidos > 0 && (
+        {naoLidas > 0 && (
           <span className="casca-contador" aria-hidden="true">
-            {naoLidos > 9 ? '9+' : naoLidos}
+            {naoLidas > 9 ? '9+' : naoLidas}
           </span>
         )}
       </button>
 
       {aberto && (
-        <div className="casca-painel-avisos" role="dialog" aria-label="Avisos recentes">
+        <div className="casca-painel-avisos" role="dialog" aria-label="Avisos">
           <div className="casca-painel-cabecalho">
             <strong>Avisos</strong>
-            <Link to={caminhoComunicados} className="casca-link" onClick={() => setAberto(false)}>
-              Ver todos
-            </Link>
+            <button
+              type="button"
+              className="casca-link casca-link-botao"
+              onClick={marcarTodas}
+              disabled={naoLidas === 0}
+            >
+              Marcar todas como lidas
+            </button>
           </div>
 
           {erro && <p className="casca-painel-vazio">Não foi possível carregar os avisos.</p>}
-          {!erro && recentes.length === 0 && <p className="casca-painel-vazio">Nenhum aviso.</p>}
+          {!carregando && !erro && itens.length === 0 && (
+            <p className="casca-painel-vazio">Nenhum aviso por aqui.</p>
+          )}
 
           <ul className="casca-avisos-lista">
-            {recentes.map((c) => (
-              <li key={c.id}>
-                <button type="button" className="casca-aviso" onClick={() => abrirAviso(c)}>
+            {itens.map((n) => (
+              <li key={n.id}>
+                <button type="button" className="casca-aviso" onClick={() => abrirAviso(n)}>
+                  <span className="casca-aviso-icone" aria-hidden="true">
+                    <Icone nome={ICONE_POR_TIPO[n.tipo] ?? 'engrenagem'} tamanho={18} />
+                  </span>
+                  <span className="casca-aviso-texto">
+                    <span className={n.lida ? 'casca-aviso-titulo' : 'casca-aviso-titulo casca-aviso-titulo-novo'}>
+                      {n.titulo}
+                    </span>
+                    {n.texto && <span className="casca-aviso-corpo">{n.texto}</span>}
+                    <span className="casca-aviso-meta">{tempoRelativo(n.criadaEm)}</span>
+                  </span>
                   <span
-                    className={c.lido ? 'casca-aviso-ponto casca-aviso-ponto-lido' : 'casca-aviso-ponto'}
+                    className={n.lida ? 'casca-aviso-ponto casca-aviso-ponto-lido' : 'casca-aviso-ponto'}
                     aria-hidden="true"
                   />
-                  <span className="casca-aviso-texto">
-                    <span className="casca-aviso-titulo">{c.titulo}</span>
-                    <span className="casca-aviso-meta">
-                      {c.autor.nome} · {formatarDataHora(c.publicadoEm)}
-                    </span>
-                  </span>
-                  {!c.lido && <span className="casca-aviso-novo">Novo</span>}
                 </button>
               </li>
             ))}
           </ul>
+
+          {carregando && <p className="casca-painel-vazio">Carregando...</p>}
+
+          {!carregando && haMais && (
+            <div className="casca-painel-rodape">
+              <button type="button" className="casca-link casca-link-botao" onClick={() => void carregarMais()}>
+                Carregar mais
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

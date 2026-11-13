@@ -4,11 +4,18 @@ import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
 import { calcularSituacao } from '../../lib/regras';
+import { notificar } from '../../lib/notificacoes';
 import { recalcularInscricoes, recalcularTurma } from './calculo';
 
 const router = Router();
 
 const SEM_PERMISSAO = 'Sem permissão';
+
+const ROTULO_SITUACAO: Record<string, string> = {
+  APROVADO: 'aprovado',
+  REPROVADO_NOTA: 'reprovado por nota',
+  REPROVADO_FALTA: 'reprovado por falta',
+};
 
 // TurmaDTO (contrato 5.3)
 const incluirTurma = {
@@ -348,6 +355,52 @@ async function montarHistorico(matriculaId: number) {
   };
 }
 
+// Data de hoje (aaaa-mm-dd, relógio do servidor), para a chave de aviso de nota.
+function dataDeHoje(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Aviso no sino ao aluno de cada nota lançada ou alterada (uma por dia e por avaliação). Em segundo plano.
+function avisarNotas(avaliacao: { id: number; turmaId: number }, inscricaoIds: number[]): void {
+  void (async () => {
+    const [turma, inscricoes] = await Promise.all([
+      prisma.turma.findUnique({ where: { id: avaliacao.turmaId }, select: { disciplina: { select: { nome: true } } } }),
+      prisma.inscricao.findMany({
+        where: { id: { in: inscricaoIds } },
+        select: { matricula: { select: { aluno: { select: { id: true, usuarioId: true } } } } },
+      }),
+    ]);
+    if (!turma) {
+      return;
+    }
+    const hoje = dataDeHoje();
+    for (const i of inscricoes) {
+      const aluno = i.matricula.aluno;
+      notificar([aluno.usuarioId], {
+        tipo: 'NOTA',
+        titulo: `Nota lançada em ${turma.disciplina.nome}`,
+        link: '/boletim',
+        chave: `nota:${avaliacao.id}:${aluno.id}:${hoje}`,
+      });
+    }
+  })().catch(() => undefined);
+}
+
+// Aviso no sino ao aluno com o resultado final do fechamento do diário.
+function avisarResultados(
+  disciplina: string,
+  itens: { situacao: string; matricula: { aluno: { usuarioId: number } } }[]
+): void {
+  for (const i of itens) {
+    notificar([i.matricula.aluno.usuarioId], {
+      tipo: 'NOTA',
+      titulo: `Resultado final em ${disciplina}: ${ROTULO_SITUACAO[i.situacao] ?? i.situacao}`,
+      link: '/boletim',
+    });
+  }
+}
+
 // ---------- Diário da turma ----------
 
 router.get(
@@ -396,18 +449,28 @@ router.post(
     const nivel = turma.disciplina.curso.nivel;
     const cursando = await prisma.inscricao.findMany({
       where: { turmaId: turma.id, status: 'CURSANDO' },
-      select: { id: true, notaFinal: true, frequencia: true },
+      select: {
+        id: true,
+        notaFinal: true,
+        frequencia: true,
+        matricula: { select: { aluno: { select: { usuarioId: true } } } },
+      },
     });
+    const situacoes = cursando.map((i) => ({
+      ...i,
+      situacao: calcularSituacao(nivel, i.notaFinal ?? 0, i.frequencia ?? 100),
+    }));
     await prisma.$transaction(
-      cursando.map((i) =>
+      situacoes.map((i) =>
         prisma.inscricao.update({
           where: { id: i.id },
           data: {
-            status: calcularSituacao(nivel, i.notaFinal ?? 0, i.frequencia ?? 100),
+            status: i.situacao,
           },
         })
       )
     );
+    avisarResultados(turma.disciplina.nome, situacoes);
 
     res.json(await inscricoesDoDiario(turma.id));
   })
@@ -507,6 +570,7 @@ router.put(
       )
     );
     await recalcularInscricoes(ids);
+    avisarNotas(avaliacao, ids);
     res.status(204).end();
   })
 );

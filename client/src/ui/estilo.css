@@ -402,6 +402,27 @@ textarea {
   color: var(--cor-texto-suave);
 }
 
+/* Barra acima da tabela (botão Exportar à direita) */
+.tabela-barra {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+  min-width: 0;
+}
+
+.tabela-exportar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+}
+
+.tabela-exportar:hover:not(:disabled) {
+  color: var(--cor-primaria);
+}
+
 .clicavel {
   cursor: pointer;
 }

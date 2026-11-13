@@ -110,6 +110,61 @@ publico.get(
   })
 );
 
+// Manifesto do PWA (nome e ícone do aplicativo instalado). Público, sem cache.
+publico.get(
+  '/plataforma/manifesto',
+  asyncHandler(async (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    const configuracao = await lerConfiguracao();
+    const logo = (configuracao.logo ?? '').trim();
+    const temLogo = logo !== '';
+    const tipoLogo = /^data:(image\/(?:jpeg|png|webp));base64,/.exec(logo)?.[1];
+    const icones = temLogo
+      ? [192, 512].map((tamanho) => ({
+          src: '/api/plataforma/logo',
+          sizes: `${tamanho}x${tamanho}`,
+          ...(tipoLogo ? { type: tipoLogo } : {}),
+          purpose: 'any',
+        }))
+      : [
+          { src: '/logo-simbolo-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/logo-simbolo.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ];
+    const manifesto = {
+      name: configuracao.nome,
+      short_name: Array.from(configuracao.nome).slice(0, 12).join(''),
+      theme_color: configuracao.corPrimaria,
+      background_color: '#ffffff',
+      start_url: '/',
+      display: 'standalone',
+      icons: icones,
+    };
+    res.type('application/manifest+json');
+    res.send(JSON.stringify(manifesto));
+  })
+);
+
+// Logo da plataforma: data URL decodificada (com o tipo certo), ou redirecionamento.
+publico.get(
+  '/plataforma/logo',
+  asyncHandler(async (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=300');
+    const configuracao = await lerConfiguracao();
+    const logo = (configuracao.logo ?? '').trim();
+    if (/^https?:\/\//i.test(logo)) {
+      res.redirect(302, logo);
+      return;
+    }
+    const partes = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(logo);
+    if (!partes) {
+      res.redirect(302, '/logo-simbolo.png');
+      return;
+    }
+    res.type(partes[1]);
+    res.send(Buffer.from(partes[2], 'base64'));
+  })
+);
+
 // ---------- Leitura (ADMIN) ----------
 
 router.get(

@@ -99,6 +99,8 @@ const ROTULO_MODULO: Record<string, string> = {
   suporte: 'Suporte',
   chamados: 'Suporte',
   atualizacao: 'Atualização',
+  backups: 'Cópia de segurança',
+  notificacoes: 'Avisos',
   chat: 'Chat',
   plataforma: 'Configurações',
   configuracoes: 'Configurações',

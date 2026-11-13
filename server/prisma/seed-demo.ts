@@ -1219,6 +1219,60 @@ export async function carregarDemonstracao(prisma: PrismaClient): Promise<void> 
     { autorId: anaId, ha: 4, texto: 'Material da semana publicado no ambiente da disciplina.' },
   ]);
 
+  // ----- Central de notificações (avisos de demonstração, nas últimas 48 horas) -----
+
+  const nomeDemo = (email: string): string => {
+    const u = usuariosDemo.find((x) => x.email === email);
+    if (!u) throw new Error(`Usuário de demonstração não encontrado: ${email}`);
+    return u.nome;
+  };
+  const postDemo = (chave: string): number => {
+    const p = pubs.find((x) => x.key === chave);
+    if (!p) throw new Error(`Publicação não encontrada: ${chave}`);
+    return p.id;
+  };
+  const dataBr = (x: Date): string =>
+    `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
+
+  type AvisoDado = {
+    email: string;
+    tipo: 'COMUNICADO' | 'SUPORTE' | 'FORUM' | 'NOTA' | 'FINANCEIRO' | 'MEDALHA' | 'BIBLIOTECA';
+    titulo: string;
+    texto: string;
+    link: string | null;
+    ha: number;
+    lidaHa?: number;
+  };
+  const avisosDados: AvisoDado[] = [
+    // Aluna Marina
+    { email: 'aluna.marina@escola.demo', tipo: 'NOTA', titulo: 'Nota lançada em Algoritmos II', texto: 'Confira a nota no boletim.', link: '/boletim', ha: 26, lidaHa: 25 },
+    { email: 'aluna.marina@escola.demo', tipo: 'SUPORTE', titulo: 'Nova resposta no chamado: Não consigo ver meu boletim no celular', texto: 'A equipe respondeu o seu chamado. Abra o menu do usuário para ver a conversa.', link: null, ha: 30 },
+    { email: 'aluna.marina@escola.demo', tipo: 'BIBLIOTECA', titulo: `Empréstimo registrado: Fundamentos de Algoritmos, devolução até ${dataBr(addAgora(14))}`, texto: 'Confira seus empréstimos na biblioteca.', link: '/biblioteca', ha: 0.5, lidaHa: 0.2 },
+    // Professora Ana
+    { email: 'prof.ana@escola.demo', tipo: 'COMUNICADO', titulo: 'Conselho de classe', texto: 'Confira a pauta com a coordenação.', link: '/comunicados', ha: 22, lidaHa: 21 },
+    { email: 'prof.ana@escola.demo', tipo: 'FORUM', titulo: `${nomeDemo('aluno.joao@escola.demo')} comentou em: Modelos de projeto de pesquisa para a qualificação`, texto: 'Veja o comentário e responda, se quiser.', link: `/forum/p/${postDemo('p7')}`, ha: 28 },
+    { email: 'prof.ana@escola.demo', tipo: 'SUPORTE', titulo: 'Nova resposta no chamado: Dúvida sobre o trabalho', texto: 'A aluna respondeu a sua última mensagem.', link: '/atendimento', ha: 6, lidaHa: 5 },
+    // Secretaria
+    { email: 'secretaria@escola.demo', tipo: 'SUPORTE', titulo: 'Nova resposta no chamado: Segunda via da mensalidade de outubro', texto: 'O aluno enviou uma nova mensagem no atendimento.', link: '/atendimento', ha: 20, lidaHa: 19 },
+    { email: 'secretaria@escola.demo', tipo: 'FORUM', titulo: `${nomeDemo('aluna.marina@escola.demo')} comentou em: Chamada para a Semana da Computação`, texto: 'Veja o comentário e responda, se quiser.', link: `/forum/p/${postDemo('p8')}`, ha: 20 },
+    // Aluno Lucas
+    { email: 'aluno.lucas@escola.demo', tipo: 'COMUNICADO', titulo: 'Boas-vindas ao segundo semestre', texto: 'Bons estudos a todos!', link: '/comunicados', ha: 40, lidaHa: 39 },
+    { email: 'aluno.lucas@escola.demo', tipo: 'FORUM', titulo: `${nomeDemo('prof.carla@escola.demo')} comentou em: Como organizar a rotina de estudos no 6º ano`, texto: 'Veja o comentário e responda, se quiser.', link: `/forum/p/${postDemo('p6')}`, ha: 40 },
+    { email: 'aluno.lucas@escola.demo', tipo: 'FINANCEIRO', titulo: 'Nova mensalidade de 2026-11', texto: 'Confira o valor e o vencimento no financeiro.', link: '/financeiro', ha: 44 },
+    { email: 'aluno.lucas@escola.demo', tipo: 'MEDALHA', titulo: 'Você recebeu a medalha Colaborador da Feira de Ciências', texto: 'Veja suas medalhas no perfil.', link: '/perfil', ha: 10 },
+  ];
+  await prisma.notificacao.createMany({
+    data: avisosDados.map((a) => ({
+      usuarioId: idDe(a.email),
+      tipo: a.tipo,
+      titulo: a.titulo,
+      texto: a.texto,
+      link: a.link,
+      criadaEm: quando(a.ha),
+      lidaEm: a.lidaHa !== undefined ? quando(a.lidaHa) : null,
+    })),
+  });
+
   // Resumo
   console.log(
     `Dados de demonstração carregados: ${await prisma.usuario.count()} usuários, ${await prisma.turma.count()} turmas, ${await prisma.matricula.count()} matrículas.`

@@ -67,6 +67,7 @@ function Matriculas() {
         />
       </Grade>
       <Tabela<MatriculaDTO>
+        exportar="matriculas"
         dados={lista.dados ?? []}
         chave={(m) => m.id}
         aoClicarLinha={(m) => setSelecionadaId(m.id)}

@@ -65,6 +65,9 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Atualização pelo painel (só administrador e TI): verifica o último commit do GitHub e atualiza o sistema, sem mexer no banco de dados
 - E-mails da plataforma, com teste de envio e histórico: recuperação de senha, boas-vindas a novos usuários, comunicados e respostas do suporte
 - Painel "Atividades" com o registro de ações em tempo real, visível só para administrador e TI; os registros são guardados por 90 dias
+- Cópia de segurança do banco (só administrador e TI): cópia automática diária, criar, baixar, enviar um arquivo e restaurar
+- Importar planilhas (CSV) de alunos e professores, com modelo, conferência antes de gravar e importação tudo ou nada
+- Exportar para CSV, que abre direto no Excel em português, as listas e tabelas do sistema
 
 **Professor**
 
@@ -87,6 +90,7 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Suporte por chamados (tickets), com atendimento por categoria
 - Fórum com comunidades, votos e comentários
 - Chat privado entre usuários, com conversas individuais e grupos, imagens, confirmação de entrega e de leitura, "digitando...", quem está online, respostas citando uma mensagem e apagar a própria mensagem
+- Central de notificações (o sino): avisos de comunicados, chamados, fórum, notas, financeiro, medalhas e biblioteca, com marcação de lido e link direto
 - Recuperação de senha pelo próprio e-mail, com link de uso único
 - Temas claro e escuro
 - Uso no celular, com opção de instalar como app (PWA)
@@ -201,12 +205,26 @@ O arquivo `.env` na raiz do projeto é lido pelo Docker Compose. O instalador cr
 | `WEB_PORT` | `8090` | Porta do site |
 | `API_PORT` | `3090` | Porta da API, publicada somente em `127.0.0.1` |
 | `DB_PORT` | `5432` | Porta do banco, publicada somente em `127.0.0.1` |
+| `FUSO_HORARIO` | `America/Sao_Paulo` | Fuso da API. A hora da cópia automática segue este fuso |
 
 Os valores padrão são exemplos. Os instaladores geram segredos aleatórios no `.env`. Não envie o `.env` para o Git.
 
 ### Como conectar um e-mail
 
 Entre como administrador e abra **Configurações**, no menu, na seção Sistema, e depois a aba **E-mail**. Preencha o endereço do site (por exemplo, `http://localhost:8090`, ou o endereço público, se houver), o servidor de envio (SMTP) e a porta, o usuário e a senha da conta de e-mail, e o e-mail e o nome do remetente. Marque **Envio de e-mails ligado** e escolha quais avisos saem. A porta 587 costuma usar conexão comum que passa a TLS (deixe **Conexão segura** desmarcada); a porta 465 usa TLS direto (marque **Conexão segura**). Contas com verificação em duas etapas costumam exigir uma **senha de aplicativo**, em vez da senha comum. Depois de salvar, use **Enviar e-mail de teste** com um endereço seu: a tela mostra se o envio deu certo ou o erro devolvido pelo servidor, e o histórico de envios aparece embaixo. A senha fica guardada cifrada e não volta para a tela; deixe o campo em branco para manter a senha atual.
+
+### Cópia de segurança
+
+Entre como administrador e abra **Configurações**, na seção Sistema, e depois a aba **Cópia de segurança**.
+
+- **Onde fica**: no próprio servidor, no volume `dados_backups` do Docker. Cada cópia é um arquivo `.sql.gz` com todos os dados do sistema.
+- **Automática**: uma cópia por dia, na hora escolhida (padrão 3h), guardando as 7 mais recentes. Ajuste a hora e a quantidade na mesma tela e clique em **Salvar**.
+- **Criar agora**: o botão **Criar cópia agora** faz uma cópia manual na hora.
+- **Baixar**: no menu de ações de cada cópia, **Baixar** salva o arquivo no seu computador.
+- **Restaurar**: no menu da cópia, **Restaurar** substitui todos os dados pelos da cópia (usuários e senhas inclusive). Antes, o sistema guarda uma cópia do estado atual. Para confirmar, digite `RESTAURAR`. Depois, é preciso entrar de novo.
+- **Enviar**: **Enviar arquivo de cópia** traz um `.sql.gz` de outro computador, para restaurar ali.
+
+Recomendação: guarde as cópias baixadas fora do computador onde o sistema roda (um pendrive, outro disco ou a nuvem). As cópias não são cifradas e ficam no mesmo computador do sistema. Veja [SECURITY.md](SECURITY.md).
 
 ## Arquitetura
 

@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
 import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
+import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
@@ -109,6 +110,37 @@ function filtroDestinatarios(
   }
 }
 
+// Destinatários do comunicado (usado pelo e-mail e pelo aviso no sino): ativos, menos o autor.
+function condicaoDestinatarios(
+  comunicado: { publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
+  autorId: number
+): Prisma.UsuarioWhereInput {
+  return {
+    AND: [
+      { ativo: true },
+      { id: { not: autorId } },
+      filtroDestinatarios(comunicado.publico, comunicado.turmaId, comunicado.cursoId),
+    ],
+  };
+}
+
+// Aviso no sino para os destinatários do comunicado. Roda em segundo plano: nunca atrasa nem derruba a resposta.
+function avisarComunicado(
+  comunicado: { titulo: string; publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
+  autorId: number
+): void {
+  void (async () => {
+    const destinatarios = await prisma.usuario.findMany({
+      where: condicaoDestinatarios(comunicado, autorId),
+      select: { id: true },
+    });
+    notificar(
+      destinatarios.map((d) => d.id),
+      { tipo: 'COMUNICADO', titulo: comunicado.titulo, link: '/comunicados' }
+    );
+  })().catch(() => undefined);
+}
+
 // Avisa por e-mail os destinatários do comunicado. Roda em segundo plano: nunca atrasa nem derruba a resposta.
 function enviarEmailsComunicado(
   comunicado: { id: number; titulo: string; corpo: string; publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
@@ -123,13 +155,7 @@ function enviarEmailsComunicado(
       return;
     }
     const destinatarios = await prisma.usuario.findMany({
-      where: {
-        AND: [
-          { ativo: true },
-          { id: { not: autorId } },
-          filtroDestinatarios(comunicado.publico, comunicado.turmaId, comunicado.cursoId),
-        ],
-      },
+      where: condicaoDestinatarios(comunicado, autorId),
       select: { email: true },
       orderBy: { id: 'asc' },
       take: MAX_DESTINATARIOS_EMAIL,
@@ -221,6 +247,7 @@ router.post(
       include: incluirComunicado,
     });
     enviarEmailsComunicado(criado, id);
+    avisarComunicado(criado, id);
     res.status(201).json({ ...criado, lido: false });
   })
 );

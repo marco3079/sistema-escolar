@@ -350,6 +350,7 @@ export function LogSistema() {
         {(!carregando || itens.length > 0) && (
           <section className="cartao logs-cartao-tabela">
             <Tabela<LogDTO>
+              exportar="logs"
               colunas={colunas}
               dados={itens}
               chave={(r) => r.id}

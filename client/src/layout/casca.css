@@ -270,6 +270,8 @@
   z-index: 40;
   width: 340px;
   max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
   box-sizing: border-box;
   padding: 0.75rem;
   background: var(--cor-superficie);
@@ -292,10 +294,31 @@
   text-decoration: none;
 }
 
+/* Botão com cara de link (marcar todas, carregar mais) */
+.casca-link-botao {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.casca-link-botao:disabled {
+  color: var(--cor-texto-suave);
+  cursor: default;
+}
+
 .casca-painel-vazio {
   margin: 0.5rem;
   font-size: 0.88rem;
   color: var(--cor-texto-suave);
+}
+
+.casca-painel-rodape {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 0.25rem;
 }
 
 .casca-avisos-lista {
@@ -351,6 +374,33 @@
   white-space: nowrap;
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.casca-aviso-titulo-novo {
+  font-weight: 800;
+}
+
+/* Texto do aviso: no máximo duas linhas */
+.casca-aviso-corpo {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave);
+  overflow-wrap: anywhere;
+}
+
+.casca-aviso-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
 }
 
 .casca-aviso-meta {
@@ -686,6 +736,17 @@
 
 .casca-celular .casca-principal {
   padding: 7.5rem 1rem calc(var(--altura-barra-inferior) + env(safe-area-inset-bottom));
+}
+
+/* Painel de avisos no celular: ocupa a largura da tela, logo abaixo da barra do topo */
+.casca-celular .casca-painel-avisos {
+  position: fixed;
+  top: 3.75rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  width: auto;
+  max-width: none;
+  max-height: calc(100vh - 4.5rem);
 }
 
 /* Barra inferior */

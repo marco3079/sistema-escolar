@@ -1,44 +1,32 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
-import { emailHabilitado, enderecoDoSite, enfileirarEmail, lerConfiguracao } from '../../lib/email';
-import { criarTokenSenha } from '../../lib/tokens-senha';
+import { registrarLog } from '../../lib/log';
+import {
+  alunoCampos,
+  alunoCriarSchema,
+  avisarBoasVindas,
+  corpoImportacaoSchema,
+  criarAluno,
+  criarProfessor,
+  emailSchema,
+  garantirEmailLivre,
+  importarPlanilha,
+  modeloImportacao,
+  professorCampos,
+  professorCriarSchema,
+  ResultadoImportacao,
+  senhaSchema,
+  textoOpcional,
+  TipoPlanilha,
+} from './importacao';
 
 const router = Router();
 
 // ---------- Utilitários ----------
-
-// E-mail de boas-vindas com o botão "Criar minha senha". Roda em segundo plano:
-// nunca atrasa nem derruba a resposta do cadastro.
-function avisarBoasVindas(usuario: { id: number; nome: string; email: string }): void {
-  void (async () => {
-    if (!(await emailHabilitado('BOAS_VINDAS'))) {
-      return;
-    }
-    const endereco = await enderecoDoSite();
-    if (!endereco) {
-      return;
-    }
-    const { nome: nomePlataforma } = await lerConfiguracao();
-    const token = await criarTokenSenha(usuario.id, 'BOAS_VINDAS');
-    enfileirarEmail({
-      para: usuario.email,
-      assunto: `Bem-vindo ao ${nomePlataforma}`,
-      titulo: `Bem-vindo ao ${nomePlataforma}`,
-      paragrafos: [
-        `Criamos a sua conta no ${nomePlataforma}.`,
-        `Seu e-mail de acesso é ${usuario.email}.`,
-        'Clique no botão abaixo para criar a sua senha. O link vale por 7 dias.',
-      ],
-      botao: { rotulo: 'Criar minha senha', endereco: `${endereco}/redefinir-senha/${token}` },
-      tipo: 'BOAS_VINDAS',
-    });
-  })().catch(() => undefined);
-}
 
 // Remove senhaHash de qualquer registro de usuário antes de responder.
 function semSenha<U extends { senhaHash: string }>(usuario: U): Omit<U, 'senhaHash'> {
@@ -56,39 +44,6 @@ function textoBusca(valor: unknown): string {
   return typeof valor === 'string' ? valor.trim() : '';
 }
 
-async function garantirEmailLivre(email: string, ignorarUsuarioId?: number): Promise<void> {
-  const outro = await prisma.usuario.findFirst({
-    where: ignorarUsuarioId === undefined ? { email } : { email, id: { not: ignorarUsuarioId } },
-    select: { id: true },
-  });
-  if (outro) {
-    throw new HttpError(409, 'E-mail já cadastrado');
-  }
-}
-
-// RA: ano atual + sequência de 5 dígitos (ex.: 202600001).
-async function proximoRA(tx: Prisma.TransactionClient): Promise<string> {
-  const ano = String(new Date().getFullYear());
-  const ultimo = await tx.aluno.findFirst({
-    where: { ra: { startsWith: ano } },
-    orderBy: { ra: 'desc' },
-    select: { ra: true },
-  });
-  const sequencia = ultimo ? Number(ultimo.ra.slice(ano.length)) + 1 : 1;
-  return ano + String(sequencia).padStart(5, '0');
-}
-
-// Registro do professor: 'P' + 4 dígitos (ex.: P0001).
-async function proximoRegistro(tx: Prisma.TransactionClient): Promise<string> {
-  const ultimo = await tx.professor.findFirst({
-    where: { registro: { startsWith: 'P' } },
-    orderBy: { registro: 'desc' },
-    select: { registro: true },
-  });
-  const sequencia = ultimo ? Number(ultimo.registro.slice(1)) + 1 : 1;
-  return 'P' + String(sequencia).padStart(4, '0');
-}
-
 async function carregarPerfil(id: number) {
   return prisma.usuario.findUnique({
     where: { id },
@@ -96,53 +51,52 @@ async function carregarPerfil(id: number) {
   });
 }
 
-// ---------- Schemas (zod) ----------
+// Resposta da importação: 400 com o relatório se houver erro, 201 se gravou, 200 na simulação.
+function responderImportacao(
+  req: Request,
+  res: Response,
+  tipo: TipoPlanilha,
+  resultado: ResultadoImportacao
+): void {
+  if (resultado.bloqueada) {
+    res.status(400).json({
+      erro: 'Há linhas com erro; nenhuma foi importada',
+      detalhes: resultado.relatorio,
+    });
+    return;
+  }
+  if (resultado.gravou) {
+    const quantidade = resultado.relatorio.criadas;
+    registrarLog({
+      usuarioId: req.usuario.id,
+      perfil: req.usuario.perfilReal ?? req.usuario.perfil,
+      tipo: 'CRIACAO',
+      modulo: tipo === 'alunos' ? 'Alunos' : 'Professores',
+      descricao: `Importou ${quantidade} ${tipo} por planilha`,
+      metodo: 'POST',
+      caminho: `/api/${tipo}/importar`,
+      status: 201,
+      ip: req.ip ?? null,
+      navegador: req.get('user-agent')?.slice(0, 200) ?? null,
+    });
+    res.status(201).json(resultado.relatorio);
+    return;
+  }
+  res.json(resultado.relatorio);
+}
 
-const senhaSchema = z.string().min(6, 'A senha deve ter pelo menos 6 caracteres');
-const textoOpcional = z.string().nullable().optional();
-const dataSchema = z
-  .string()
-  .refine((valor) => !Number.isNaN(new Date(valor).getTime()), 'Data inválida');
-const titulacaoSchema = z.enum(['GRADUADO', 'ESPECIALISTA', 'MESTRE', 'DOUTOR']);
-const perfilUsuarioSchema = z.enum(['ADMIN', 'TI', 'SECRETARIA']);
-
-const alunoCampos = {
-  nome: z.string().min(1, 'Nome obrigatório'),
-  email: z.string().email('E-mail inválido'),
-  cpf: textoOpcional,
-  telefone: textoOpcional,
-  dataNascimento: dataSchema,
-  endereco: textoOpcional,
-  responsavelNome: textoOpcional,
-  responsavelTelefone: textoOpcional,
-  responsavelEmail: textoOpcional,
-};
-
-const alunoCriarSchema = z.object({ ...alunoCampos, senha: senhaSchema });
-const alunoAtualizarSchema = z.object(alunoCampos).partial();
-
-const professorCampos = {
-  nome: z.string().min(1, 'Nome obrigatório'),
-  email: z.string().email('E-mail inválido'),
-  cpf: textoOpcional,
-  telefone: textoOpcional,
-  titulacao: titulacaoSchema,
-  area: textoOpcional,
-};
-
-const professorCriarSchema = z.object({ ...professorCampos, senha: senhaSchema });
-const professorAtualizarSchema = z.object(professorCampos).partial();
+// ---------- Schemas de cadastro (zod) ----------
 
 const usuarioCriarSchema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
-  email: z.string().email('E-mail inválido'),
+  email: emailSchema,
   senha: senhaSchema,
-  perfil: perfilUsuarioSchema,
+  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA']),
 });
 
 const usuarioAtualizarSchema = z.object({
   nome: z.string().min(1, 'Nome obrigatório').optional(),
-  email: z.string().email('E-mail inválido').optional(),
+  email: emailSchema.optional(),
   telefone: textoOpcional,
   ativo: z.boolean().optional(),
 });
@@ -153,6 +107,9 @@ const usuarioFiltroSchema = z.object({
 });
 
 const redefinirSenhaSchema = z.object({ novaSenha: senhaSchema });
+
+const alunoAtualizarSchema = z.object(alunoCampos).partial();
+const professorAtualizarSchema = z.object(professorCampos).partial();
 
 const perfilAtualizarSchema = z.object({
   telefone: textoOpcional,
@@ -274,6 +231,24 @@ router.get(
 );
 
 router.get(
+  '/alunos/importar/modelo',
+  permitir('ADMIN', 'SECRETARIA'),
+  asyncHandler(async (_req, res) => {
+    res.json(modeloImportacao('alunos'));
+  })
+);
+
+router.post(
+  '/alunos/importar',
+  permitir('ADMIN', 'SECRETARIA'),
+  asyncHandler(async (req, res) => {
+    const corpo = validar(corpoImportacaoSchema, req.body);
+    const resultado = await importarPlanilha('alunos', corpo);
+    responderImportacao(req, res, 'alunos', resultado);
+  })
+);
+
+router.get(
   '/alunos/:id',
   permitir('ADMIN', 'SECRETARIA', 'PROFESSOR'),
   asyncHandler(async (req, res) => {
@@ -305,34 +280,7 @@ router.post(
   permitir('ADMIN', 'SECRETARIA'),
   asyncHandler(async (req, res) => {
     const dados = validar(alunoCriarSchema, req.body);
-    await garantirEmailLivre(dados.email);
-    const senhaHash = await bcrypt.hash(dados.senha, 10);
-    const aluno = await prisma.$transaction(async (tx) => {
-      const usuario = await tx.usuario.create({
-        data: {
-          nome: dados.nome,
-          email: dados.email,
-          senhaHash,
-          perfil: 'ALUNO',
-          cpf: dados.cpf ?? null,
-          telefone: dados.telefone ?? null,
-        },
-      });
-      const ra = await proximoRA(tx);
-      return tx.aluno.create({
-        data: {
-          usuarioId: usuario.id,
-          ra,
-          dataNascimento: new Date(dados.dataNascimento),
-          endereco: dados.endereco ?? null,
-          responsavelNome: dados.responsavelNome ?? null,
-          responsavelTelefone: dados.responsavelTelefone ?? null,
-          responsavelEmail: dados.responsavelEmail ?? null,
-        },
-        include: incluiAluno,
-      });
-    });
-    avisarBoasVindas(aluno.usuario);
+    const aluno = await criarAluno(dados);
     res.status(201).json(paraDTO(aluno));
   })
 );
@@ -418,6 +366,24 @@ router.get(
 );
 
 router.get(
+  '/professores/importar/modelo',
+  permitir('ADMIN', 'SECRETARIA'),
+  asyncHandler(async (_req, res) => {
+    res.json(modeloImportacao('professores'));
+  })
+);
+
+router.post(
+  '/professores/importar',
+  permitir('ADMIN', 'SECRETARIA'),
+  asyncHandler(async (req, res) => {
+    const corpo = validar(corpoImportacaoSchema, req.body);
+    const resultado = await importarPlanilha('professores', corpo);
+    responderImportacao(req, res, 'professores', resultado);
+  })
+);
+
+router.get(
   '/professores/:id',
   permitir('ADMIN', 'SECRETARIA'),
   asyncHandler(async (req, res) => {
@@ -438,31 +404,7 @@ router.post(
   permitir('ADMIN', 'SECRETARIA'),
   asyncHandler(async (req, res) => {
     const dados = validar(professorCriarSchema, req.body);
-    await garantirEmailLivre(dados.email);
-    const senhaHash = await bcrypt.hash(dados.senha, 10);
-    const professor = await prisma.$transaction(async (tx) => {
-      const usuario = await tx.usuario.create({
-        data: {
-          nome: dados.nome,
-          email: dados.email,
-          senhaHash,
-          perfil: 'PROFESSOR',
-          cpf: dados.cpf ?? null,
-          telefone: dados.telefone ?? null,
-        },
-      });
-      const registro = await proximoRegistro(tx);
-      return tx.professor.create({
-        data: {
-          usuarioId: usuario.id,
-          registro,
-          titulacao: dados.titulacao,
-          area: dados.area ?? null,
-        },
-        include: incluiProfessor,
-      });
-    });
-    avisarBoasVindas(professor.usuario);
+    const professor = await criarProfessor(dados);
     res.status(201).json(paraDTO(professor));
   })
 );

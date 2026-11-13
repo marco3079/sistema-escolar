@@ -4,6 +4,7 @@ import { usePlataforma } from '../../lib/plataforma';
 import { Abas, Aviso, Carregando, Pagina } from '../../ui';
 import { mensagemErro } from '../cadastros/tipos';
 import { Atualizacao } from './Atualizacao';
+import { Backup } from './Backup';
 import { Cores } from './Cores';
 import { Email } from './Email';
 import { Identidade } from './Identidade';
@@ -14,6 +15,7 @@ const ABAS = [
   { id: 'identidade', rotulo: 'Identidade' },
   { id: 'cores', rotulo: 'Cores' },
   { id: 'email', rotulo: 'E-mail' },
+  { id: 'backup', rotulo: 'Cópia de segurança' },
   { id: 'atualizacao', rotulo: 'Atualização' },
 ];
 
@@ -101,6 +103,8 @@ export function Configuracoes() {
           <div hidden={aba !== 'email'}>
             <Email config={config} aoSalvo={aoSalvarEmail} />
           </div>
+          {/* Montada só nesta aba: carrega a lista ao entrar e para a consulta de operação em andamento ao sair. */}
+          {aba === 'backup' && <Backup />}
           {/* Montada só nesta aba: ao sair, o acompanhamento da atualização para e o temporizador é limpo. */}
           {aba === 'atualizacao' && <Atualizacao />}
         </>

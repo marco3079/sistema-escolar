@@ -54,6 +54,23 @@ export interface EmailEnviadoDTO {
   criadoEm: string;
 }
 
+// Contrato C (cópia de segurança): item de GET /backups e resposta de POST /backups.
+export interface BackupDTO {
+  nome: string;
+  tamanho: number;
+  criadoEm: string;
+  origem: 'auto' | 'manual' | 'enviado' | 'pre-restauracao';
+}
+
+// Contrato C (cópia de segurança): configuração da cópia automática (GET /backups e PUT /backups/configuracao).
+export interface ConfigBackupDTO {
+  backupAutomatico: boolean;
+  backupHora: number;
+  backupManter: number;
+  ultimoAutomatico: string | null;
+  ferramentasOk: boolean;
+}
+
 // Contrato W (atualização): commit do Git. curto = 7 caracteres; data ISO; mensagem = primeira linha.
 export interface CommitInfo {
   commit: string;

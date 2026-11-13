@@ -52,13 +52,14 @@ function naoNulos(valores: (number | null)[]): number[] {
   return valores.filter((v): v is number => v !== null);
 }
 
-// Anos completos na data de hoje.
+// Anos completos na data de hoje. A data de nascimento é gravada como meia-noite UTC, então o dia,
+// o mês e o ano dela são lidos em UTC; "hoje" segue o fuso do servidor.
 function idadeEm(data: Date): number {
   const hoje = new Date();
-  let anos = hoje.getFullYear() - data.getFullYear();
+  let anos = hoje.getFullYear() - data.getUTCFullYear();
   const antesDoAniversario =
-    hoje.getMonth() < data.getMonth() ||
-    (hoje.getMonth() === data.getMonth() && hoje.getDate() < data.getDate());
+    hoje.getMonth() < data.getUTCMonth() ||
+    (hoje.getMonth() === data.getUTCMonth() && hoje.getDate() < data.getUTCDate());
   if (antesDoAniversario) anos -= 1;
   return anos;
 }

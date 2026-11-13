@@ -671,6 +671,11 @@ model ConfiguracaoPlataforma {
   emailComunicados Boolean @default(true)
   emailSuporte     Boolean @default(true)
 
+  // Cópia de segurança automática do banco
+  backupAutomatico Boolean @default(true)
+  backupHora       Int     @default(3) // hora do dia (0 a 23), no relógio do servidor
+  backupManter     Int     @default(7) // quantas cópias automáticas guardar
+
   atualizadoEm DateTime @updatedAt
 }
 
@@ -761,4 +766,23 @@ model ChatMensagem {
   apagadaEm   DateTime?
 
   @@index([conversaId, criadaEm])
+}
+
+// ===== Central de notificações =====
+
+// Aviso para um usuário, mostrado no sino. O link é o caminho dentro do portal, sem o prefixo
+// do perfil (por exemplo "/comunicados" ou "/forum/p/12"); o cliente acrescenta /admin, /professor ou /aluno.
+model Notificacao {
+  id        Int       @id @default(autoincrement())
+  usuarioId Int
+  tipo      String // COMUNICADO, SUPORTE, FORUM, NOTA, FINANCEIRO, MEDALHA, BIBLIOTECA, SISTEMA
+  titulo    String
+  texto     String    @default("")
+  link      String?
+  chave     String? // evita repetir o mesmo aviso (única por usuário quando preenchida)
+  criadaEm  DateTime  @default(now())
+  lidaEm    DateTime?
+
+  @@unique([usuarioId, chave])
+  @@index([usuarioId, criadaEm])
 }

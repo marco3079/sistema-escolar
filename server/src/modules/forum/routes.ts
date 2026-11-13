@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
+import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
@@ -549,7 +550,7 @@ router.post(
     const dados = validar(comentarioSchema, req.body);
     const p = await prisma.forumPublicacao.findUnique({
       where: { id: publicacaoId },
-      select: { id: true, fechada: true, removida: true },
+      select: { id: true, fechada: true, removida: true, titulo: true, autorId: true },
     });
     if (!p) {
       throw new HttpError(404, 'Publicação não encontrada');
@@ -562,14 +563,16 @@ router.post(
     }
 
     const paiId = dados.paiId ?? null;
+    let autorDoPaiId: number | null = null;
     if (paiId !== null) {
       const pai = await prisma.forumComentario.findFirst({
         where: { id: paiId, publicacaoId },
-        select: { id: true },
+        select: { id: true, autorId: true },
       });
       if (!pai) {
         throw new HttpError(400, 'Comentário respondido inválido para esta publicação');
       }
+      autorDoPaiId = pai.autorId;
     }
 
     const criado = await prisma.$transaction(async (tx) => {
@@ -584,6 +587,17 @@ router.post(
     });
 
     const autores = await carregarAutores([req.usuario.id]);
+    // Aviso no sino: o autor da publicação e, em resposta, o autor do comentário pai (menos quem comentou).
+    const avisados = [p.autorId, autorDoPaiId].filter(
+      (uid): uid is number => uid !== null && uid !== req.usuario.id
+    );
+    if (avisados.length > 0) {
+      notificar(avisados, {
+        tipo: 'FORUM',
+        titulo: `${autorDe(autores, req.usuario.id).nome} comentou em: ${p.titulo}`,
+        link: `/forum/p/${publicacaoId}`,
+      });
+    }
     res.status(201).json(paraComentarioDTO(criado, autorDe(autores, req.usuario.id), req, 0));
   })
 );

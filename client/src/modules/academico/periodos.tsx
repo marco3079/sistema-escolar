@@ -192,6 +192,7 @@ export function Periodos() {
             />
           </div>
           <Tabela
+            exportar="periodos"
             colunas={colunas}
             dados={lista}
             chave={(p) => p.id}

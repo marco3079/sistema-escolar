@@ -49,7 +49,7 @@ client/
 
 O arquivo `server/src/app.ts` percorre as pastas de `server/src/modules/` em ordem alfabética. Cada pasta que tem um `routes.ts` é carregada. As regras são:
 
-- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login, o teste de saúde e a senha por e-mail, e o módulo `plataforma` para `GET /api/plataforma`.
+- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login, o teste de saúde e a senha por e-mail, e o módulo `plataforma` para `GET /api/plataforma`, o manifesto do app e a logo.
 - O `default` do módulo é um roteador do Express montado em `/api` com o middleware `autenticar`, que exige o token JWT.
 - As rotas fixas (por exemplo, `/turmas/minhas`) são declaradas antes das rotas com parâmetro (`/turmas/:id`), para não haver conflito.
 - Rotas que não existem recebem `404` com `{ "erro": "Rota não encontrada" }`.
@@ -93,7 +93,7 @@ Algumas rotas aplicam regras além do perfil, dentro do código. Exemplos: um pr
 
 O servidor registra a atividade dos usuários em uma tabela própria (`LogAtividade`), que é consultada pelas telas Atividades e Log do sistema, só para ADMIN e TI.
 
-- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio), as requisições `OPTIONS` e as quatro consultas de tempo real do chat (`/api/chat/sincronizar`, `/api/chat/nao-lidas`, `/api/chat/conversas/:id/digitando` e `/api/chat/conversas/:id/lida`).
+- Um middleware em `server/src/app.ts` registra toda requisição autenticada sob `/api` ao terminar a resposta, sem atrasá-la. Ficam de fora `/api/saude`, tudo sob `/api/logs`, `/api/auth/login` (que tem registro próprio), as requisições `OPTIONS` e as quatro consultas de tempo real do chat (`/api/chat/sincronizar`, `/api/chat/nao-lidas`, `/api/chat/conversas/:id/digitando` e `/api/chat/conversas/:id/lida`). Também ficam de fora as rotas de cópia de segurança (`/api/backups`), que registram a atividade à mão, sem conteúdo; a importação de planilhas (`/api/alunos/importar` e `/api/professores/importar`), que registra só o total de registros criados; e o modelo de planilha. Na central de avisos, ficam de fora a consulta do sino (`GET /api/notificacoes` e `GET /api/notificacoes/nao-lidas`) e as marcações como lido.
 - Entradas e saídas são registradas: `LOGIN` no sucesso, `FALHA_LOGIN` quando a senha ou o e-mail não batem, e `SAIDA` quando o usuário sai (`POST /api/auth/sair`).
 - Telas abertas: o site envia `POST /api/logs/tela` a cada troca de tela. Se o mesmo usuário abrir o mesmo caminho em menos de 5 segundos, não é gravado de novo.
 - Consultas repetidas: uma consulta (`CONSULTA`) do mesmo usuário no mesmo caminho, em menos de 90 segundos, não é gravada de novo. Assim, telas que se atualizam sozinhas não enchem o log.
@@ -198,6 +198,63 @@ O botão de atualizar (Configurações → Atualização, perfil ADMIN e TI) faz
 - **Uma tarefa por vez**: um segundo `POST` enquanto a tarefa roda recebe `409`. Os comandos Git (verificação e atualização) usam uma fila única, para não rodarem ao mesmo tempo no mesmo repositório.
 - **Log de atividades**: o `POST` registra "Iniciou a atualização do sistema". O `GET` fica fora do log, como as consultas de tempo real do chat.
 
+## Agendador de tarefas
+
+O agendador (`server/src/lib/agendador.ts`) é um relógio simples. A cada minuto ele verifica as tarefas registradas. Ele é ligado uma vez em `server/src/server.ts`, depois que o app é montado, então as tarefas que os módulos registram ao carregar já existem.
+
+- **Tarefa diária** (`registrarTarefaDiaria`): roda no máximo uma vez por dia e por nome, a partir da hora dada (0 a 23, relógio do servidor). A hora pode ser uma função, lida a cada verificação. Quando ela devolve `null`, a tarefa fica desligada. Por isso, mudar a hora da cópia automática vale na verificação seguinte, sem reiniciar.
+- **Atraso**: se o servidor estava desligado na hora, a tarefa roda na primeira verificação depois dela, no mesmo dia.
+- **Tarefa periódica** (`registrarTarefaPeriodica`): roda a cada N minutos. A limpeza de avisos roda a cada 720 minutos e também na primeira verificação, ao subir o servidor.
+- Uma tarefa não roda duas vezes ao mesmo tempo. Erro de uma tarefa vai para o log do servidor e não derruba nada. Os temporizadores usam `unref`, então não impedem o processo de encerrar.
+- A data da última execução de cada tarefa diária fica em memória e também num arquivo `agendador.json` no diretório `DIRETORIO_DADOS` (padrão `/dados`, que na API é o volume `dados_api`). Se o arquivo não puder ser gravado, a data fica só na memória e o servidor avisa uma vez no log. A data é marcada antes da execução, então uma tarefa que falha não se repete no mesmo dia.
+- As horas são as do relógio do processo da API. O contêiner `api` recebe a variável `TZ` de `FUSO_HORARIO` (padrão `America/Sao_Paulo`) pelo `docker-compose.yml`.
+
+## Central de notificações
+
+O sino do cabeçalho é a central de avisos. Os avisos ficam na tabela `Notificacao`, um registro por pessoa e evento. Cada pessoa vê só os próprios avisos (rotas em `server/src/modules/notificacoes/routes.ts`, veja `API.md`).
+
+- **Criação**: `notificar(usuarioIds, aviso)`, em `server/src/lib/notificacoes.ts`, é chamado pelos módulos logo depois de gravar o evento. Não espera e nunca lança erro, então não atrasa nem altera a resposta da rota. Remove ids repetidos e inválidos, corta o título em 120 caracteres e o texto em 300, e grava em lotes de 500, com `createMany` e `skipDuplicates`.
+- **Onde os avisos nascem**:
+
+| Evento | Quem recebe | Aviso |
+|---|---|---|
+| Comunicado publicado | o público do comunicado, menos o autor | COMUNICADO, título do comunicado, link `/comunicados` |
+| Mensagem nova em chamado | da equipe: o autor do chamado; do autor: o responsável, se houver | SUPORTE, "Nova resposta no chamado: {assunto}"; link `/atendimento` para quem atende; sem link para o autor |
+| Comentário numa publicação do fórum | o autor da publicação (se não for quem comentou) e, em resposta, o autor do comentário pai | FORUM, "{nome} comentou em: {título}", link `/forum/p/{id}` |
+| Nota lançada ou alterada no diário | o aluno | NOTA, "Nota lançada em {disciplina}", link `/boletim`, com `chave` `nota:{avaliacaoId}:{alunoId}:{aaaa-mm-dd}` (um por dia) |
+| Fechamento do diário | cada aluno da turma | NOTA, "Resultado final em {disciplina}: {situação}", link `/boletim` |
+| Mensalidades geradas | cada aluno | FINANCEIRO, "Nova mensalidade de {competência}", link `/financeiro`, com `chave` `mensalidade:{id}` |
+| Pagamento registrado | o aluno | FINANCEIRO, "Pagamento confirmado: {competência}", link `/financeiro` |
+| Medalha manual concedida | quem recebeu | MEDALHA, "Você recebeu a medalha {título}", link `/perfil` |
+| Empréstimo registrado | quem pegou o livro | BIBLIOTECA, "Empréstimo registrado: {título}, devolução até {data}", link `/biblioteca` |
+
+- O chat não gera aviso no sino, porque já tem o próprio contador.
+- **Limpeza**: a cada 720 minutos, a tarefa periódica apaga os avisos com mais de 60 dias.
+- **Site**: o contador do sino consulta `GET /api/notificacoes/nao-lidas` a cada 30 segundos. A consulta pausa com a aba oculta e atualiza ao voltar o foco. Ao abrir, o painel mostra os 20 avisos mais recentes, com ícone por tipo, tempo relativo e marca de não lido. Clicar marca como lido e leva ao link, quando há. Há "Marcar todas como lidas", "Carregar mais" e o estado vazio "Nenhum aviso por aqui.". O painel fecha com Esc ou clique fora e, no celular, ocupa a largura da tela. Os avisos de comunicado não vêm mais de `/comunicados`: o contador do sino é o das notificações.
+
+## Cópia de segurança
+
+A cópia de segurança do banco inteiro é feita pelo módulo `backups` (`server/src/modules/backups/routes.ts`), só para o administrador (TI incluído). Veja as rotas e os formatos em `API.md`.
+
+- **Onde ficam**: em arquivos `escola-AAAAMMDD-HHMMSS-<origem>.sql.gz`, no diretório `DIRETORIO_BACKUPS` (padrão `/dados/backups`). No Compose, esse diretório é o volume `dados_backups`, montado só no contêiner `api`.
+- **Ferramentas**: a imagem da API (`server/Dockerfile`) instala o cliente PostgreSQL 16 (`postgresql-client-16`), do repositório oficial do PostgreSQL para Debian, com a chave em `/usr/share/keyrings`. `pg_dump` e `psql` ficam no PATH. A versão 16 é a mesma do banco do Compose. `ferramentasOk` confere isso ao consultar a tela.
+- **Criação**: `pg_dump --no-owner --no-privileges --clean --if-exists`, com a conexão lida de `DATABASE_URL`. A saída passa por gzip (`zlib`) e é gravada primeiro como `.parcial`, renomeada só no fim. Se algo falhar, o `.parcial` é apagado.
+- **Segurança dos comandos**: as ferramentas são chamadas com `spawn` e argumentos em lista, sem shell. A senha vai só na variável `PGPASSWORD` do processo filho. Mensagens de erro passam por um filtro que troca a senha por `***`. Todo nome recebido pela API é conferido com uma expressão regular antes de tocar no disco.
+- **Restauração**: antes, cria uma cópia `pre-restauracao` do estado atual. Depois, o arquivo é lido e descompactado em stream e enviado ao `psql -X -q -v ON_ERROR_STOP=1 --single-transaction`. A restauração é uma transação só: se qualquer comando falhar, nada é aplicado e o banco continua como estava. A restauração troca todos os dados, inclusive usuários e senhas.
+- **Uma operação por vez**: uma trava em memória impede que duas cópias ou uma cópia e uma restauração rodem ao mesmo tempo. O pedido concorrente recebe `409`.
+- **Cópia automática**: uma tarefa diária do agendador (`backup`) lê a hora e a quantidade a guardar da configuração (`ConfiguracaoPlataforma`, padrão 3 da manhã e 7 cópias). Depois de criar a cópia, apaga as automáticas além de `backupManter`. O limite total é de 40 arquivos.
+- **Envio de arquivo**: `POST /api/backups/enviar` lê o corpo bruto em stream, com limite de 200 MB, sem passar pelo parser de JSON. Confere a assinatura gzip antes de aceitar.
+- **Nginx**: `client/nginx.conf` tem um `location ~ ^/api/backups(/|$)` com `client_max_body_size 210m`, `proxy_request_buffering off` (o arquivo segue direto para a API) e tempos limite de 600 s. As demais rotas `/api/` continuam com o limite do site, de 2 MB.
+- **Volumes**: a API monta `dados_api` em `/dados` (onde fica o `agendador.json`) e `dados_backups` em `/dados/backups`. As cópias ficam no mesmo computador, em volume separado do banco (`dados_db`). Mesmo assim, `docker compose down -v` apaga também as cópias: guarde os arquivos baixados em outro lugar.
+- **Tela**: Configurações, aba "Cópia de segurança" (entre "E-mail" e "Atualização"). Tem o cartão da cópia automática, o botão "Criar cópia agora", o envio de arquivo, a lista de cópias com origem, tamanho e ações (baixar, restaurar, apagar). A restauração pede a palavra `RESTAURAR` e avisa que é preciso entrar de novo depois.
+
+## Planilhas
+
+- **Exportação**: feita no navegador. A tabela (`Tabela`, em `client/src/ui/index.tsx`) ganha o botão "Exportar" quando recebe a prop `exportar`. O botão gera um CSV das linhas exibidas, lendo o texto das células, sem a coluna de ações, com o título das colunas no cabeçalho. O arquivo se chama `{nome}-{aaaa-mm-dd}.csv`. Com a tabela vazia, o botão não aparece. Não há ida ao servidor. A exportação está nas listas de alunos, professores, usuários, cursos, períodos, turmas, matrículas, financeiro, biblioteca e log.
+- **Formato** (`client/src/lib/csv.ts`): separador `;`, UTF-8 com BOM (abre direto no Excel em português) e quebra de linha CRLF. Célula com `;`, aspas ou quebra de linha vai entre aspas. Célula que começa com `=`, `+`, `-`, `@`, TAB ou CR, e não é número simples, recebe um apóstrofo antes, para não ser lida como fórmula.
+- **Leitura**: `lerCsv` aceita `;` ou `,` (o separador é detectado pela primeira linha), aspas, quebras de linha dentro de aspas e BOM. Ignora linhas vazias. Não apara os valores: essa parte é feita pelo servidor.
+- **Importação**: a tela "Importar planilha" aparece em Alunos e Professores, para quem pode criar. Ela baixa o modelo (CSV), lê o arquivo escolhido, faz a conferência (`simular: true`), mostra linha a linha o que está certo e o que tem erro, e só libera "Importar" sem erros. O servidor valida tudo de novo e grava tudo numa transação, ou nada. Veja as colunas e as regras em `API.md`, em "Importar alunos e professores por planilha".
+
 ## Modelo de dados
 
 O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas áreas abaixo (só os nomes principais):
@@ -215,8 +272,9 @@ O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas 
 - **Perfil e medalhas**: `MedalhaConcedida`, só as medalhas manuais (veja a seção "Perfil, medalhas e níveis").
 - **Suporte**: `Chamado` e `ChamadoMensagem`.
 - **Fórum**: `ForumComunidade`, `ForumPublicacao`, `ForumComentario` e `ForumVoto`.
-- **Plataforma**: `ConfiguracaoPlataforma`, uma linha com a identidade visual e as configurações de e-mail (veja a seção "Configurações da plataforma e identidade visual").
+- **Plataforma**: `ConfiguracaoPlataforma`, uma linha com a identidade visual, as configurações de e-mail e as da cópia automática (`backupAutomatico`, `backupHora` e `backupManter`, veja a seção "Cópia de segurança").
 - **E-mail**: `EmailEnviado`, o histórico de envios, sem o corpo do e-mail.
+- **Central de avisos**: `Notificacao`, um aviso por pessoa e evento. Tem `chave` opcional, que não se repete para a mesma pessoa, e `lidaEm`, que fica vazio enquanto o aviso não foi lido.
 - **Senha por e-mail**: `TokenSenha`, guardado só como hash.
 - **Chat**: `ChatConversa`, `ChatParticipante` e `ChatMensagem`.
 

@@ -258,6 +258,7 @@ function Acervo({ editavel }: { editavel: boolean }) {
 
       {livros.dados && visao === 'tabela' && (
         <Tabela
+          exportar="acervo"
           dados={livros.dados}
           chave={(l) => l.id}
           vazio="Nenhum livro encontrado."
@@ -412,6 +413,7 @@ function MeusEmprestimos() {
       {meus.carregando && <Carregando />}
       {meus.dados && (
         <Tabela
+          exportar="meus-emprestimos"
           dados={meus.dados}
           chave={(e) => e.id}
           vazio="Você não tem empréstimos."
@@ -568,6 +570,7 @@ function Emprestimos() {
 
       {emprestimos.dados && (
         <Tabela
+          exportar="emprestimos"
           dados={emprestimos.dados}
           chave={(e) => e.id}
           vazio="Nenhum empréstimo encontrado."

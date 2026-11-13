@@ -4,6 +4,7 @@ import type { Perfil } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
+import { notificar } from '../../lib/notificacoes';
 import { validarImagem } from './imagem';
 import {
   calcularAutomaticas,
@@ -370,6 +371,12 @@ router.post(
         },
       }),
     ]);
+
+    notificar([destino.id], {
+      tipo: 'MEDALHA',
+      titulo: `Você recebeu a medalha ${criada.titulo}`,
+      link: '/perfil',
+    });
 
     const dto: MedalhaDTO = {
       codigo: 'manual-' + criada.id,

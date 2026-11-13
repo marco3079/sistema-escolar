@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
+import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
@@ -28,6 +29,48 @@ function paraDTO<T extends { valor: number; desconto: number }>(
   m: T
 ): T & { valorFinal: number } {
   return { ...m, valorFinal: arredondar2(Math.max(0, m.valor - m.desconto)) };
+}
+
+// Avisos no sino ao aluno da matrícula. Em segundo plano: nunca atrasam nem derrubam a resposta.
+function avisarMensalidades(matriculaId: number, competencias: string[]): void {
+  void (async () => {
+    const matricula = await prisma.matricula.findUnique({
+      where: { id: matriculaId },
+      select: { aluno: { select: { usuarioId: true } } },
+    });
+    if (!matricula) {
+      return;
+    }
+    const geradas = await prisma.mensalidade.findMany({
+      where: { matriculaId, competencia: { in: competencias } },
+      select: { id: true, competencia: true },
+    });
+    for (const m of geradas) {
+      notificar([matricula.aluno.usuarioId], {
+        tipo: 'FINANCEIRO',
+        titulo: `Nova mensalidade de ${m.competencia}`,
+        link: '/financeiro',
+        chave: `mensalidade:${m.id}`,
+      });
+    }
+  })().catch(() => undefined);
+}
+
+function avisarPagamento(matriculaId: number, competencia: string): void {
+  void (async () => {
+    const matricula = await prisma.matricula.findUnique({
+      where: { id: matriculaId },
+      select: { aluno: { select: { usuarioId: true } } },
+    });
+    if (!matricula) {
+      return;
+    }
+    notificar([matricula.aluno.usuarioId], {
+      tipo: 'FINANCEIRO',
+      titulo: `Pagamento confirmado: ${competencia}`,
+      link: '/financeiro',
+    });
+  })().catch(() => undefined);
 }
 
 // Marca como ATRASADA toda mensalidade ABERTA com vencimento anterior a hoje
@@ -149,6 +192,10 @@ router.post(
       data: linhas,
       skipDuplicates: true,
     });
+    avisarMensalidades(
+      matricula.id,
+      linhas.map((l) => l.competencia)
+    );
     res.status(201).json({ criadas: resultado.count });
   })
 );
@@ -193,6 +240,7 @@ router.post(
       data: { status: 'PAGA', pagoEm: new Date(), formaPagamento },
       include: INCLUIR_MATRICULA,
     });
+    avisarPagamento(atualizada.matriculaId, atualizada.competencia);
     res.json(paraDTO(atualizada));
   })
 );

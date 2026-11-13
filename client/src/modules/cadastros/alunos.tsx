@@ -10,6 +10,7 @@ import type { AlunoDTO } from './tipos';
 import { FichaAluno } from './FichaAluno';
 import { MenuAcoes } from './MenuAcoes';
 import type { AcaoMenu } from './MenuAcoes';
+import { ImportarPlanilha } from './ImportarPlanilha';
 
 // ---------- Formulário (criar ou editar) ----------
 
@@ -124,11 +125,14 @@ export function Alunos() {
   const [editando, setEditando] = useState<AlunoDTO | 'novo' | null>(null);
   const [ficha, setFicha] = useState<number | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
   const { usuario } = useAuth();
   const navegar = useNavigate();
   const { dados, carregando, erro, recarregar } = useDados<AlunoDTO[]>(
     `/alunos${queryString({ busca: busca.trim() })}`
   );
+  // Mesmos perfis que o servidor aceita para criar aluno (POST /alunos).
+  const podeCriar = usuario?.perfil === 'ADMIN' || usuario?.perfil === 'SECRETARIA';
 
   function fechar() {
     setEditando(null);
@@ -177,7 +181,19 @@ export function Alunos() {
   }
 
   return (
-    <Pagina titulo="Alunos" acoes={<Botao aoClicar={() => setEditando('novo')}>Novo aluno</Botao>}>
+    <Pagina
+      titulo="Alunos"
+      acoes={
+        <>
+          {podeCriar && (
+            <Botao variante="secundario" aoClicar={() => setImportando(true)}>
+              Importar planilha
+            </Botao>
+          )}
+          <Botao aoClicar={() => setEditando('novo')}>Novo aluno</Botao>
+        </>
+      }
+    >
       <Campo rotulo="Buscar por nome, e-mail ou RA" valor={busca} aoMudar={setBusca} />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {erroAcao && <Aviso tipo="erro">{erroAcao}</Aviso>}
@@ -188,6 +204,7 @@ export function Alunos() {
           dados={dados}
           vazio="Nenhum aluno encontrado."
           aoClicarLinha={(a) => setFicha(a.id)}
+          exportar="alunos"
           colunas={[
             { titulo: 'RA', celula: (a) => a.ra },
             { titulo: 'Nome', celula: (a) => a.usuario.nome },
@@ -218,6 +235,14 @@ export function Alunos() {
             setFicha(null);
             if (a) setEditando(a);
           }}
+        />
+      )}
+
+      {importando && (
+        <ImportarPlanilha
+          tipo="alunos"
+          aoFechar={() => setImportando(false)}
+          aoConcluir={recarregar}
         />
       )}
 

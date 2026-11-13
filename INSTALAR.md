@@ -106,6 +106,22 @@ Para testar com uma escola fictícia, use a opção de demonstração numa insta
 
 Os dados de demonstração são fictícios e servem só para teste.
 
+## Como faço uma cópia de segurança?
+
+Entre como administrador e abra **Configurações**, depois a aba **Cópia de segurança**. Clique em **Criar cópia agora**. A cópia também é feita sozinha todo dia, na hora escolhida na mesma tela.
+
+Para guardar uma cópia fora do computador, abra o menu de ações da cópia e clique em **Baixar**. Guarde o arquivo `.sql.gz` em lugar seguro, como um pendrive ou outro disco. Ele tem todos os dados do sistema, então não deixe em lugar aberto.
+
+## Como passo o sistema para outro computador?
+
+1. No computador antigo, faça uma cópia e clique em **Baixar** nela (veja acima).
+2. No outro computador, instale o sistema como descrito neste guia, com o instalador.
+3. Entre como administrador no novo sistema, abra **Configurações** → **Cópia de segurança** e clique em **Enviar arquivo de cópia**. Escolha o arquivo `.sql.gz` baixado.
+4. Clique em **Restaurar** na cópia enviada e digite `RESTAURAR` para confirmar. Os dados e os usuários passam a ser os do computador antigo.
+5. Entre de novo com um usuário da cópia. A senha é a mesma que era no computador antigo.
+
+Antes de restaurar, o sistema guarda o estado do computador novo numa cópia "Antes de restaurar", caso você queira voltar.
+
 ## Problemas comuns
 
 **O Docker não está aberto.** O instalador diz "o Docker está instalado, mas não está rodando". Abra o Docker Desktop, espere ele iniciar e rode o instalador de novo.

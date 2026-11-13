@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
 import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
+import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
@@ -21,6 +22,12 @@ function avisarNovaMensagem(
   if (destinoId === null) {
     return;
   }
+  // Aviso no sino: quem atende abre o chamado pelo atendimento; o autor abre pelo menu do usuário (sem link).
+  notificar([destinoId], {
+    tipo: 'SUPORTE',
+    titulo: `Nova resposta no chamado: ${chamado.assunto}`,
+    ...(daEquipe ? {} : { link: '/atendimento' }),
+  });
   void (async () => {
     if (!(await emailHabilitado('SUPORTE'))) {
       return;

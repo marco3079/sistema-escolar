@@ -282,6 +282,7 @@ export function Turmas() {
 
           {visao === 'tabela' ? (
             <Tabela
+              exportar="turmas"
               colunas={colunas}
               dados={filtradas}
               chave={(t) => t.id}

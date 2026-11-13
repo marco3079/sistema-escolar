@@ -93,3 +93,29 @@ Pontos em aberto:
 
 - O clique em "Atualizar agora" pela tela não foi exercitado (a atualização foi disparada pela API; a aba foi aberta e conferida depois de concluída).
 - Em Linux, o `git pull` roda como root dentro do contêiner e os arquivos novos podem ficar com dono root na pasta do projeto.
+
+## Quinta leva (13/11/2026): pendências, central de notificações, cópia de segurança e planilhas
+
+Plano e contratos em [quinta-leva.md](quinta-leva.md); roteiro geral em [ROTEIRO.md](ROTEIRO.md). Todas as partes aprovadas pelo revisor.
+
+| Parte | Gerador |
+|---|---|
+| Agendador e notificações no servidor | g15 |
+| Avisos nos módulos e e-mail do login sem diferenciar maiúsculas | g16 |
+| Cópia de segurança, manifesto dinâmico e infra | g08 |
+| Importação por planilha no servidor | g17 |
+| Base do cliente (CSV, exportação nas tabelas, sino) | g18 |
+| Aba "Cópia de segurança" | g19 |
+| Tela de importar planilha e exportação nas listas | g06 |
+| Avisos de demonstração | g01 |
+| Documentação | g04 |
+
+Testes reais numa instalação temporária em Docker: cópia, download, restauração (com cópia anterior), envio de arquivo, nomes maliciosos e permissões; importação de 500 alunos em cerca de 3 s; exportação de planilha; aviso no sino a partir de um comunicado; login com e-mail em maiúsculas; chat, sino e telas de senha em tamanho de celular. O revisor testou notificações, avisos por evento e importação num banco descartável.
+
+Decisões do main nesta leva: armazenamento de arquivos adiado para a leva 6; fuso horário da API definido por `FUSO_HORARIO` (padrão America/Sao_Paulo), com o cálculo de idade ajustado.
+
+Pontos em aberto:
+
+- A cópia automática diária foi vista rodando na subida do contêiner; a execução na hora marcada, de um dia para o outro, não foi observada.
+- A restauração com falha no meio (desfazer a transação) não foi provocada.
+- O nome e o ícone do aplicativo instalado passaram a vir das configurações, mas a instalação num celular real não foi testada.

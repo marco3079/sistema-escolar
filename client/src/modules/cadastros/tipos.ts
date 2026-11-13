@@ -283,3 +283,23 @@ export interface ResumoUsuarioLogDTO {
   atividades7Dias: number;
   porTipo: { tipo: string; total: number }[];
 }
+
+// Importação por planilha (docs/plano/quinta-leva.md, Q4): GET /alunos/importar/modelo, POST /alunos/importar (e professores).
+
+export interface ModeloImportacaoDTO {
+  colunas: string[];
+  exemplo: string[];
+}
+
+export interface ResultadoImportacaoDTO {
+  total: number;
+  validas: number;
+  criadas: number;
+  resultados: {
+    linha: number;
+    situacao: 'OK' | 'ERRO' | 'CRIADA';
+    erros: string[];
+    nome: string;
+    email: string;
+  }[];
+}

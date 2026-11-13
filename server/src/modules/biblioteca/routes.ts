@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
+import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
@@ -231,6 +232,11 @@ router.post(
         },
         include: INCLUIR_EMPRESTIMO,
       });
+    });
+    notificar([emprestimo.usuario.id], {
+      tipo: 'BIBLIOTECA',
+      titulo: `Empréstimo registrado: ${emprestimo.livro.titulo}, devolução até ${emprestimo.devolucaoPrevista.toLocaleDateString('pt-BR')}`,
+      link: '/biblioteca',
     });
     res.status(201).json(paraDTO(emprestimo));
   })

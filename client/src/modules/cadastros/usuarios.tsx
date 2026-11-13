@@ -303,6 +303,7 @@ export function Usuarios() {
           dados={dados}
           vazio="Nenhum usuário encontrado."
           aoClicarLinha={(u) => setFicha(u.id)}
+          exportar="usuarios"
           colunas={[
             {
               titulo: 'Usuário',

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { baixarTexto, gerarCsv } from '../lib/csv';
 import './estilo.css';
+import { Icone } from './icones';
 
 // ---------- Formatação ----------
 
@@ -175,19 +177,39 @@ function classeDaCelula<T>(c: ColunaTabela<T>): string | undefined {
   return undefined;
 }
 
+// Data de hoje no formato aaaa-mm-dd (horário local), para o nome do arquivo exportado.
+function hojeAaaaaMmDd(): string {
+  const d = new Date();
+  const ano = String(d.getFullYear()).padStart(4, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+// Texto de uma célula: espaços e quebras colapsados em um espaço só.
+function textoDaCelula(celula: Element | undefined): string {
+  return (celula?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 export function Tabela<T>({
   colunas,
   dados,
   chave,
   vazio,
   aoClicarLinha,
+  exportar,
 }: {
   colunas: ColunaTabela<T>[];
   dados: T[];
   chave: (item: T) => string | number;
   vazio?: string;
   aoClicarLinha?: (item: T) => void;
+  // Nome do arquivo (sem extensão) do botão "Exportar" (CSV das linhas exibidas).
+  exportar?: string;
 }) {
+  // Referência à tabela larga: o CSV é montado com o texto das células renderizadas.
+  const larga = useRef<HTMLDivElement>(null);
+
   if (dados.length === 0) {
     return <p className="tabela-vazia">{vazio ?? 'Nenhum registro encontrado.'}</p>;
   }
@@ -195,9 +217,40 @@ export function Tabela<T>({
   // No cartão, a coluna de ações vai para o fim e aparece sem rótulo.
   const colunasCartao = [...colunas.filter((c) => !c.acoes), ...colunas.filter((c) => c.acoes)];
 
+  // Exportação: colunas sem ações, na ordem da tabela; cada linha é lida da tabela larga (sempre no DOM).
+  function exportarCsv(): void {
+    const corpo = larga.current;
+    if (!corpo || !exportar) return;
+    // Fica de fora a coluna de ações (marcada com `acoes` ou só intitulada "Ações").
+    const ehAcoes = (c: ColunaTabela<T>) => c.acoes === true || c.titulo.trim().toLowerCase() === 'ações';
+    const indices = colunas.map((c, i) => (ehAcoes(c) ? -1 : i)).filter((i) => i >= 0);
+    const cabecalho = indices.map((i) => colunas[i].titulo);
+    const linhas = Array.from(corpo.querySelectorAll('tbody tr')).map((tr) => {
+      const celulas = Array.from(tr.children);
+      // O travessão que as telas usam para "sem valor" vira célula vazia na planilha.
+      return indices.map((i) => {
+        const texto = textoDaCelula(celulas[i]);
+        return texto === '—' ? '' : texto;
+      });
+    });
+    baixarTexto(
+      `${exportar}-${hojeAaaaaMmDd()}.csv`,
+      gerarCsv(cabecalho, linhas),
+      'text/csv;charset=utf-8',
+    );
+  }
+
   return (
     <>
-      <div className="tabela-desktop">
+      {exportar && (
+        <div className="tabela-barra">
+          <button type="button" className="botao botao-texto tabela-exportar" onClick={exportarCsv}>
+            <Icone nome="documento" tamanho={18} />
+            <span>Exportar</span>
+          </button>
+        </div>
+      )}
+      <div className="tabela-desktop" ref={larga}>
         <table className="tabela">
           <thead>
             <tr>

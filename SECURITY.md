@@ -43,11 +43,26 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Chat sem criptografia de ponta a ponta**: as mensagens e as imagens do chat ficam no banco em texto puro (imagem em data URL). Quem tem acesso ao banco pode lê-las, e a API as devolve aos participantes da conversa. Não há criptografia de ponta a ponta. Não use o chat para dados que exijam esse nível de sigilo sem avaliar essa limitação.
 
 - **Limite de tentativas de login**: 10 falhas em 10 minutos para o mesmo endereço de IP e e-mail fazem as próximas tentativas receberem `429` (`Muitas tentativas. Aguarde alguns minutos.`). Um login bem-sucedido zera a contagem. A contagem fica na memória do servidor.
-- **Limite de tamanho**: o corpo de cada requisição é limitado a 1 MB. Acima disso, a API responde `413`.
+- **Limite de tamanho**: o corpo de cada requisição é limitado a 1 MB. Acima disso, a API responde `413`. A exceção é o envio de arquivo de cópia de segurança, que aceita até 200 MB (veja a seção "Cópias de segurança e planilhas").
+- **E-mail sem diferenciar maiúsculas**: o e-mail é gravado aparado e em minúsculas. Login, recuperação de senha e a checagem de e-mail já usado comparam sem diferenciar maiúsculas, para que `Ana@X.com` e `ana@x.com` não sejam duas contas.
+- **Central de avisos**: cada pessoa lê, marca e apaga só os próprios avisos. Aviso de outra pessoa devolve `404`, como se não existisse.
 - **Validação de imagens**: foto de perfil, capa de livro, anexo de chamado e imagem de publicação só aceitam JPEG, PNG ou WebP (em data URL), com até 200.000 caracteres. Foto e capa também aceitam endereço `http(s)`, de até 500 caracteres. Qualquer outro formato é recusado com `400`.
 - **API publicada só no próprio computador**: o `docker-compose.yml` publica a porta direta da API e a do banco somente em `127.0.0.1`. O site é publicado em todas as interfaces e encaminha `/api`, então a API também responde pela porta do site na rede local. Por isso, exponha só a porta do site, com HTTPS na frente.
 - **Cabeçalhos de segurança no site**: o nginx envia `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` e `Referrer-Policy: strict-origin-when-cross-origin`.
 - **Perfil público sem dados de contato**: o perfil público (usado pelo fórum e por outras telas) mostra nome, perfil, foto, curso, titulação, nível e medalhas. Não mostra e-mail, CPF nem telefone. O mesmo vale para os autores de chamados e de publicações.
+
+## Cópias de segurança e planilhas
+
+- **As cópias contêm todos os dados do sistema.** Elas incluem usuários, notas, financeiro, mensagens do chat e as senhas em hash. Também incluem a senha do servidor de e-mail cifrada: para ela voltar a ser lida numa instalação nova, o `JWT_SECRET` precisa ser o mesmo (veja "Senha do servidor de e-mail" acima).
+- **As cópias não são cifradas.** O arquivo `.sql.gz` é só compactado. Quem tiver o arquivo tem os dados. Guarde as cópias baixadas em lugar seguro, de preferência fora do computador onde o sistema roda.
+- **Ficam num volume do Docker** (`dados_backups`) no mesmo computador. Uma cópia no próprio computador não protege contra perda do computador.
+- **Só o administrador** (inclui TI, que tem o mesmo acesso) cria, baixa, envia, apaga e restaura cópias. Todas as rotas de `/api/backups` exigem esse perfil.
+- **Nomes de arquivo validados**: todo nome recebido pela API precisa seguir o padrão `escola-AAAAMMDD-HHMMSS-<origem>.sql.gz` antes de tocar no disco. Barras, `..` e outros formatos são recusados com `400`.
+- **Ferramentas sem shell**: `pg_dump` e `psql` são chamados com argumentos em lista. A senha do banco vai só na variável de ambiente do processo filho, nunca na linha de comando, e não aparece em mensagens de erro.
+- **Restauração protegida**: exige a palavra `RESTAURAR` no corpo da requisição e a tela pede a mesma palavra. Antes de restaurar, o estado atual é guardado numa cópia `pre-restauracao`. A restauração é uma transação só: se falhar, o banco não fica pela metade.
+- **Envio de arquivo**: só aceita um arquivo com a assinatura gzip, de até 200 MB. A assinatura não garante o conteúdo: a restauração executa o SQL do arquivo com o usuário do banco, pelo `psql` (com `ON_ERROR_STOP`). Envie só cópias geradas pelo próprio sistema.
+- **Planilhas exportadas**: o CSV neutraliza fórmulas. Célula que começa com `=`, `+`, `-`, `@`, TAB ou CR, e não é número simples, ganha um apóstrofo antes, para o Excel não executar a fórmula.
+- **Importação de planilhas**: a validação é feita no servidor, com as mesmas regras do cadastro individual, e a gravação é tudo ou nada. A importação define **uma senha inicial igual para todas as pessoas do lote** (mínimo de 8 caracteres). Oriente cada pessoa a trocá-la no primeiro acesso. A senha inicial não é gravada em log.
 
 ## Atualização pelo painel (serviço `atualizador`)
 
@@ -77,3 +92,4 @@ Para desligar o recurso, remova o serviço `atualizador` do `docker-compose.yml`
 ## Pontos de atenção conhecidos
 
 - O token de login fica guardado no armazenamento local do navegador. Em um computador compartilhado, faça sempre o logout ao sair.
+- A cópia automática fica no mesmo computador. Ela não substitui uma cópia guardada fora dele.

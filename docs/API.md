@@ -6,12 +6,13 @@ Esta referência é para quem vai integrar com o sistema escolar ou consultar a 
 
 - **Endereço base**: `http://localhost:3090/api` com as portas padrão (`API_PORT=3090`). A porta direta da API (3090) é publicada só em `127.0.0.1`, ou seja, só o próprio computador a acessa. A porta do site (8090, `WEB_PORT`) é publicada em todas as interfaces e encaminha `/api` para a API; por isso `http://localhost:8090/api` funciona e também responde a outros aparelhos da rede local.
 - **Formato**: corpo e resposta em JSON (`Content-Type: application/json`).
-- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude`, `POST /api/auth/login`, `GET /api/plataforma` (nome, logo e cores da tela de entrada) e as rotas de senha por e-mail (`/api/auth/esqueci-senha` e `/api/auth/redefinir-senha`, veja a seção "Senha por e-mail").
+- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude`, `POST /api/auth/login`, `GET /api/plataforma` (nome, logo e cores da tela de entrada), `GET /api/plataforma/manifesto` e `GET /api/plataforma/logo` (nome e ícone do app instalado) e as rotas de senha por e-mail (`/api/auth/esqueci-senha` e `/api/auth/redefinir-senha`, veja a seção "Senha por e-mail").
 - **Datas**: string ISO 8601 (por exemplo, `2026-03-02T00:00:00.000Z`).
 - **Dinheiro**: número em reais (por exemplo, `1250.5`).
 - **IDs**: inteiros. Um `:id` que não seja número devolve `400`.
+- **E-mail**: é gravado sem espaços nas pontas e em minúsculas, em todo cadastro e alteração. O login, o pedido de recuperação de senha e a checagem de e-mail já usado comparam sem diferenciar maiúsculas de minúsculas.
 - **Listas**: devolvem um array JSON simples, sem paginação. Os filtros vão na query string (`?busca=...`). A exceção é o log de atividades, que devolve `{ itens, haMais }`.
-- **Tamanho do corpo**: até 1 MB por requisição. Capas de livro em data URL cabem nesse limite.
+- **Tamanho do corpo**: até 1 MB por requisição. Capas de livro em data URL cabem nesse limite. Exceção: o envio de arquivo de cópia de segurança (`POST /backups/enviar`), que aceita até 200 MB.
 - **Criação**: devolve `201` com o registro criado.
 - **Exclusão**: devolve `204` sem corpo. Em alguns casos, a exclusão só marca o registro como inativo (veja a tabela de cada módulo).
 
@@ -30,7 +31,7 @@ Todo erro tem o formato:
 | `403` | Usuário logado sem permissão para a rota (`{ "erro": "Sem permissão" }`). |
 | `404` | Registro ou rota não encontrada. |
 | `409` | Conflito de regra de negócio, por exemplo, e-mail ou código repetido, ou inscrição sem vaga. |
-| `413` | Corpo da requisição maior que 1 MB (`{ "erro": "Corpo da requisição grande demais" }`). |
+| `413` | Corpo da requisição maior que 1 MB (`{ "erro": "Corpo da requisição grande demais" }`). No envio de cópia de segurança, maior que 200 MB. |
 | `429` | Muitas tentativas de login (`{ "erro": "Muitas tentativas. Aguarde alguns minutos." }`). Veja "Limite de tentativas de login". |
 | `500` | Erro interno. O detalhe fica só no log do servidor. |
 
@@ -150,6 +151,8 @@ Nome, slogan, logo, cores e envio de e-mails da plataforma. Só o perfil ADMIN (
 | Método e caminho | Quem | Corpo ou query | Resposta |
 |---|---|---|---|
 | GET `/plataforma` | público | | `PlataformaPublica`. Cabeçalho `Cache-Control: no-store`. |
+| GET `/plataforma/manifesto` | público | | Manifesto do aplicativo instalado (`application/manifest+json`, `Cache-Control: no-cache`): `name` (nome da plataforma), `short_name` (o nome cortado em 12 caracteres), `theme_color` (cor primária), `background_color: "#ffffff"`, `start_url: "/"`, `display: "standalone"` e `icons`. |
+| GET `/plataforma/logo` | público | | A logo, com o tipo da imagem (`Cache-Control: public, max-age=300`). Logo em data URL é devolvida decodificada. Endereço `http(s)` recebe `302` para ele. Sem logo própria, `302` para `/logo-simbolo.png`. |
 | GET `/configuracoes` | A | | `ConfiguracoesDTO` |
 | PUT `/configuracoes/identidade` | A | `{ nome, slogan, logo, corPrimaria, corSecundaria }` | `ConfiguracoesDTO`. `400` se algum campo for inválido. |
 | PUT `/configuracoes/email` | A | `{ enderecoSite, smtpServidor, smtpPorta, smtpSeguro, smtpUsuario, smtpSenha?, emailRemetente, emailNomeRemetente, emailAtivo, emailRecuperacao, emailBoasVindas, emailComunicados, emailSuporte }` | `ConfiguracoesDTO`. `400` se algum campo for inválido ou se faltar o que o envio ligado exige. |
@@ -207,6 +210,7 @@ Regras:
 - `emailAtivo: true` exige servidor SMTP, e-mail do remetente e endereço do site. Se faltar algum, `400` com a lista, por exemplo: `"Para ligar o envio de e-mails, preencha: servidor SMTP, endereço do site."`.
 - Teste: envia com a configuração gravada mesmo com o envio desligado, e espera o resultado do servidor. Cada etapa da conexão tem limite de 15 segundos. A mensagem de erro sai sem a senha e com no máximo 300 caracteres. O teste também entra no histórico, com o tipo `TESTE`.
 - O histórico guarda destinatário, assunto, tipo, situação e erro. O corpo do e-mail não é guardado.
+- O manifesto aponta os ícones para `/api/plataforma/logo` (192 e 512) quando há logo própria. Sem logo própria, aponta para `/logo-simbolo-192.png` e `/logo-simbolo.png`. O navegador usa o manifesto ao instalar o site como aplicativo.
 
 ## Atualização (módulo `atualizacao`)
 
@@ -419,6 +423,72 @@ Resposta: array de `{ tipo, titulo, subtitulo, caminho }`, com `tipo` igual a `A
 | DELETE `/professores/:id` | A, S | | `204`. Marca como inativo. |
 | GET `/perfil/meu` | todos | | Usuário, sem `senhaHash`, com `aluno` ou `professor` (ou `null`) |
 | PUT `/perfil/meu` | todos | `{ telefone?, endereco? }` (`endereco` só para aluno) | Mesmo formato do GET |
+
+### Importar alunos e professores por planilha
+
+Quem pode: A e S, nas rotas de alunos e de professores. A planilha é lida pelo site (CSV) e chega à API como linhas em JSON. Cada linha é um objeto em que a chave é o nome da coluna do cabeçalho.
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/alunos/importar/modelo` | A, S | | `{ colunas: string[]; exemplo: string[] }` |
+| POST `/alunos/importar` | A, S | `{ linhas, simular, senhaInicial? }` | Relatório (veja abaixo) |
+| GET `/professores/importar/modelo` | A, S | | `{ colunas: string[]; exemplo: string[] }` |
+| POST `/professores/importar` | A, S | `{ linhas, simular, senhaInicial? }` | Relatório (veja abaixo) |
+
+Corpo:
+
+```ts
+interface CorpoImportacao {
+  linhas: Record<string, string>[]; // de 1 a 500 linhas (sem o cabeçalho)
+  simular: boolean;                 // true só confere; false grava se não houver erro
+  senhaInicial?: string;            // 8 caracteres ou mais; obrigatória quando simular é false
+}
+```
+
+Colunas (o nome do cabeçalho não diferencia maiúsculas, acentos, espaços e hífens; `E-mail` vale como `email`; `data_de_nascimento` e `data_nascimento` valem como `nascimento`):
+
+| Planilha | Colunas | Obrigatórias |
+|---|---|---|
+| Alunos | `nome`, `email`, `cpf`, `telefone`, `nascimento`, `endereco`, `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | `nome`, `email`, `nascimento` |
+| Professores | `nome`, `email`, `cpf`, `telefone`, `titulacao`, `area` | `nome`, `email`, `titulacao` |
+
+- `nascimento`: `dd/mm/aaaa` ou `aaaa-mm-dd`. Data que não existe (por exemplo, 31/02) é erro.
+- `titulacao`: `GRADUADO`, `ESPECIALISTA`, `MESTRE` ou `DOUTOR`, ou os mesmos rótulos em minúsculas (`mestre`), com ou sem acento. Outro valor é erro.
+- Cada campo passa pelas mesmas validações do cadastro individual (por exemplo, nome obrigatório e formato do e-mail). Colunas que não existem no modelo são ignoradas.
+- Valores são aparados nas pontas. Coluna em branco é tratada como vazia.
+- O RA do aluno e o registro do professor são gerados como no cadastro individual (RA: ano atual e 5 dígitos; registro: `P` e 4 dígitos), em sequência, sem repetir.
+
+Relatório:
+
+```ts
+interface RelatorioImportacao {
+  total: number;      // linhas recebidas
+  validas: number;    // linhas sem erro
+  criadas: number;    // registros gravados (0 na simulação)
+  resultados: {
+    linha: number;                            // número da linha na planilha (a primeira linha de dados é a 2)
+    situacao: 'OK' | 'ERRO' | 'CRIADA';
+    erros: string[];                          // no formato "coluna: mensagem"
+    nome: string;
+    email: string;                            // em minúsculas
+  }[];
+}
+```
+
+Respostas:
+
+| Situação | Resposta |
+|---|---|
+| `simular: true` | `200` com o relatório. `situacao` é `OK` ou `ERRO`; `criadas` é 0. Nada é gravado. |
+| `simular: false` e nenhuma linha com erro | `201` com o relatório. `situacao` é `CRIADA`. Registra "Importou {n} alunos por planilha" (ou professores) no log, sem os dados. |
+| `simular: false` com alguma linha com erro | `400 { erro: "Há linhas com erro; nenhuma foi importada", detalhes: relatório }`. Nada é gravado. |
+| Corpo inválido (sem linhas, mais de 500, `senhaInicial` com menos de 8 caracteres ou ausente com `simular: false`) | `400 { erro }` |
+
+Regras:
+
+- E-mail repetido dentro da planilha, ou já cadastrado (sem diferenciar maiúsculas), é erro nas linhas envolvidas.
+- Com `simular: false`, a importação é tudo ou nada: todas as linhas são gravadas numa única transação, ou nenhuma. Se todas as linhas forem válidas, cada pessoa criada recebe o e-mail de boas-vindas (se o envio de e-mails estiver ligado), depois de gravada.
+- Todos os usuários de um mesmo lote recebem a mesma senha inicial. Oriente cada pessoa a trocá-la no primeiro acesso, em "Meu perfil".
 
 ## Fichas do aluno e do professor (módulo `fichas`)
 
@@ -893,3 +963,79 @@ Quem vê cada comunicado:
 - `PROFESSORES` é visto só por professores.
 - `TURMA` é visto pelos alunos com inscrição não trancada na turma e pelo professor da turma.
 - `CURSO` é visto pelos alunos com matrícula no curso e pelos professores com turma em disciplina do curso.
+
+## Notificações (módulo `notificacoes`)
+
+Central de avisos, o sino. Todos os perfis acessam, e cada pessoa vê só os próprios avisos: um id de outra pessoa devolve `404`. Os avisos são criados pelo servidor depois de cada evento. A lista de eventos está em `ARQUITETURA.md`, na seção "Central de notificações".
+
+```ts
+type TipoNotificacao = 'COMUNICADO' | 'SUPORTE' | 'FORUM' | 'NOTA' | 'FINANCEIRO' | 'MEDALHA' | 'BIBLIOTECA' | 'SISTEMA';
+
+interface NotificacaoDTO {
+  id: number;
+  tipo: TipoNotificacao;
+  titulo: string;       // até 120 caracteres
+  texto: string;        // até 300 caracteres; pode ser vazio
+  link: string | null;  // caminho dentro do portal, por exemplo "/boletim"
+  criadaEm: string;
+  lida: boolean;
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/notificacoes` | todos | `?limite=&antesDe=` | `{ itens: NotificacaoDTO[], haMais: boolean, naoLidas: number }`, do mais novo para o mais antigo. `limite` de 1 a 50 (padrão 20). `antesDe` é um id: traz só avisos com id menor (usado em "Carregar mais"). |
+| GET `/notificacoes/nao-lidas` | todos | | `{ total: number }` |
+| POST `/notificacoes/:id/lida` | todos | | `204`. `404` se o aviso não for da pessoa logada. |
+| POST `/notificacoes/lidas` | todos | | `204`. Marca todos os avisos da pessoa logada como lidos. |
+| DELETE `/notificacoes/:id` | todos | | `204`. `404` se o aviso não for da pessoa logada. |
+
+Regras:
+
+- `limite` fora de 1 a 50, ou `antesDe` que não seja número, devolve `400`.
+- Avisos com mais de 60 dias são apagados pela limpeza automática, que roda ao subir o servidor e depois a cada 12 horas.
+- Não é criado de novo um aviso com a mesma `chave` para a mesma pessoa. Essa chave é usada, por exemplo, para não repetir o aviso de nota no mesmo dia.
+- A consulta do sino (`GET /notificacoes` e `GET /notificacoes/nao-lidas`) e as marcações como lido ficam fora do log de atividades, porque o sino consulta a cada 30 segundos.
+
+## Cópia de segurança (módulo `backups`)
+
+Cópias do banco inteiro, em arquivos `.sql.gz`, guardadas no próprio servidor. Só o perfil ADMIN acessa (inclui TI). Leia o `SECURITY.md` antes de usar: a cópia tem todos os dados do sistema.
+
+Os nomes seguem o padrão `escola-AAAAMMDD-HHMMSS-<origem>.sql.gz`, com origem `auto` (automática), `manual`, `enviado` ou `pre-restauracao`. Qualquer nome fora desse padrão devolve `400` antes de tocar no disco.
+
+```ts
+interface BackupDTO {
+  nome: string;
+  tamanho: number;                                            // bytes
+  criadoEm: string;
+  origem: 'auto' | 'manual' | 'enviado' | 'pre-restauracao';
+}
+
+interface ConfigBackupDTO {
+  backupAutomatico: boolean;
+  backupHora: number;            // 0 a 23, relógio do servidor
+  backupManter: number;          // 1 a 60 cópias automáticas
+  ultimoAutomatico: string | null;
+  ferramentasOk: boolean;        // pg_dump responde e é da versão 16
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/backups` | A | | `{ config: ConfigBackupDTO, itens: BackupDTO[], emAndamento: "copia" \| "restauracao" \| null }`. Itens do mais novo para o mais antigo. |
+| PUT `/backups/configuracao` | A | `{ backupAutomatico, backupHora (0 a 23), backupManter (1 a 60) }` | `ConfigBackupDTO`. `400` se algum valor estiver fora da faixa. |
+| POST `/backups` | A | | `201 BackupDTO`, origem `manual`. Espera a cópia terminar. `400` se já houver 40 cópias guardadas. `409` se outra cópia ou restauração estiver em andamento. `500` se a ferramenta falhar. |
+| POST `/backups/enviar` | A | Corpo bruto do arquivo `.sql.gz`, com `Content-Type: application/gzip`, até 200 MB | `201 BackupDTO`, origem `enviado`. `415` se o tipo não for `application/gzip`; `413` se passar de 200 MB; `400` se o arquivo não tiver a assinatura gzip ou se já houver 40 cópias; `409` se outra operação estiver em andamento. |
+| GET `/backups/:nome` | A | | O arquivo, com `Content-Type: application/gzip` e `Content-Disposition: attachment`. `404` se não existir. |
+| POST `/backups/:nome/restaurar` | A | `{ confirmacao: "RESTAURAR" }` | `200 { restaurado: true, copiaAnterior: string }`. `400` sem a palavra exata. `404` se a cópia não existir. `409` se outra operação estiver em andamento. `500 { erro }` se falhar. |
+| DELETE `/backups/:nome` | A | | `204`. `404` se não existir. `409` se houver operação em andamento. |
+
+Regras:
+
+- Só uma cópia ou restauração roda por vez. A trava fica na memória do servidor; um segundo pedido recebe `409`.
+- Restaurar faz primeiro uma cópia do estado atual, com origem `pre-restauracao`, e o nome dela volta em `copiaAnterior`. Se essa cópia falhar, nada é alterado e a resposta é `500`.
+- Depois, a restauração roda numa única transação. Se qualquer parte falhar, a transação é desfeita, o banco fica como estava e a resposta é `500` com o nome da cópia anterior.
+- A restauração troca **todos** os dados, inclusive usuários e senhas. Depois dela, é preciso entrar de novo no sistema.
+- Limite de 40 cópias guardadas no total. Depois de cada cópia automática, as automáticas além de `backupManter` são apagadas, da mais antiga para a mais nova. Manuais, enviadas e de pré-restauração não são apagadas sozinhas.
+- A cópia automática roda uma vez por dia, a partir da hora de `backupHora`, se `backupAutomatico` estiver ligado. Se o servidor estava desligado na hora, roda ao subir, no mesmo dia. Se naquele momento já houver cópia ou restauração em andamento, a automática do dia é pulada e um aviso vai para o log do servidor.
+- O registro de atividades não guarda conteúdo: "Criou uma cópia de segurança", "Enviou uma cópia de segurança", "Baixou uma cópia de segurança", "Apagou uma cópia de segurança" e "Restaurou o banco a partir de uma cópia". As demais rotas de `/backups` ficam fora do registro automático.

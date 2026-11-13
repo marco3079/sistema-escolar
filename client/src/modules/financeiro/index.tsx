@@ -261,6 +261,7 @@ function AbaMensalidades({ aoGravar }: { aoGravar: () => void }) {
 
       {lista.dados && (
         <Tabela
+          exportar="mensalidades"
           dados={lista.dados}
           chave={(m) => m.id}
           vazio="Nenhuma mensalidade encontrada."
@@ -518,6 +519,7 @@ function AbaBolsas() {
 
       {bolsas.dados && (
         <Tabela
+          exportar="bolsas"
           dados={bolsas.dados}
           chave={(b) => b.id}
           vazio="Nenhuma bolsa cadastrada."
@@ -720,6 +722,7 @@ function FinanceiroAluno() {
             />
           </div>
           <Tabela
+            exportar="minhas-mensalidades"
             dados={minhas.dados}
             chave={(m) => m.id}
             vazio="Nenhuma mensalidade."

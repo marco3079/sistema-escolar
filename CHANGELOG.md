@@ -36,10 +36,16 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Chat privado entre usuários, com conversas individuais e grupos (administração do grupo, adicionar e remover pessoas, sair do grupo), imagens, confirmação de entrega e de leitura, "digitando...", quem está online, resposta citando uma mensagem e apagar a própria mensagem.
 - Botão do chat com contador de mensagens não lidas, ao lado do sino.
 - Atualização pelo painel, em Configurações → Atualização (perfis ADMIN e TI): verifica o último commit do GitHub, mostra as novidades e atualiza o sistema (baixa o código, reconstrói a API e o site e os reinicia), sem apagar dados do banco. Novo serviço `atualizador` no `docker-compose.yml`.
+- Central de notificações (o sino): contador de avisos não lidos, painel com os avisos mais recentes, marcação de lido (um por um ou todos), "Carregar mais" e link direto para a tela de cada aviso. Recebem avisos: comunicados, respostas de chamados, comentários no fórum, notas lançadas e resultados do diário, mensalidades e pagamentos, medalhas e empréstimos da biblioteca. Avisos com mais de 60 dias são apagados.
+- Cópia de segurança do banco, em Configurações → Cópia de segurança (só administrador e TI): cópia automática diária (hora e quantidade a guardar configuráveis), criação manual, envio de um arquivo `.sql.gz`, download, restauração com confirmação (a cópia do estado atual é feita antes) e exclusão. A imagem da API passa a incluir o PostgreSQL 16 (`pg_dump` e `psql`); novos volumes `dados_backups` e `dados_api`.
+- Importar planilhas (CSV) de alunos e professores, com modelo para baixar, conferência linha a linha antes de gravar e importação tudo ou nada, com uma senha inicial para o lote. RA do aluno e registro do professor são gerados em sequência, como no cadastro individual.
+- Exportar para CSV (abre no Excel em português) as listas e tabelas do sistema, a partir das linhas exibidas.
+- Nome e ícone do aplicativo instalado (PWA) passam a vir das configurações da plataforma: manifesto em `/api/plataforma/manifesto` e logo em `/api/plataforma/logo`.
 
 ### Alterado
 
 - Senha inicial do administrador passa a ser a padrão `admin1234` (e-mail `admin@escola.local`), trocável em "Meu perfil" no primeiro acesso. Substitui a senha aleatória gerada pelo instalador e pelo servidor.
+- E-mail sem diferenciar maiúsculas: login, recuperação de senha e checagem de e-mail já usado não distinguem maiúsculas de minúsculas, e o e-mail é gravado aparado e em minúsculas.
 - O banco passa a nascer somente com a conta de administrador. Os dados de demonstração deixam de ser carregados por padrão e podem ser ativados com `SEED_DEMO=true`, apenas para teste.
 
 ### Segurança
@@ -52,3 +58,5 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Tokens de senha por e-mail de uso único, guardados só como hash, com validade, e limites para pedidos de recuperação de senha.
 - Chat só para participantes da conversa, com limite de 30 mensagens por minuto por pessoa.
 - Serviço de atualização sem porta publicada, com token derivado de `JWT_SECRET`, só duas ordens fixas, só avanço rápido a partir do `origin` do checkout e sem ações que apaguem dados.
+- Cópias de segurança: nomes de arquivo validados antes de tocar no disco; ferramentas do PostgreSQL chamadas sem shell, com a senha só no ambiente do processo; restauração em transação única com cópia do estado anterior; cópias sem criptografia, guardadas no volume do Docker (veja `SECURITY.md`).
+- Planilhas exportadas neutralizam fórmulas (célula que começa com `=`, `+`, `-` ou `@` ganha apóstrofo).

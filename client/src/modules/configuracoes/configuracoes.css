@@ -585,3 +585,47 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Cópia de segurança */
+
+.config-backup {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.config-backup-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+  min-width: 0;
+}
+
+.config-backup-linha .campo {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.config-backup-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+.config-backup-acoes-modal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.config-backup-nome {
+  display: block;
+}

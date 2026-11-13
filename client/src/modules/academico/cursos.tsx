@@ -200,6 +200,7 @@ export function Cursos() {
         <Carregando />
       ) : visao === 'tabela' ? (
         <Tabela
+          exportar="cursos"
           colunas={colunas}
           dados={filtrados}
           chave={(c) => c.id}

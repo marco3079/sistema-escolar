@@ -10,12 +10,12 @@ Três peças aparecem em muitos itens e por isso vêm primeiro:
 - **Notificações**: uma tabela única de avisos por usuário. A central do sino, as notificações no celular e os lembretes automáticos saem dela.
 - **Tarefas agendadas**: um agendador simples dentro da API (lembretes, backup diário, limpeza).
 
-## Leva 5: base e pendências
+## Leva 5: base e pendências (concluída em 13/11/2026)
 
 | Item | Observação |
 |---|---|
 | Corrigir pendências atuais | E-mail com maiúsculas no login e na recuperação; nome e ícone do app instalado seguindo as configurações; conferir chat e telas de senha no celular |
-| Armazenamento de arquivos | Base para as levas 6, 7 e 9 |
+| Armazenamento de arquivos | **Passou para o início da leva 6**, onde nascem os primeiros usos reais (materiais e tarefas) |
 | Central de notificações | O sino reúne chat, suporte, fórum, notas, mensalidades e comunicados |
 | Cópia de segurança do banco | Diária e automática, com baixar e restaurar em Configurações |
 | Importar e exportar planilhas | Alunos e professores em lote por CSV; exportar qualquer lista |
@@ -24,6 +24,7 @@ Três peças aparecem em muitos itens e por isso vêm primeiro:
 
 | Item | Observação |
 |---|---|
+| Armazenamento de arquivos | Veio da leva 5: pasta em volume do Docker, limites, tipos permitidos e controle de acesso por contexto |
 | Materiais de aula | Arquivos, links e vídeos por turma |
 | Tarefas e entregas | Prazo, entrega em texto ou arquivo, correção, nota opcional no diário |
 | Plano de aula e conteúdo ministrado | Registro por aula e acompanhamento pela coordenação |

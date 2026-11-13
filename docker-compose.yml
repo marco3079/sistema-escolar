@@ -27,7 +27,12 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@escola.local}
       ADMIN_SENHA: ${ADMIN_SENHA:-admin1234}
       SEED_DEMO: ${SEED_DEMO:-false}
+      # Fuso horário da API: vale para a hora da cópia automática e para as datas dos registros
+      TZ: ${FUSO_HORARIO:-America/Sao_Paulo}
       ATUALIZADOR_URL: http://atualizador:4000
+    volumes:
+      - dados_api:/dados
+      - dados_backups:/dados/backups
     ports:
       - "127.0.0.1:${API_PORT:-3090}:3000"
     healthcheck:
@@ -62,4 +67,6 @@ services:
 
 volumes:
   dados_db:
+  dados_api:
+  dados_backups:
   dados_atualizador:
