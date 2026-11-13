@@ -27,8 +27,8 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 ## Medidas de segurança já existentes
 
 - **Senhas** são guardadas com bcrypt (biblioteca `bcryptjs`), nunca em texto puro. A resposta da API nunca inclui o hash.
-- **Login** por JWT enviado no cabeçalho `Authorization: Bearer`, com validade de 12 horas. Todas as rotas exigem login, exceto o login, o teste de saúde da API, a leitura pública de nome, logo e cores da tela de entrada e as rotas de senha por e-mail.
-- **Permissões por perfil** (ADMIN, SECRETARIA, PROFESSOR, ALUNO) são verificadas em cada rota.
+- **Login** por JWT enviado no cabeçalho `Authorization: Bearer`, com validade de 12 horas. Todas as rotas exigem login, exceto o login, o teste de saúde da API, a leitura pública de nome, logo e cores da tela de entrada, as rotas de senha por e-mail, a matrícula online (formulário, acompanhamento e envio de documentos) e a validação pública de documentos (veja a seção "Secretaria, famílias e documentos").
+- **Permissões por perfil** (ADMIN, SECRETARIA, PROFESSOR, ALUNO, RESPONSAVEL) são verificadas em cada rota.
 - **Banco de dados** publicado somente em `127.0.0.1`, ou seja, acessível apenas pelo próprio computador.
 - **Segredos** (senha do banco e segredo do JWT) são gerados pelo instalador de forma aleatória e gravados no arquivo `.env`, que não vai para o Git.
 - **Senha do administrador**: a conta de administrador nasce com a senha padrão conhecida `admin1234` (e-mail `admin@escola.local`), definida em `ADMIN_SENHA`. **Ela precisa ser trocada no primeiro acesso em "Meu perfil"**, principalmente se o site ficar acessível na rede. O login tem limite de tentativas. Para outra senha inicial, defina `ADMIN_SENHA` com 8 caracteres ou mais antes da primeira subida.
@@ -88,6 +88,29 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Provas: quem tem acesso ao banco** lê respostas e gabarito em texto puro, como os demais dados.
 - **Chamada: presença não prova que a pessoa está na sala.** O código vale a janela atual e a anterior, ou seja, até cerca de 40 segundos. Quem está fora da sala e vê o QR ou o código digitado nesse intervalo, por foto ou repasse, consegue marcar presença. A troca a cada 20 segundos reduz esse repasse, mas não o elimina. O sistema não confere a localização.
 - **Limites em memória.** O limite de 10 tentativas por minuto da chamada fica na memória do servidor e recomeça quando ele reinicia.
+
+## Secretaria, famílias e documentos
+
+**O que o sistema garante:**
+
+- **Limites por IP nas rotas públicas.** A matrícula online aceita 5 pedidos por hora por IP, o acompanhamento 20 consultas por minuto, o envio de documentos do pedido 30 por hora, e a validação de documento 30 consultas por minuto. Passou do limite, a resposta é `429`.
+- **Armadilha para robôs.** O formulário de matrícula tem um campo oculto. Se ele vier preenchido, a API responde como se tivesse aceitado o pedido (com protocolo e chave falsos) e não grava nada.
+- **Chave de acompanhamento.** Tem 10 caracteres aleatórios, é mostrada uma única vez e fica no banco só como hash SHA-256. O e-mail de confirmação traz o protocolo, nunca a chave.
+- **Protocolo e chave fora da URL.** O acompanhamento recebe os dois no corpo da requisição, nunca no endereço, para que não apareçam em endereços copiados ou guardados.
+- **Mesma resposta para erro.** Protocolo ou chave errados recebem `404` com a mesma mensagem, sem indicar qual dos dois está errado.
+- **Documentos do pedido.** Só PDF, JPG, JPEG e PNG, até 10 MB cada e 6 por pedido. O tipo é conferido pela extensão e pelo tipo enviado, e o nome em disco é aleatório, como nos arquivos das salas de aula.
+- **Isolamento do responsável.** Um responsável só vê alunos com vínculo. As rotas que mostram dados de um aluno conferem o acesso com `acessoAoAluno` ou `acessoAMatricula`; sem vínculo, a resposta é `403`. O responsável não acessa o fórum (`403` em todas as rotas) e não cria grupos no chat.
+- **Ocorrências.** A família só vê as ocorrências marcadas como visíveis à família. Dar ciência exige vínculo com o aluno, ou ser o próprio aluno com 18 anos ou mais. Depois da ciência, só o administrador (inclusive TI) altera ou exclui a ocorrência.
+- **Validação pública de documentos.** `GET /api/documentos/validar/:codigo` não exige login. Mostra o tipo, a descrição, a data de emissão e o nome do aluno mascarado (primeiro nome e iniciais dos demais). Código inexistente ou fora do formato recebe `404` com `valido: false`, sem outros dados.
+- **Código de conferência.** Tem o formato `XXXX-XXXX-XXXX`, é gerado com `crypto` e não usa `0`, `O`, `1` ou `I`, para não confundir ao digitar.
+
+**O que não é garantido:**
+
+- **Os limites por IP são em memória.** Eles zeram quando a API reinicia e não são compartilhados entre processos. Num servidor com mais de um processo da API, cada um conta por conta própria.
+- **Os documentos enviados ficam no volume de arquivos.** Os documentos do pedido de matrícula ficam no volume `dados_arquivos`, fora da cópia de segurança do banco, como os arquivos das salas de aula. Os PDFs emitidos não são guardados: são montados a cada pedido, e só o registro do código (com tipo, aluno e data) entra no banco.
+- **Não há antivírus nos arquivos enviados.** O conteúdo dos documentos do pedido não é verificado, só a extensão e o tipo declarado.
+- **O pedido de matrícula revela pedidos abertos.** Quando já existe um pedido em andamento para o mesmo e-mail e curso, a resposta diz isso (`409`). Assim, quem tenta pode descobrir se um e-mail tem pedido aberto. O limite por IP dificulta a tentativa, mas não a impede.
+- **Os dados do pedido não são cifrados.** CPF, data de nascimento, endereço e contatos ficam no banco em texto puro, como os demais dados, e entram na cópia de segurança.
 
 ## Atualização pelo painel (serviço `atualizador`)
 

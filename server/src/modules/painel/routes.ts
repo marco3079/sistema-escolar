@@ -295,7 +295,8 @@ function filtroNotas(u: UsuarioToken, inicio: Date): Prisma.NotaWhereInput | nul
     if (u.professorId === null) return null;
     return { avaliacao: { data, turma: { professorId: u.professorId } } };
   }
-  if (u.alunoId === null) return null;
+  // Responsável não tem notas próprias (só o aluno): sem filtro, sem dados.
+  if (u.perfil !== 'ALUNO' || u.alunoId === null) return null;
   return { avaliacao: { data }, inscricao: { matricula: { alunoId: u.alunoId } } };
 }
 
@@ -364,7 +365,8 @@ async function destaqueDoPerfil(u: UsuarioToken): Promise<Destaque | null> {
       caminho: `/professor/diario/${turma.id}`,
     };
   }
-  if (u.alunoId === null) return null;
+  // Responsável não tem matrícula própria: sem destaque (o início do portal é outra tela).
+  if (u.perfil !== 'ALUNO' || u.alunoId === null) return null;
   const matricula = await prisma.matricula.findFirst({
     where: { alunoId: u.alunoId, status: 'ATIVA' },
     orderBy: { id: 'asc' },
@@ -407,8 +409,11 @@ router.get(
       cartoes = await cartoesAdmin();
     } else if (u.perfil === 'PROFESSOR') {
       cartoes = await cartoesProfessor(u.professorId);
-    } else {
+    } else if (u.perfil === 'ALUNO') {
       cartoes = await cartoesAluno(u.alunoId);
+    } else {
+      // RESPONSAVEL: estrutura neutra (zeros e traços), sem dados de aluno.
+      cartoes = await cartoesAluno(null);
     }
 
     const [desempenho, destaque] = await Promise.all([
@@ -539,10 +544,11 @@ router.get(
         itens.push(...(await buscarTurmas(texto, u.professorId)));
       }
       itens.push(...(await buscarLivros(texto, '/professor/biblioteca')));
-    } else {
+    } else if (u.perfil === 'ALUNO') {
       itens.push(...(await buscarCursos(texto, '/aluno/matricula')));
       itens.push(...(await buscarLivros(texto, '/aluno/biblioteca')));
     }
+    // RESPONSAVEL: a busca devolve lista vazia (sem cursos, livros ou alunos).
 
     res.json(itens);
   })

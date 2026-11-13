@@ -249,4 +249,12 @@ export const rotas: RotaModulo[] = [
     elemento: <CalendarioLeitura />,
     ordem: 71,
   },
+  {
+    caminho: '/responsavel/calendario',
+    rotulo: 'Calendário',
+    icone: 'calendario',
+    perfis: ['RESPONSAVEL'],
+    elemento: <CalendarioLeitura />,
+    ordem: 71,
+  },
 ];

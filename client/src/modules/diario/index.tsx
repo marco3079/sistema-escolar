@@ -25,6 +25,8 @@ import {
 } from '../../ui';
 import { Icone } from '../../ui/icones';
 import type { NomeIcone } from '../../ui/icones';
+import { BotaoPdf } from '../documentos/BotaoPdf';
+import { DocumentosEmitidos } from '../documentos/Emitidos';
 import './diario.css';
 import './boletim.css';
 
@@ -765,7 +767,13 @@ function agruparPorPeriodo(itens: ItemHistorico[]): { periodo: string; itens: It
   return Array.from(grupos.entries()).map(([periodo, lista]) => ({ periodo, itens: lista }));
 }
 
-function CabecalhoAluno({ matricula }: { matricula: MatriculaResumo }) {
+function CabecalhoAluno({
+  matricula,
+  documento,
+}: {
+  matricula: MatriculaResumo;
+  documento?: 'boletim' | 'historico';
+}) {
   const ativa = matricula.status === 'ATIVA';
   return (
     <Cartao>
@@ -781,10 +789,19 @@ function CabecalhoAluno({ matricula }: { matricula: MatriculaResumo }) {
           </div>
         </div>
         <div className="boletim-cabecalho-acoes boletim-nao-imprimir">
-          <Botao variante="secundario" aoClicar={() => window.print()}>
-            <Icone nome="documento" tamanho={18} />
-            Imprimir
-          </Botao>
+          <div className="doc-cabecalho-acoes">
+            <Botao variante="secundario" aoClicar={() => window.print()}>
+              <Icone nome="documento" tamanho={18} />
+              Imprimir
+            </Botao>
+            {documento && (
+              <BotaoPdf
+                caminho={`/documentos/${documento}/${matricula.id}`}
+                nomeArquivo={`${documento}-${matricula.aluno.ra}.pdf`}
+                variante="secundario"
+              />
+            )}
+          </div>
         </div>
       </div>
     </Cartao>
@@ -795,15 +812,17 @@ function CabecalhoAluno({ matricula }: { matricula: MatriculaResumo }) {
 function Moldura({
   matricula,
   abas,
+  documento,
   children,
 }: {
   matricula?: MatriculaResumo;
   abas?: ReactNode;
+  documento?: 'boletim' | 'historico';
   children?: ReactNode;
 }) {
   return (
     <div className="boletim-visao">
-      {matricula && <CabecalhoAluno matricula={matricula} />}
+      {matricula && <CabecalhoAluno matricula={matricula} documento={documento} />}
       {abas && <div className="boletim-nao-imprimir">{abas}</div>}
       {children}
     </div>
@@ -939,7 +958,8 @@ function SegmentadoVisao({ visao, aoMudar }: { visao: VisaoBoletim; aoMudar: (v:
   );
 }
 
-function BoletimView({ caminho, abas }: { caminho: string | null; abas?: ReactNode }) {
+// `gestao`: mostra a lista de documentos emitidos abaixo do boletim (só a secretaria/administração).
+function BoletimView({ caminho, abas, gestao }: { caminho: string | null; abas?: ReactNode; gestao?: boolean }) {
   const { dados, carregando, erro } = useDados<Boletim>(caminho);
   const [periodoEscolhido, setPeriodoEscolhido] = useState('');
   const [visao, setVisao] = useState<VisaoBoletim>(lerVisaoBoletim);
@@ -958,7 +978,7 @@ function BoletimView({ caminho, abas }: { caminho: string | null; abas?: ReactNo
   const aprovadas = itens.filter((i) => i.status === 'APROVADO').length;
 
   return (
-    <Moldura matricula={dados.matricula} abas={abas}>
+    <Moldura matricula={dados.matricula} abas={abas} documento="boletim">
       {periodos.length === 0 && <Aviso tipo="info">Nenhuma disciplina nesta matrícula.</Aviso>}
       {periodo && (
         <>
@@ -1045,6 +1065,7 @@ function BoletimView({ caminho, abas }: { caminho: string | null; abas?: ReactNo
           )}
         </>
       )}
+      {gestao && <DocumentosEmitidos alunoId={dados.matricula.aluno.id} />}
     </Moldura>
   );
 }
@@ -1061,7 +1082,7 @@ function HistoricoView({ caminho, abas }: { caminho: string | null; abas?: React
   const aprovadas = dados.itens.filter((i) => i.status === 'APROVADO').length;
 
   return (
-    <Moldura matricula={dados.matricula} abas={abas}>
+    <Moldura matricula={dados.matricula} abas={abas} documento="historico">
       <div className="resumo">
         <ItemResumo icone="lista" cor="azul" valor={dados.resumo.creditosConcluidos} rotulo="Créditos concluídos" />
         <ItemResumo icone="relogio" cor="roxo" valor={`${dados.resumo.cargaHorariaConcluida} h`} rotulo="Carga horária concluída" />
@@ -1208,7 +1229,7 @@ function BoletinsAdmin() {
       </div>
     );
   } else if (aba === 'boletim') {
-    conteudo = <BoletimView caminho={`/boletim/${matriculaId}`} abas={abasEl} />;
+    conteudo = <BoletimView caminho={`/boletim/${matriculaId}`} abas={abasEl} gestao />;
   } else {
     conteudo = <HistoricoView caminho={`/historico/${matriculaId}`} abas={abasEl} />;
   }

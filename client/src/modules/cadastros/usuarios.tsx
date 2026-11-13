@@ -31,9 +31,10 @@ const PERFIS_FILTRO: { valor: string; rotulo: string }[] = [
   { valor: 'SECRETARIA', rotulo: 'Secretaria' },
   { valor: 'PROFESSOR', rotulo: 'Professor' },
   { valor: 'ALUNO', rotulo: 'Aluno' },
+  { valor: 'RESPONSAVEL', rotulo: 'Responsável' },
 ];
 
-// Perfis que se criam por esta tela. Professores e alunos são criados nas telas deles.
+// Perfis que se criam por esta tela (Responsável não: é criado pela ficha do aluno). Professores e alunos são criados nas telas deles.
 const PERFIS_ADMINISTRATIVOS: { valor: string; rotulo: string }[] = [
   { valor: 'ADMIN', rotulo: 'Administrador' },
   { valor: 'TI', rotulo: 'TI' },

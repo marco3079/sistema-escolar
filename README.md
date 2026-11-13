@@ -44,11 +44,12 @@ Cobre os oito níveis de ensino:
 
 As regras de aprovação seguem o nível: frequência mínima de 75% e média mínima 6 para os níveis básicos, técnico e graduação; média mínima 7 para especialização, mestrado e doutorado.
 
-Um único app tem três portais, escolhidos pelo perfil do usuário no login:
+Um único app tem quatro portais, escolhidos pelo perfil do usuário no login:
 
 - **Administrativo** (perfis administrador, TI e secretaria): cadastros, matrículas, cursos, turmas, financeiro, biblioteca, horários, calendário e comunicados.
 - **Professor**: minhas turmas, diário de classe, orientações, biblioteca, horário, calendário e comunicados.
 - **Aluno**: matrícula e inscrição em disciplinas, boletim, histórico, pesquisa (pós-graduação), mensalidades, biblioteca, horário, calendário e comunicados.
+- **Responsável** (perfil Responsável, ligado a um ou mais alunos): boletim, frequência, mensalidades (se a escola liberar), ocorrências e documentos dos alunos vinculados, e o pedido de rematrícula.
 
 ## Funcionalidades
 
@@ -105,6 +106,15 @@ Cada turma tem uma sala com as abas Materiais, Plano de aula, Tarefas, Provas e 
 - **Arquivos**: até 20 MB por arquivo e 10 por item, em formatos de texto, planilha, apresentação, imagem e ZIP. Vídeos entram como link. Os arquivos ficam no servidor, fora da cópia de segurança do banco; veja [INSTALAR.md](INSTALAR.md).
 - **Provas**: o tempo é controlado pelo servidor, e o gabarito só aparece depois do envio, com a prova fechada. Não há bloqueio de consulta nem fiscalização durante a prova; veja [SECURITY.md](SECURITY.md).
 - **Chamada**: o código do QR muda a cada 20 segundos.
+
+### Secretaria e famílias
+
+- **Documentos em PDF**: boletim, histórico, declaração de matrícula e ficha do aluno, com a logo da escola. Cada PDF tem um código de conferência, e qualquer pessoa confere o documento na página pública `/validar`, que mostra só o primeiro nome do aluno e as iniciais dos demais.
+- **Ocorrências**: registro disciplinar por aluno, com tipo, gravidade e medidas tomadas. A ocorrência pode ser mostrada à família, que dá ciência no portal.
+- **Portal dos responsáveis**: a família acompanha um ou mais alunos vinculados: boletim, frequência, mensalidades (se liberadas), ocorrências e documentos. Os responsáveis são cadastrados pela ficha do aluno.
+- **Matrícula e rematrícula online**: formulário público de matrícula, que fica fechado até a secretaria abrir, com envio de documentos e acompanhamento por protocolo e chave. A rematrícula é pedida pelo aluno ou pelo responsável.
+
+Veja como abrir a matrícula online e cadastrar responsáveis em [INSTALAR.md](INSTALAR.md).
 
 ## Telas
 

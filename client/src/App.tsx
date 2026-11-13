@@ -8,17 +8,19 @@ import { Login } from './layout/Login';
 import { EsqueciSenha } from './layout/EsqueciSenha';
 import { RedefinirSenha } from './layout/RedefinirSenha';
 import { Pagina } from './ui';
-import type { RotaModulo } from './lib/rotas';
+import type { RotaModulo, RotaPublica } from './lib/rotas';
 import type { Perfil } from './lib/tipos';
 
 // Junta as rotas de todos os módulos em src/modules/<modulo>/index.tsx
-const modulos = import.meta.glob<{ rotas: RotaModulo[] }>('./modules/*/index.tsx', {
+const modulos = import.meta.glob<{ rotas: RotaModulo[]; rotasPublicas?: RotaPublica[] }>('./modules/*/index.tsx', {
   eager: true,
 });
 
 const ROTAS: RotaModulo[] = Object.values(modulos)
-  .flatMap((m) => m.rotas)
+  .flatMap((m) => m.rotas ?? [])
   .sort((a, b) => (a.ordem ?? 100) - (b.ordem ?? 100));
+
+const ROTAS_PUBLICAS: RotaPublica[] = Object.values(modulos).flatMap((m) => m.rotasPublicas ?? []);
 
 function LayoutDoPerfil() {
   const { usuario } = useAuth();
@@ -78,6 +80,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/esqueci-senha" element={<EsqueciSenha />} />
         <Route path="/redefinir-senha/:token" element={<RedefinirSenha />} />
+        {ROTAS_PUBLICAS.map((r) => (
+          <Route key={r.caminho} path={r.caminho} element={r.elemento} />
+        ))}
         <Route path="/" element={<Raiz />} />
         <Route element={<LayoutDoPerfil />}>
           {ROTAS.map((r) => (

@@ -6,7 +6,7 @@ Esta referência é para quem vai integrar com o sistema escolar ou consultar a 
 
 - **Endereço base**: `http://localhost:3090/api` com as portas padrão (`API_PORT=3090`). A porta direta da API (3090) é publicada só em `127.0.0.1`, ou seja, só o próprio computador a acessa. A porta do site (8090, `WEB_PORT`) é publicada em todas as interfaces e encaminha `/api` para a API; por isso `http://localhost:8090/api` funciona e também responde a outros aparelhos da rede local.
 - **Formato**: corpo e resposta em JSON (`Content-Type: application/json`).
-- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude`, `POST /api/auth/login`, `GET /api/plataforma` (nome, logo e cores da tela de entrada), `GET /api/plataforma/manifesto` e `GET /api/plataforma/logo` (nome e ícone do app instalado) e as rotas de senha por e-mail (`/api/auth/esqueci-senha` e `/api/auth/redefinir-senha`, veja a seção "Senha por e-mail").
+- **Autenticação**: cabeçalho `Authorization: Bearer <token>`. Todas as rotas exigem login, exceto `GET /api/saude`, `POST /api/auth/login`, `GET /api/plataforma` (nome, logo e cores da tela de entrada), `GET /api/plataforma/manifesto` e `GET /api/plataforma/logo` (nome e ícone do app instalado), as rotas de senha por e-mail (`/api/auth/esqueci-senha` e `/api/auth/redefinir-senha`, veja a seção "Senha por e-mail"), as rotas públicas da matrícula online (`/api/matricula-online`, veja a seção "Matrícula e rematrícula online") e a validação pública de documentos (`GET /api/documentos/validar/:codigo`).
 - **Datas**: string ISO 8601 (por exemplo, `2026-03-02T00:00:00.000Z`).
 - **Dinheiro**: número em reais (por exemplo, `1250.5`).
 - **IDs**: inteiros. Um `:id` que não seja número devolve `400`.
@@ -96,6 +96,7 @@ O token vale por 12 horas. Depois disso, a API responde `401` e é preciso fazer
 | `SECRETARIA` | Secretaria | Administrativo |
 | `PROFESSOR` | Professor | Professor |
 | `ALUNO` | Aluno | Aluno |
+| `RESPONSAVEL` | Responsável | Responsável (portal `/responsavel`) |
 
 O perfil `TI` tem as mesmas permissões do `ADMIN`: o servidor trata `TI` como `ADMIN` em cada rota. A resposta de login e de `GET /auth/me` devolve `perfil: "TI"` para essas contas, para que a tela mostre o papel real.
 
@@ -105,6 +106,7 @@ Nas tabelas abaixo, a coluna **Quem** usa estas abreviações:
 - **S** = SECRETARIA
 - **P** = PROFESSOR
 - **L** = ALUNO
+- **R** = RESPONSAVEL, só para os alunos com vínculo
 - **todos** = qualquer usuário logado
 
 Quando a permissão depende de regra extra, a coluna explica (por exemplo, "P dono da turma"). Essas regras são aplicadas dentro da rota.
@@ -408,11 +410,11 @@ Resposta: array de `{ tipo, titulo, subtitulo, caminho }`, com `tipo` igual a `A
 | Método e caminho | Quem | Corpo ou query | Resposta |
 |---|---|---|---|
 | GET `/usuarios` | A | `?perfil=&busca=` (`perfil` aceita `TI`) | Usuários, sem `senhaHash` |
-| POST `/usuarios` | A | `{ nome, email, senha, perfil }`, com perfil `ADMIN`, `TI` ou `SECRETARIA` | `201` usuário. `409` se o e-mail já existe. |
+| POST `/usuarios` | A | `{ nome, email, senha, perfil }`, com perfil `ADMIN`, `TI` ou `SECRETARIA`. `RESPONSAVEL` é recusado com `400` (Responsáveis são criados pela ficha do aluno) | `201` usuário. `409` se o e-mail já existe. |
 | PUT `/usuarios/:id` | A | `{ nome?, email?, telefone?, ativo? }` | Usuário |
 | POST `/usuarios/:id/redefinir-senha` | A | `{ novaSenha }` | `204` |
-| GET `/alunos` | A, S, P | `?busca=` (nome, e-mail ou RA) | `AlunoDTO[]`, por nome |
-| GET `/alunos/:id` | A, S, P | | `AlunoDTO` + `matriculas: [{ id, status, serieAtual, curso: { id, nome, nivel } }]` |
+| GET `/alunos` | A, S, P | `?busca=` (nome, e-mail ou RA; o professor busca só por nome ou RA) | `AlunoDTO[]`, por nome. Professor: só alunos com inscrição não trancada em turma dele, sem e-mail, CPF, telefone, endereço nem dados do responsável |
+| GET `/alunos/:id` | A, S, P | | `AlunoDTO` + `matriculas: [{ id, status, serieAtual, curso: { id, nome, nivel } }]`. Professor: `404` se o aluno não é de turma dele; a resposta vem sem os campos de contato |
 | POST `/alunos` | A, S | `{ nome, email, senha, cpf?, telefone?, dataNascimento, endereco?, responsavelNome?, responsavelTelefone?, responsavelEmail? }` | `201` `AlunoDTO`. Cria o usuário e o aluno na mesma operação. O RA é o ano atual seguido de 5 dígitos (por exemplo, `202600001`). |
 | PUT `/alunos/:id` | A, S | mesmos campos, todos opcionais, sem `senha` | `AlunoDTO` |
 | DELETE `/alunos/:id` | A, S | | `204`. Apenas marca o usuário como inativo. |
@@ -1328,3 +1330,163 @@ Regras:
 - **Limite**: 10 tentativas por minuto por pessoa, contando também as com código errado. Passou disso, `429`. O contador fica na memória do servidor e recomeça quando o servidor reinicia.
 - **Frequência**: a chamada só grava as presenças. A frequência da inscrição é calculada no fechamento do diário.
 - **Registro de atividades**: a consulta `GET` da chamada (feita a cada 2 segundos) fica fora do registro.
+
+## Responsáveis (módulo `responsaveis`)
+
+Responsáveis são usuários de perfil `RESPONSAVEL`, ligados a um ou mais alunos pela tabela `ResponsavelAluno`. Um responsável só enxerga os alunos com vínculo. O cadastro é feito pela gestão (ficha do aluno), e a aprovação de uma matrícula online também pode criar o vínculo.
+
+```ts
+interface ResultadoVinculo {
+  vinculoId: number;
+  usuarioId: number;
+  usuarioCriado: boolean;
+  senhaInicial: string | null;  // só quando o usuário é novo e o e-mail da plataforma não está ativo; aparece uma vez
+  conviteEnviado: boolean;      // convite "Criar minha senha" enviado por e-mail
+}
+
+interface VinculoDTO {
+  vinculoId: number; usuarioId: number; nome: string; email: string;
+  telefone: string | null; parentesco: string; financeiro: boolean; ativo: boolean;
+}
+```
+
+Regras do cadastro (`vincularResponsavel`): se já existe usuário com o e-mail (sem diferenciar maiúsculas), ele precisa ser de perfil `RESPONSAVEL` (senão `409`) e ainda não pode estar ligado a este aluno (senão `409`). Se não existe, cria o usuário. Com o e-mail da plataforma ativo e o endereço do site definido, manda o convite; senão gera uma senha inicial de 10 caracteres e a devolve uma vez.
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/alunos/:alunoId/responsaveis` | A/S | | `VinculoDTO[]` |
+| POST `/alunos/:alunoId/responsaveis` | A/S | `{ nome (2 a 120), email, telefone?, cpf?, parentesco (2 a 40), financeiro? }` | `201 ResultadoVinculo` |
+| PUT `/responsaveis/vinculos/:id` | A/S | `{ parentesco (2 a 40), financeiro }` | `VinculoDTO` atualizado. `404` se o vínculo não existe |
+| DELETE `/responsaveis/vinculos/:id` | A/S | | `204`. O usuário do responsável continua existindo |
+| GET `/responsaveis` | A/S | `?busca=` | `[{ usuarioId, nome, email, telefone, ativo, alunos: [{ vinculoId, alunoId, nome, ra, parentesco }] }]`, até 200 |
+
+### Portal da família
+
+Rotas em `/familia`. A lista de alunos é só do responsável. As demais passam por `acessoAoAluno` (gestão, o próprio aluno e o responsável com vínculo; quem não tem acesso recebe `403`). Nas rotas de boletim, histórico, frequência e mensalidades, `?matriculaId=` é opcional: precisa ser matrícula do aluno (senão `403`); sem ele, usa a primeira matrícula `ATIVA`, ou a mais recente.
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/familia/alunos` | R | | Um item por vínculo: `{ alunoId, nome, ra, foto, idade, parentesco, financeiro, matriculas: [{ id, curso, nivel, status, serieAtual }], resumo: { mediaGeral, frequenciaMedia, mensalidadesAbertas, mensalidadesAtrasadas, ocorrenciasSemCiencia } }`. Médias são `null` sem dados |
+| GET `/familia/alunos/:alunoId/boletim` | A/S, aluno próprio, R | `?matriculaId=` | `BoletimDTO` (mesmo formato do boletim do diário) |
+| GET `/familia/alunos/:alunoId/historico` | A/S, aluno próprio, R | `?matriculaId=` | `HistoricoDTO` |
+| GET `/familia/alunos/:alunoId/frequencia` | A/S, aluno próprio, R | `?matriculaId=` | `{ turmaId, turma, disciplina, aulas, presencas, faltas, percentual, ultimasFaltas: string[] }[]`, das inscrições do período mais recente. `ultimasFaltas` são até 5 datas `AAAA-MM-DD` |
+| GET `/familia/alunos/:alunoId/mensalidades` | A/S, aluno próprio, R com `financeiro` | `?matriculaId=` | `{ id, competencia, vencimento, valor, desconto, valorFinal, status, pagoEm }[]`. `ATRASADA` é calculada como no financeiro. `403` para responsável sem `financeiro` |
+
+## Ocorrências (módulo `ocorrencias`)
+
+Registro disciplinar por aluno. A gestão vê todas; o professor só as que ele registrou; o aluno e o responsável só as marcadas como `visivelFamilia`.
+
+```ts
+interface OcorrenciaDTO {
+  id: number;
+  aluno: { id: number; nome: string; ra: string };
+  turma: { id: number; codigo: string; disciplina: string } | null;
+  autor: { id: number; nome: string };
+  tipo: 'ADVERTENCIA' | 'SUSPENSAO' | 'INDISCIPLINA' | 'ATRASO' | 'OBSERVACAO' | 'ELOGIO';
+  gravidade: 'LEVE' | 'MEDIA' | 'GRAVE';
+  titulo: string; descricao: string; medidas: string;
+  data: string;                  // AAAA-MM-DD
+  visivelFamilia: boolean;
+  cienteEm: string | null;
+  cientePor: { id: number; nome: string } | null;
+  criadoEm: string;
+  podeEditar: boolean;
+  podeDarCiencia: boolean;       // falso quando já há ciência
+}
+```
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/ocorrencias` | A/S/P | `?alunoId&tipo&gravidade&de&ate&busca&pagina` | `{ itens: OcorrenciaDTO[], total, pagina, porPagina: 30 }`. Professor: só as que ele registrou |
+| GET `/ocorrencias/resumo` | A/S | | `{ ultimos30Dias, semCiencia, porTipo, porGravidade }`. `semCiencia` conta as visíveis à família sem ciência |
+| GET `/alunos/:alunoId/ocorrencias` | A/S/P (dele), aluno próprio e R (só visíveis) | | `OcorrenciaDTO[]`, mais recentes primeiro. Professor sem inscrição do aluno em turma dele: `403` |
+| POST `/ocorrencias` | A/S/P | `{ alunoId, turmaId?, tipo, gravidade, titulo (3 a 120), descricao (1 a 4000), medidas? (até 2000), data (AAAA-MM-DD, não futura), visivelFamilia }` | `201 OcorrenciaDTO`. Professor: o aluno precisa estar numa turma dele, e `turmaId`, se vier, precisa ser dessa turma |
+| PUT `/ocorrencias/:id` | autor enquanto não houver ciência; A sempre | mesmos campos, sem `alunoId` | `OcorrenciaDTO`. Depois da ciência, o autor recebe `403`; só A altera |
+| DELETE `/ocorrencias/:id` | autor enquanto não houver ciência; A sempre | | `204`. Depois da ciência, o autor recebe `403`; só A exclui |
+| POST `/ocorrencias/:id/ciencia` | R com vínculo; aluno próprio com 18 anos ou mais | | `OcorrenciaDTO`. Só para ocorrências visíveis à família (senão `404`). Repetir não muda a ciência já dada |
+
+Regras:
+
+- **Avisos**: ao criar com `visivelFamilia`, ou ao tornar visível numa edição, o aluno e os responsáveis recebem um aviso do tipo `OCORRENCIA` (título `Nova ocorrência: {titulo}`, ou `Elogio registrado: {titulo}` para elogio), com link `/ocorrencias`. Os responsáveis também recebem um e-mail sem a descrição, convidando a entrar no portal.
+- **Ciência**: avisa o autor com `OCORRENCIA`, com link `/ocorrencias`.
+- **Idade**: a ciência do próprio aluno vale a partir de 18 anos completos, pelo calendário UTC.
+
+## Documentos em PDF (módulo `documentos`)
+
+Documentos emitidos pela plataforma, montados no servidor com `pdfkit` (`server/src/lib/pdf.ts`). Cada emissão grava um registro em `DocumentoEmitido` com um código `XXXX-XXXX-XXXX` (letras e números, sem `0`, `O`, `1` e `I`). O rodapé de cada página traz o código, a data e hora da emissão e, se o endereço do site estiver definido, a linha `Confira em {endereço}/validar/{código}`.
+
+A logo do cabeçalho entra no PDF só quando é PNG ou JPEG em data URL. Endereços externos não são buscados; nos outros casos, o cabeçalho sai só com o nome da plataforma.
+
+| Método e caminho | Quem | Resposta |
+|---|---|---|
+| GET `/documentos/boletim/:matriculaId` | A/S, aluno da matrícula, R com vínculo | PDF do boletim: notas por período e disciplina, avaliações, nota final, frequência e situação |
+| GET `/documentos/historico/:matriculaId` | A/S, aluno da matrícula, R com vínculo | PDF do histórico, com créditos, carga horária e coeficiente |
+| GET `/documentos/declaracao/:matriculaId` | A/S, aluno da matrícula, R com vínculo | PDF da declaração de matrícula em texto corrido. `409` se a matrícula não estiver `ATIVA` |
+| GET `/documentos/ficha/:alunoId` | A/S | PDF da ficha cadastral: dados pessoais, responsáveis ligados e matrículas |
+| GET `/documentos/emitidos` | A/S | `{ id, codigo, tipo, descricao, alunoNome, emitidoEm, emitidoPor }[]`, até 200. Filtro opcional `?alunoId=` |
+| GET `/documentos/validar/:codigo` | **público**, 30 consultas por minuto por IP | `200 { valido: true, tipo, descricao, alunoNome, emitidoEm }`, com o nome mascarado (primeiro nome e iniciais dos demais). Código inexistente ou fora do formato: `404 { valido: false }`. Passou do limite: `429` |
+
+Os PDFs têm `Content-Type: application/pdf`, `Content-Disposition: attachment` com o nome `boletim-{ra}.pdf`, `historico-{ra}.pdf`, `declaracao-{ra}.pdf` ou `ficha-{ra}.pdf`, e `Cache-Control: private, no-store`. Os PDFs não são guardados: são montados a cada pedido.
+
+## Matrícula e rematrícula online (módulo `solicitacoes`)
+
+O pedido de matrícula (tipo `NOVA`) vem do formulário público. A rematrícula (tipo `REMATRICULA`) é pedida por um aluno ou responsável logado. Os pedidos seguem os status `ENVIADA`, `EM_ANALISE`, `PENDENTE` (falta documento ou informação), `APROVADA` e `RECUSADA`.
+
+- **Protocolo**: `{ano}-{id com 6 dígitos}`, por exemplo `2026-000123`.
+- **Chave de acompanhamento**: 10 caracteres aleatórios (sem `0`, `O`, `1` e `I`), devolvida uma única vez na criação. O banco guarda só o SHA-256.
+- **Matrícula fechada**: enquanto a secretaria não abrir (`PUT /matricula-online/configuracao`), o formulário responde `403`.
+
+```ts
+interface SolicitacaoResumoDTO {
+  id: number; protocolo: string; tipo: 'NOVA' | 'REMATRICULA';
+  status: 'ENVIADA' | 'EM_ANALISE' | 'PENDENTE' | 'APROVADA' | 'RECUSADA';
+  nome: string; curso: { id: number; nome: string; nivel: string };
+  criadoEm: string; atualizadoEm: string; documentos: number;
+}
+
+interface SolicitacaoDTO extends Omit<SolicitacaoResumoDTO, 'documentos'> {
+  email: string; cpf: string | null; dataNascimento: string; telefone: string | null; endereco: string | null;
+  responsavelNome: string | null; responsavelEmail: string | null; responsavelTelefone: string | null; responsavelParentesco: string | null;
+  observacao: string; parecer: string; periodoLetivo: { id: number; nome: string } | null;
+  alunoId: number | null; matriculaId: number | null;
+  analisadoPor: { id: number; nome: string } | null; analisadoEm: string | null;
+  documentos: ArquivoDTO[];   // baixados por GET /arquivos/:id (só gestão)
+}
+```
+
+### Públicas (sem login)
+
+Todas têm limite por IP em memória, que responde `429`.
+
+| Método e caminho | Limite | Corpo | Resposta |
+|---|---|---|---|
+| GET `/matricula-online` | | | `{ aberta, texto, cursos: [{ id, nome, nivel, regime, mensalidade }], periodos: [{ id, nome }] }`. Fechada: `cursos` e `periodos` vazios |
+| POST `/matricula-online` | 5 pedidos por hora | `{ cursoId, periodoLetivoId?, nome (até 150), email, cpf? (até 20), dataNascimento, telefone?, endereco?, responsavelNome?, responsavelEmail?, responsavelTelefone?, responsavelParentesco?, observacao? (até 2000), site }` | `201 { protocolo, chave }`. E-mail de confirmação com o protocolo, sem a chave. `403` se fechada. `400` para menor de 18 anos sem `responsavelNome` e `responsavelEmail`. `409` se já há pedido em andamento para o mesmo e-mail e curso. Se o campo `site` vier preenchido, responde `201` com protocolo e chave falsos e não grava |
+| POST `/matricula-online/acompanhar` | 20 consultas por minuto | `{ protocolo, chave }` | `{ protocolo, tipo, status, nome, curso, criadoEm, parecer, documentos: [{ nome, tamanho }], podeEnviarDocumentos }`. Protocolo ou chave errados: `404` com a mensagem "Protocolo ou chave não encontrados" |
+| POST `/matricula-online/documentos` | 30 envios por hora | corpo bruto do arquivo; cabeçalhos `X-Protocolo`, `X-Chave`, `X-Nome-Arquivo` e `Content-Type` | `201 { nome, tamanho }`. Só em `ENVIADA` ou `PENDENTE`, com até 6 documentos por pedido. PDF, JPG, JPEG ou PNG, até 10 MB. `409` na fase errada. O nginx aceita até 12 MB no corpo |
+
+### Rematrícula (logado)
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/rematricula/opcoes` | L, R | | Uma opção por matrícula `ATIVA` ou `TRANCADA` dos alunos do usuário: `{ matriculaId, alunoId, alunoNome, curso, serieAtual, status, periodos: [{ id, nome }], pedidoAberto: { protocolo, status } \| null }` |
+| POST `/rematricula` | L (próprio), R com vínculo | `{ matriculaId, periodoLetivoId, observacao? }` | `201 SolicitacaoResumoDTO`. `409` se já há pedido aberto para a matrícula. Copia os dados do aluno |
+| GET `/rematricula/minhas` | L, R | | Pedidos do próprio usuário, com `parecer` |
+
+### Secretaria (A/S)
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/solicitacoes` | A/S | `?status&tipo&busca&pagina` | `{ itens: SolicitacaoResumoDTO[], total, pagina, porPagina: 30, contagem: Record<status, number> }` |
+| GET `/solicitacoes/:id` | A/S | | `SolicitacaoDTO` |
+| PUT `/solicitacoes/:id/status` | A/S | `{ status: 'EM_ANALISE' \| 'PENDENTE' \| 'RECUSADA', parecer? }` | `SolicitacaoDTO`. `PENDENTE` e `RECUSADA` exigem `parecer`. `409` se o pedido já está `APROVADA` ou `RECUSADA` |
+| POST `/solicitacoes/:id/aprovar` | A/S | `{ parecer?, avancarSerie?, criarResponsavel? }` | `{ solicitacao: SolicitacaoDTO, senhaInicial: string \| null, responsavel: ResultadoVinculo \| null }` |
+| DELETE `/solicitacoes/:id` | só ADMIN (inclui TI) | | `204`. Só pedido `RECUSADA`; apaga os documentos. `409` para os demais |
+| PUT `/matricula-online/configuracao` | A/S | `{ aberta: boolean, texto (até 2000) }` | `{ aberta, texto }`. Grava a configuração e limpa o cache |
+
+Regras da aprovação:
+
+- **Matrícula nova (`NOVA`)**: se o e-mail já pertence a um usuário, `409` ("faça a matrícula pelo cadastro do aluno"). Sem `periodoLetivoId` no pedido, usa o período ativo mais recente; sem nenhum, `400`. Numa transação, cria o usuário, o aluno (com RA em sequência, como no cadastro) e a matrícula `ATIVA`, na série 1. Depois, manda o convite de senha ou devolve a senha inicial, como no cadastro.
+- **Rematrícula (`REMATRICULA`)**: a matrícula volta a `ATIVA`. Com `avancarSerie`, soma 1 na série, até a duração do curso.
+- **Responsável**: com `criarResponsavel` e `responsavelEmail` preenchido, chama `vincularResponsavel`. Uma falha nesse passo não desfaz a matrícula: a resposta traz `responsavel: null`.
+- **Avisos**: em cada mudança de status, o e-mail do pedido recebe uma mensagem do tipo `SECRETARIA` (se o e-mail da plataforma estiver ativo). Se o pedido foi feito por um usuário logado, ele recebe um aviso `SECRETARIA` com link `/rematricula`.

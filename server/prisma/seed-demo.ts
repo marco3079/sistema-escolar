@@ -19,6 +19,7 @@ import type {
   Avaliacao,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
 
 const SENHA_HASH = bcrypt.hashSync('demo1234', 10);
 const NOTA_MAXIMA = 10;
@@ -1591,9 +1592,262 @@ export async function carregarDemonstracao(prisma: PrismaClient): Promise<void> 
     },
   });
 
+  // Secretaria e famílias (sétima leva)
+  await seedSecretariaEFamilias(prisma);
+
   // Resumo
   console.log(
     `Dados de demonstração carregados: ${await prisma.usuario.count()} usuários, ${await prisma.turma.count()} turmas, ${await prisma.matricula.count()} matrículas.`
   );
+}
+
+// ---------- Secretaria e famílias (sétima leva) ----------
+
+// Chave de acompanhamento de demonstração (só para o pedido de Beatriz Nogueira).
+const CHAVE_DEMO_MATRICULA = 'DEMO2026AB';
+
+const sha256 = (texto: string): string => createHash('sha256').update(texto, 'utf8').digest('hex');
+
+// Dia n dias atrás, ao meio-dia UTC.
+const diaAoMeioDiaUtc = (diasAtras: number): Date => {
+  const hoje = new Date();
+  return new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() - diasAtras, 12, 0));
+};
+
+// Lê os dados já gravados pelo seed (por e-mail e RA), por isso roda no fim de carregarDemonstracao.
+async function seedSecretariaEFamilias(prisma: PrismaClient): Promise<void> {
+  const porEmail = async (email: string): Promise<Usuario> => {
+    const u = await prisma.usuario.findUnique({ where: { email } });
+    if (!u) throw new Error(`Usuário de demonstração não encontrado: ${email}`);
+    return u;
+  };
+  const porRa = async (ra: string): Promise<Aluno> => {
+    const a = await prisma.aluno.findUnique({ where: { ra } });
+    if (!a) throw new Error(`Aluno de demonstração não encontrado: ${ra}`);
+    return a;
+  };
+
+  const admin = await porEmail('admin@escola.demo');
+  const secretaria = await porEmail('secretaria@escola.demo');
+  const ana = await porEmail('prof.ana@escola.demo');
+  const marinaUsuario = await porEmail('aluna.marina@escola.demo');
+  const marina = await porRa('202600006');
+  const joao = await porRa('202600007');
+  const lucas = await porRa('202600001');
+  const instanteAtual = Date.now();
+
+  const turmaAlg2 = await prisma.turma.findFirst({
+    where: { codigo: 'BCC-ALG2-A', periodoLetivo: { nome: '2026.2' } },
+  });
+  if (!turmaAlg2) throw new Error('Turma de demonstração não encontrada: BCC-ALG2-A');
+
+  const periodoAtivo = await prisma.periodoLetivo.findFirst({ where: { ativo: true }, orderBy: { inicio: 'desc' } });
+  const cursoGraduacao = await prisma.curso.findUnique({ where: { codigo: 'BCC' } });
+  const cursoEspecializacao = await prisma.curso.findUnique({ where: { codigo: 'ESPDS' } });
+  const cursoFundamental =
+    (await prisma.curso.findUnique({ where: { codigo: 'EF2' } })) ??
+    (await prisma.curso.findFirst({ where: { nivel: { in: ['FUNDAMENTAL_1', 'FUNDAMENTAL_2', 'MEDIO'] } } })) ??
+    cursoGraduacao;
+  if (!cursoGraduacao || !cursoEspecializacao || !cursoFundamental) throw new Error('Curso de demonstração não encontrado');
+
+  // ----- Responsáveis (perfil RESPONSAVEL) e vínculos -----
+
+  const carla = await prisma.usuario.create({
+    data: { nome: 'Carla Costa', email: 'resp.carla@escola.demo', senhaHash: SENHA_HASH, perfil: 'RESPONSAVEL', telefone: proximoFone() },
+  });
+  const roberto = await prisma.usuario.create({
+    data: { nome: 'Roberto Vieira', email: 'resp.roberto@escola.demo', senhaHash: SENHA_HASH, perfil: 'RESPONSAVEL', telefone: proximoFone() },
+  });
+
+  await prisma.responsavelAluno.createMany({
+    data: [
+      { usuarioId: carla.id, alunoId: marina.id, parentesco: 'Mãe', financeiro: true },
+      { usuarioId: carla.id, alunoId: lucas.id, parentesco: 'Tia', financeiro: false },
+      { usuarioId: roberto.id, alunoId: joao.id, parentesco: 'Pai', financeiro: false },
+    ],
+  });
+
+  // ----- Ocorrências -----
+
+  type TipoDado = 'ELOGIO' | 'OBSERVACAO' | 'ATRASO' | 'INDISCIPLINA' | 'ADVERTENCIA';
+  type GravidadeDado = 'LEVE' | 'MEDIA' | 'GRAVE';
+  interface OcorrenciaDado {
+    aluno: Aluno;
+    autor: Usuario;
+    turma: Turma | null;
+    tipo: TipoDado;
+    gravidade: GravidadeDado;
+    titulo: string;
+    descricao: string;
+    medidas: string;
+    diasAtras: number;
+    visivelFamilia: boolean;
+    cienteEm?: Date; // ciência dada pela Carla (responsável)
+  }
+  const ocorrenciasDados: OcorrenciaDado[] = [
+    {
+      aluno: marina, autor: ana, turma: turmaAlg2, tipo: 'ELOGIO', gravidade: 'LEVE',
+      titulo: 'Destaque na aula de ordenação',
+      descricao: 'Participou com destaque da aula sobre ordenação e ajudou colegas com dúvidas sobre listas.',
+      medidas: '', diasAtras: 25, visivelFamilia: true,
+      cienteEm: new Date(instanteAtual - 20 * 86400000),
+    },
+    {
+      aluno: joao, autor: ana, turma: turmaAlg2, tipo: 'OBSERVACAO', gravidade: 'LEVE',
+      titulo: 'Material de estudo em falta',
+      descricao: 'Chegou à aula sem o caderno de anotações de ordenação, o que atrapalhou a atividade em dupla.',
+      medidas: '', diasAtras: 18, visivelFamilia: true,
+    },
+    {
+      aluno: marina, autor: ana, turma: turmaAlg2, tipo: 'ATRASO', gravidade: 'LEVE',
+      titulo: 'Chegada após o início da aula',
+      descricao: 'Chegou quinze minutos depois do início da aula de árvores binárias, sem aviso prévio.',
+      medidas: '', diasAtras: 12, visivelFamilia: true,
+    },
+    {
+      aluno: lucas, autor: admin, turma: null, tipo: 'INDISCIPLINA', gravidade: 'LEVE',
+      titulo: 'Conversa durante a explicação',
+      descricao: 'Conversou em voz alta durante a explicação do professor e precisou ser chamado a atenção duas vezes.',
+      medidas: '', diasAtras: 9, visivelFamilia: true,
+    },
+    {
+      aluno: joao, autor: admin, turma: null, tipo: 'ADVERTENCIA', gravidade: 'MEDIA',
+      titulo: 'Desrespeito a colega em atividade de grupo',
+      descricao: 'Durante a atividade em grupo, falou de forma ofensiva com um colega e se recusou a dividir as tarefas.',
+      medidas: 'Conversa com a coordenação e registro no histórico. Combinado de mediação com o grupo na próxima aula.',
+      diasAtras: 5, visivelFamilia: true,
+    },
+    {
+      aluno: lucas, autor: admin, turma: null, tipo: 'OBSERVACAO', gravidade: 'LEVE',
+      titulo: 'Acompanhamento de atividades',
+      descricao: 'Tem dificuldade para entregar as atividades no prazo. Conversar com a família na próxima reunião.',
+      medidas: '', diasAtras: 3, visivelFamilia: false,
+    },
+  ];
+  for (const o of ocorrenciasDados) {
+    await prisma.ocorrencia.create({
+      data: {
+        alunoId: o.aluno.id,
+        turmaId: o.turma?.id ?? null,
+        autorId: o.autor.id,
+        tipo: o.tipo,
+        gravidade: o.gravidade,
+        titulo: o.titulo,
+        descricao: o.descricao,
+        medidas: o.medidas,
+        data: diaAoMeioDiaUtc(o.diasAtras),
+        visivelFamilia: o.visivelFamilia,
+        cienteEm: o.cienteEm ?? null,
+        cientePorId: o.cienteEm ? carla.id : null,
+      },
+    });
+  }
+
+  // ----- Matrícula online aberta, com orientações -----
+
+  const textoMatricula = [
+    'Documentos necessários: documento de identidade com foto, CPF e comprovante de endereço recente. Para quem vem de outra instituição, também o histórico escolar.',
+    'Prazo de análise: até 3 dias úteis após o envio do pedido completo.',
+    'Dúvidas: procure a secretaria da escola pelos canais de atendimento divulgados no site.',
+  ].join('\n');
+  await prisma.configuracaoPlataforma.upsert({
+    where: { id: 1 },
+    update: { matriculaOnlineAberta: true, matriculaOnlineTexto: textoMatricula },
+    create: { id: 1, matriculaOnlineAberta: true, matriculaOnlineTexto: textoMatricula },
+  });
+
+  // ----- Pedidos de matrícula e rematrícula -----
+
+  const ano = new Date().getFullYear();
+  const agora = new Date();
+  const hashAleatorio = (): string => sha256(randomBytes(16).toString('hex'));
+
+  // Cria com protocolo provisório (único) e troca pelo formato {ano}-{id com 6 dígitos}.
+  const gravarPedido = async (dados: Omit<Prisma.SolicitacaoMatriculaUncheckedCreateInput, 'protocolo'>): Promise<void> => {
+    const criado = await prisma.solicitacaoMatricula.create({
+      data: { ...dados, protocolo: `PROVISORIO-${randomBytes(6).toString('hex')}` },
+    });
+    await prisma.solicitacaoMatricula.update({
+      where: { id: criado.id },
+      data: { protocolo: `${ano}-${String(criado.id).padStart(6, '0')}` },
+    });
+  };
+
+  const matriculaMarina = await prisma.matricula.findFirst({ where: { alunoId: marina.id } });
+  if (!matriculaMarina) throw new Error('Matrícula de demonstração não encontrada: Marina');
+
+  // (a) Nova, enviada, candidata adulta à graduação.
+  await gravarPedido({
+    tipo: 'NOVA',
+    status: 'ENVIADA',
+    cursoId: cursoGraduacao.id,
+    nome: 'Beatriz Nogueira',
+    email: 'beatriz.nogueira@exemplo.demo',
+    dataNascimento: d(2001, 3, 14),
+    telefone: proximoFone(),
+    endereco: 'Rua Esperança, 210 - Centro',
+    observacao: 'Gostaria de começar no próximo período, de preferência no turno da noite.',
+    chaveHash: sha256(CHAVE_DEMO_MATRICULA),
+    periodoLetivoId: periodoAtivo?.id ?? null,
+  });
+
+  // (b) Nova, pendente, candidato menor com responsável (fundamental).
+  await gravarPedido({
+    tipo: 'NOVA',
+    status: 'PENDENTE',
+    cursoId: cursoFundamental.id,
+    nome: 'Lucas Prado',
+    email: 'sandra.prado@exemplo.demo',
+    dataNascimento: d(2012, 5, 8),
+    telefone: proximoFone(),
+    endereco: 'Rua das Flores, 33 - Jardim Primavera',
+    responsavelNome: 'Sandra Prado',
+    responsavelEmail: 'sandra.prado@exemplo.demo',
+    responsavelTelefone: proximoFone(),
+    responsavelParentesco: 'Mãe',
+    observacao: 'Quero matricular meu filho no próximo período.',
+    parecer:
+      'Recebemos o pedido. Para dar seguimento à análise, envie um comprovante de endereço em nome do responsável (conta de luz, água ou telefone dos últimos três meses) pelo acompanhamento do pedido.',
+    chaveHash: hashAleatorio(),
+    analisadoPorId: secretaria.id,
+    analisadoEm: agora,
+    periodoLetivoId: periodoAtivo?.id ?? null,
+  });
+
+  // (c) Nova, recusada, com parecer educado.
+  await gravarPedido({
+    tipo: 'NOVA',
+    status: 'RECUSADA',
+    cursoId: cursoEspecializacao.id,
+    nome: 'Fernando Alves',
+    email: 'fernando.alves@exemplo.demo',
+    dataNascimento: d(1993, 10, 2),
+    telefone: proximoFone(),
+    observacao: 'Tenho formação em estatística e quero me especializar em ciência de dados.',
+    parecer:
+      'Agradecemos o interesse. Infelizmente não há vaga disponível nesta turma para o período informado. Convidamos você a participar do próximo processo seletivo; a secretaria pode orientar sobre os requisitos.',
+    chaveHash: hashAleatorio(),
+    analisadoPorId: secretaria.id,
+    analisadoEm: agora,
+    periodoLetivoId: periodoAtivo?.id ?? null,
+  });
+
+  // (d) Rematrícula da Marina, em análise.
+  await gravarPedido({
+    tipo: 'REMATRICULA',
+    status: 'EM_ANALISE',
+    cursoId: matriculaMarina.cursoId,
+    nome: 'Marina Costa',
+    email: 'aluna.marina@escola.demo',
+    dataNascimento: d(2005, 4, 18),
+    observacao: 'Renovação para o próximo período.',
+    chaveHash: hashAleatorio(),
+    alunoId: marina.id,
+    matriculaId: matriculaMarina.id,
+    periodoLetivoId: periodoAtivo?.id ?? null,
+    solicitanteId: marinaUsuario.id,
+    analisadoPorId: secretaria.id,
+    analisadoEm: agora,
+  });
 }
 

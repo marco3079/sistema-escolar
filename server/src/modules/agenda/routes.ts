@@ -108,11 +108,16 @@ async function verificarChoque(
 // Rotas fixas antes das rotas com parâmetro.
 router.get(
   '/horarios/meus',
-  permitir('PROFESSOR', 'ALUNO'),
+  permitir('PROFESSOR', 'ALUNO', 'RESPONSAVEL'),
   asyncHandler(async (req, res) => {
     const { perfil, professorId, alunoId } = req.usuario;
     let filtroTurma: Prisma.TurmaWhereInput;
 
+    // Responsável não tem horário de aula próprio (o horário dos filhos fica no portal): lista vazia.
+    if (perfil === 'RESPONSAVEL') {
+      res.json([]);
+      return;
+    }
     if (perfil === 'PROFESSOR') {
       if (professorId === null) {
         throw new HttpError(403, 'Sem permissão');

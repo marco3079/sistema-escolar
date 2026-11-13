@@ -71,6 +71,13 @@ const ROTULOS_MODULO: Record<string, string> = {
   provas: 'Provas',
   tentativas: 'Provas',
   'presenca-qr': 'Chamada',
+  familia: 'Portal da família',
+  responsaveis: 'Responsáveis',
+  ocorrencias: 'Ocorrências',
+  documentos: 'Documentos',
+  solicitacoes: 'Matrícula online',
+  'matricula-online': 'Matrícula online',
+  rematricula: 'Rematrícula',
 };
 
 // Ações: POST cujo último segmento do caminho está aqui vira ALTERACAO.
@@ -86,6 +93,8 @@ const ACOES = new Set([
   'redefinir-senha',
   'trocar-senha',
   'notas',
+  'ciencia',
+  'aprovar',
 ]);
 
 // Frases próprias: chave "modulo/acao" (caminho) ou só "acao" (válida para qualquer módulo).
@@ -99,6 +108,8 @@ const FRASES_ACAO: Record<string, string> = {
   'comunicados/ler': 'Marcou um comunicado como lido',
   'matriculas/enturmar': 'Enturmou uma matrícula',
   notas: 'Lançou notas',
+  ciencia: 'Deu ciência de uma ocorrência',
+  aprovar: 'Aprovou um pedido de matrícula',
   'redefinir-senha': 'Redefiniu a senha de um usuário',
   'trocar-senha': 'Trocou a própria senha',
 };

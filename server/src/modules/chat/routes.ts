@@ -12,6 +12,7 @@ import {
   conversaMudou,
   ConversaChat,
   detalheConversa,
+  filtroDeContatos,
   iso,
   leituraDaConversa,
   leituraDos,
@@ -84,9 +85,12 @@ router.get(
     const termo = busca?.trim() ?? '';
     const lista = await prisma.usuario.findMany({
       where: {
-        ativo: true,
-        id: { not: meuId },
-        ...(termo ? { nome: { contains: termo, mode: 'insensitive' } } : {}),
+        AND: [
+          { ativo: true },
+          { id: { not: meuId } },
+          filtroDeContatos(req.usuario),
+          ...(termo ? [{ nome: { contains: termo, mode: 'insensitive' as const } }] : []),
+        ],
       },
       select: { id: true, nome: true, perfil: true, foto: true, ativo: true },
       orderBy: { nome: 'asc' },
@@ -116,7 +120,10 @@ router.post(
       if (outroId === meuId) {
         throw new HttpError(400, 'Não é possível abrir uma conversa com você mesmo');
       }
-      const outro = await prisma.usuario.findFirst({ where: { id: outroId, ativo: true }, select: { id: true } });
+      const outro = await prisma.usuario.findFirst({
+        where: { AND: [{ id: outroId, ativo: true }, filtroDeContatos(req.usuario)] },
+        select: { id: true },
+      });
       if (!outro) {
         throw new HttpError(404, 'Usuário não encontrado');
       }
@@ -147,13 +154,16 @@ router.post(
       return;
     }
 
-    // GRUPO
+    // GRUPO: responsáveis não criam grupos nem entram neles (só conversam individualmente com a equipe e professores).
+    if (req.usuario.perfil === 'RESPONSAVEL') {
+      throw new HttpError(403, 'Responsáveis não podem criar grupos');
+    }
     const ids = [...new Set(dados.participantes)].filter((id) => id !== meuId);
     if (ids.length < 1 || ids.length > 99) {
       throw new HttpError(400, 'Escolha de 1 a 99 outras pessoas para o grupo');
     }
     const ativos = await prisma.usuario.findMany({
-      where: { id: { in: ids }, ativo: true },
+      where: { id: { in: ids }, ativo: true, perfil: { not: 'RESPONSAVEL' } },
       select: { id: true },
     });
     if (ativos.length !== ids.length) {
@@ -266,7 +276,7 @@ router.post(
         throw new HttpError(400, 'O grupo pode ter no máximo 100 participantes');
       }
       const validos = await prisma.usuario.findMany({
-        where: { id: { in: aAdicionar }, ativo: true },
+        where: { id: { in: aAdicionar }, ativo: true, perfil: { not: 'RESPONSAVEL' } },
         select: { id: true },
       });
       if (validos.length !== aAdicionar.length) {

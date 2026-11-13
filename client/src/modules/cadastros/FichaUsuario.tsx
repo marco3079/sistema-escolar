@@ -33,7 +33,7 @@ function SeloTipoLog({ tipo }: { tipo: string }) {
   return <Selo cor={info?.cor ?? 'cinza'}>{info?.rotulo ?? tipo}</Selo>;
 }
 
-// Selo do perfil: ADMIN azul, TI roxo, SECRETARIA verde, PROFESSOR laranja, ALUNO cinza.
+// Selo do perfil: ADMIN azul, TI roxo, SECRETARIA verde, PROFESSOR laranja, ALUNO cinza, RESPONSAVEL amarelo.
 // Roxo e laranja não existem no Selo; usam classes próprias (fichas.css) com variáveis de estilo.css.
 export function SeloPerfilUsuario({ perfil }: { perfil: string }) {
   const rotulo = rotuloPerfil(perfil);
@@ -46,6 +46,8 @@ export function SeloPerfilUsuario({ perfil }: { perfil: string }) {
       return <Selo cor="verde">{rotulo}</Selo>;
     case 'PROFESSOR':
       return <span className="selo usuario-selo-laranja">{rotulo}</span>;
+    case 'RESPONSAVEL':
+      return <Selo cor="amarelo">{rotulo}</Selo>;
     default:
       return <Selo cor="cinza">{rotulo}</Selo>;
   }
@@ -161,6 +163,12 @@ function Conteudo({
         <Aviso tipo="info">
           Este usuário é um professor: a ficha acadêmica fica em{' '}
           <Link to="/admin/professores">Professores</Link>.
+        </Aviso>
+      )}
+      {usuario.perfil === 'RESPONSAVEL' && (
+        <Aviso tipo="info">
+          Este usuário é um responsável: os alunos ligados a ele ficam na ficha de cada aluno, em{' '}
+          <Link to="/admin/alunos">Alunos</Link>.
         </Aviso>
       )}
 

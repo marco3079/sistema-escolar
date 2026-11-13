@@ -125,6 +125,10 @@ async function podeBaixar(
     // Professor e gestão da turma (não o aluno da turma).
     return temAcessoTurma(req, entrega.tarefa.turmaId, true);
   }
+  if (arquivo.contexto === 'SOLICITACAO') {
+    // Documentos de pedidos de matrícula: só a equipe (administrador, TI e secretaria).
+    return req.usuario.perfil === 'ADMIN' || req.usuario.perfil === 'SECRETARIA';
+  }
   return false;
 }
 

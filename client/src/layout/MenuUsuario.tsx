@@ -18,6 +18,7 @@ const PAPEIS: Record<PerfilReal, string> = {
   SECRETARIA: 'Secretaria',
   PROFESSOR: 'Professor',
   ALUNO: 'Aluno',
+  RESPONSAVEL: 'Responsável',
 };
 
 // Intervalo do contador de novidades do suporte (só no layout largo).
@@ -86,7 +87,9 @@ export function MenuUsuario() {
       ? '/professor/perfil'
       : usuario.perfil === 'ALUNO'
         ? '/aluno/perfil'
-        : '/admin/perfil';
+        : usuario.perfil === 'RESPONSAVEL'
+          ? '/responsavel/perfil'
+          : '/admin/perfil';
   const primeiroNome = usuario.nome.trim().split(/\s+/)[0] ?? usuario.nome;
 
   function irParaPerfil() {

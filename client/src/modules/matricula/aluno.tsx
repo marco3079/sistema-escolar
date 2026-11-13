@@ -4,6 +4,7 @@ import { useDados } from '../../lib/useDados';
 import type { RotaModulo } from '../../lib/rotas';
 import { rotuloNivel } from '../../lib/tipos';
 import { Aviso, Botao, Cartao, Carregando, Grade, Pagina, Selecao, Tabela } from '../../ui';
+import { BotaoPdf } from '../documentos/BotaoPdf';
 import {
   BlocoInscrever,
   InscricaoDTO,
@@ -18,10 +19,28 @@ import {
 
 // ---------- Minha matrícula (portal do aluno) ----------
 
+// Declaração em PDF da matrícula ativa (a API só emite para matrícula ATIVA).
+function CartaoDeclaracao({ matricula }: { matricula: MatriculaDTO }) {
+  return (
+    <Cartao titulo="Declaração de matrícula">
+      <div className="doc-declaracao">
+        <p className="doc-declaracao-texto">
+          Baixe uma declaração em PDF que comprova a sua matrícula ativa em {matricula.curso.nome}.
+        </p>
+        <BotaoPdf
+          caminho={`/documentos/declaracao/${matricula.id}`}
+          nomeArquivo={`declaracao-${matricula.aluno.ra}.pdf`}
+        />
+      </div>
+    </Cartao>
+  );
+}
+
 function MinhaMatricula() {
   const [periodoId, setPeriodoId] = useState('');
   const lista = useDados<MatriculaDTO[]>('/matriculas/minhas');
   const periodos = useDados<Periodo[]>('/periodos-letivos');
+  const ativa = (lista.dados ?? []).find((m) => m.status === 'ATIVA');
 
   if (lista.carregando && !lista.dados) return <Carregando />;
 
@@ -29,6 +48,7 @@ function MinhaMatricula() {
     <Pagina titulo="Minha matrícula">
       {lista.erro && <Aviso tipo="erro">{lista.erro}</Aviso>}
       {lista.dados && lista.dados.length === 0 && <p>Você ainda não tem matrícula.</p>}
+      {ativa && <CartaoDeclaracao matricula={ativa} />}
       <Selecao
         rotulo="Inscrições do período"
         valor={periodoId}

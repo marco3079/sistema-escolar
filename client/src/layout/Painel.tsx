@@ -98,6 +98,7 @@ function atalhosDoPerfil(perfil: Perfil | undefined): Atalho[] {
 function prefixoDoPerfil(perfil: Perfil | undefined): string {
   if (perfil === 'PROFESSOR') return '/professor';
   if (perfil === 'ALUNO') return '/aluno';
+  if (perfil === 'RESPONSAVEL') return '/responsavel';
   return '/admin';
 }
 

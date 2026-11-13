@@ -52,7 +52,7 @@ export async function garantirEmailLivre(email: string, ignorarUsuarioId?: numbe
 
 // RA: ano atual + sequência de 5 dígitos (ex.: 202600001).
 // Lê o último RA uma vez e devolve uma função que gera os seguintes em memória.
-async function geradorRA(tx: Prisma.TransactionClient): Promise<() => string> {
+export async function geradorRA(tx: Prisma.TransactionClient): Promise<() => string> {
   const ano = String(new Date().getFullYear());
   const ultimo = await tx.aluno.findFirst({
     where: { ra: { startsWith: ano } },

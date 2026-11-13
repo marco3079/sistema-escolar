@@ -1,6 +1,6 @@
 // Tipos do Contrato C (API do chat, prefixo /chat) e auxiliares da tela do chat.
 
-export type PerfilChat = 'ADMIN' | 'TI' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO';
+export type PerfilChat = 'ADMIN' | 'TI' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO' | 'RESPONSAVEL';
 
 export interface PessoaChat {
   id: number;

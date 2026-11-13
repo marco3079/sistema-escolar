@@ -6,6 +6,7 @@ import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
 import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
 import { notificar } from '../../lib/notificacoes';
+import { alunosDoResponsavel } from '../../lib/responsaveis';
 
 const router = Router();
 
@@ -46,6 +47,23 @@ async function visiveisPara(usuario: UsuarioToken): Promise<Prisma.ComunicadoWhe
         prisma.matricula.findMany({ where: { alunoId }, select: { cursoId: true } }),
       ]);
       condicoes.push(
+        { publico: 'TURMA', turmaId: { in: inscricoes.map((i) => i.turmaId) } },
+        { publico: 'CURSO', cursoId: { in: matriculas.map((m) => m.cursoId) } }
+      );
+    }
+  } else if (perfil === 'RESPONSAVEL') {
+    // Mesma regra do aluno, aplicada a todos os alunos ligados ao responsável (sem vínculo: só "todos").
+    const alunoIds = await alunosDoResponsavel(id);
+    if (alunoIds.length > 0) {
+      const [inscricoes, matriculas] = await Promise.all([
+        prisma.inscricao.findMany({
+          where: { status: { not: 'TRANCADO' }, matricula: { alunoId: { in: alunoIds } } },
+          select: { turmaId: true },
+        }),
+        prisma.matricula.findMany({ where: { alunoId: { in: alunoIds } }, select: { cursoId: true } }),
+      ]);
+      condicoes.push(
+        { publico: 'ALUNOS' },
         { publico: 'TURMA', turmaId: { in: inscricoes.map((i) => i.turmaId) } },
         { publico: 'CURSO', cursoId: { in: matriculas.map((m) => m.cursoId) } }
       );
@@ -124,16 +142,42 @@ function condicaoDestinatarios(
   };
 }
 
+// Destinatários (id e e-mail): os do público, mais os responsáveis ativos dos alunos entre eles
+// (consulta em lote). Para "todos", os responsáveis já entram pelo público.
+async function destinatariosDoComunicado(
+  comunicado: { publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
+  autorId: number
+): Promise<{ id: number; email: string }[]> {
+  const diretos = await prisma.usuario.findMany({
+    where: condicaoDestinatarios(comunicado, autorId),
+    select: { id: true, email: true, aluno: { select: { id: true } } },
+    orderBy: { id: 'asc' },
+  });
+  const mapa = new Map<number, { id: number; email: string }>();
+  for (const d of diretos) {
+    mapa.set(d.id, { id: d.id, email: d.email });
+  }
+  const alunoIds = diretos.flatMap((d) => (d.aluno ? [d.aluno.id] : []));
+  if (comunicado.publico !== 'TODOS' && alunoIds.length > 0) {
+    const vinculos = await prisma.responsavelAluno.findMany({
+      where: { alunoId: { in: alunoIds }, usuario: { ativo: true, id: { not: autorId } } },
+      select: { usuario: { select: { id: true, email: true } } },
+      orderBy: { usuarioId: 'asc' },
+    });
+    for (const v of vinculos) {
+      mapa.set(v.usuario.id, { id: v.usuario.id, email: v.usuario.email });
+    }
+  }
+  return [...mapa.values()];
+}
+
 // Aviso no sino para os destinatários do comunicado. Roda em segundo plano: nunca atrasa nem derruba a resposta.
 function avisarComunicado(
   comunicado: { titulo: string; publico: 'TODOS' | 'ALUNOS' | 'PROFESSORES' | 'TURMA' | 'CURSO'; turmaId: number | null; cursoId: number | null },
   autorId: number
 ): void {
   void (async () => {
-    const destinatarios = await prisma.usuario.findMany({
-      where: condicaoDestinatarios(comunicado, autorId),
-      select: { id: true },
-    });
+    const destinatarios = await destinatariosDoComunicado(comunicado, autorId);
     notificar(
       destinatarios.map((d) => d.id),
       { tipo: 'COMUNICADO', titulo: comunicado.titulo, link: '/comunicados' }
@@ -154,12 +198,10 @@ function enviarEmailsComunicado(
     if (!endereco) {
       return;
     }
-    const destinatarios = await prisma.usuario.findMany({
-      where: condicaoDestinatarios(comunicado, autorId),
-      select: { email: true },
-      orderBy: { id: 'asc' },
-      take: MAX_DESTINATARIOS_EMAIL,
-    });
+    const destinatarios = (await destinatariosDoComunicado(comunicado, autorId)).slice(
+      0,
+      MAX_DESTINATARIOS_EMAIL
+    );
     const trecho = Array.from(comunicado.corpo).slice(0, MAX_TEXTO_EMAIL).join('');
     const cortado = Array.from(comunicado.corpo).length > MAX_TEXTO_EMAIL;
     for (const destinatario of destinatarios) {

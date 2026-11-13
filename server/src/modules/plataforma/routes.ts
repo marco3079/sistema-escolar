@@ -27,6 +27,7 @@ interface PlataformaPublica {
   corSecundaria: string;
   emailAtivo: boolean;
   recuperacaoSenha: boolean;
+  matriculaOnline: boolean;
 }
 
 interface ConfiguracoesDTO extends PlataformaPublica {
@@ -77,6 +78,7 @@ function plataformaPublica(configuracao: ConfiguracaoPlataforma): PlataformaPubl
     corSecundaria: configuracao.corSecundaria,
     emailAtivo,
     recuperacaoSenha: emailAtivo && configuracao.emailRecuperacao,
+    matriculaOnline: configuracao.matriculaOnlineAberta,
   };
 }
 

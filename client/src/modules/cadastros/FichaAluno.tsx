@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDados } from '../../lib/useDados';
+import { useAuth } from '../../lib/auth';
 import { rotuloNivel } from '../../lib/tipos';
 import { Aviso, Carregando, Selo, formatarData, formatarMoeda } from '../../ui';
+import { ListaOcorrencias } from '../ocorrencias/ListaOcorrencias';
+import { ResponsaveisDoAluno } from '../responsavel/ResponsaveisDoAluno';
+import { BotaoPdf } from '../documentos/BotaoPdf';
 import type { FichaAlunoDTO } from './tipos';
 import {
   FichaCabecalho,
@@ -40,6 +44,9 @@ function Conteudo({
   const { aluno, indicadores } = ficha;
   const temResponsavel = !!(aluno.responsavelNome || aluno.responsavelTelefone || aluno.responsavelEmail);
   const disciplinas = verTodas ? ficha.disciplinas : ficha.disciplinas.slice(0, LIMITE_DISCIPLINAS);
+  const { usuario } = useAuth();
+  // Responsáveis e ficha em PDF: só administração e secretaria (TI aparece como ADMIN).
+  const ehGestao = usuario?.perfil === 'ADMIN' || usuario?.perfil === 'SECRETARIA';
 
   return (
     <>
@@ -49,6 +56,17 @@ function Conteudo({
         ativo={aluno.ativo}
         aoEditar={aoEditar}
       />
+
+      {ehGestao && (
+        <div className="ocor-ficha-pdf">
+          <BotaoPdf
+            caminho={`/documentos/ficha/${aluno.id}`}
+            nomeArquivo={`ficha-${aluno.ra}.pdf`}
+            rotulo="Ficha em PDF"
+            variante="secundario"
+          />
+        </div>
+      )}
 
       <div className="ficha-indicadores">
         <FichaIndicador
@@ -117,6 +135,16 @@ function Conteudo({
               </FichaItem>
             ))}
           </FichaSecao>
+
+          <FichaSecao titulo="Ocorrências" icone="ocorrencia">
+            <ListaOcorrencias alunoId={aluno.id} modo="gestao" />
+          </FichaSecao>
+
+          {ehGestao && (
+            <FichaSecao titulo="Responsáveis" icone="familia">
+              <ResponsaveisDoAluno alunoId={aluno.id} />
+            </FichaSecao>
+          )}
         </div>
 
         <div className="ficha-coluna">

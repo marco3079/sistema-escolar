@@ -6,6 +6,7 @@ import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import type { UsuarioToken } from '../../lib/auth';
 import { emailHabilitado, enderecoDoSite, enfileirarEmail } from '../../lib/email';
 import { notificar } from '../../lib/notificacoes';
+import { alunosDoResponsavel } from '../../lib/responsaveis';
 
 const router = Router();
 
@@ -445,6 +446,14 @@ router.get(
         return;
       }
       where = { inscricoes: { some: { status: 'CURSANDO', matricula: { alunoId: usuario.alunoId } } } };
+    } else if (usuario.perfil === 'RESPONSAVEL') {
+      // Responsável: só as turmas em que está inscrito algum aluno ligado a ele (como o aluno).
+      const alunoIds = await alunosDoResponsavel(usuario.id);
+      if (alunoIds.length === 0) {
+        res.json([]);
+        return;
+      }
+      where = { inscricoes: { some: { status: 'CURSANDO', matricula: { alunoId: { in: alunoIds } } } } };
     } else {
       where = { periodoLetivo: { ativo: true } };
     }
@@ -547,6 +556,22 @@ router.post(
           })) !== null;
         if (!inscrito) {
           throw new HttpError(403, 'Você não tem inscrição nesta turma');
+        }
+      } else if (usuario.perfil === 'RESPONSAVEL') {
+        // Responsável: a turma precisa ter inscrição de algum aluno ligado a ele.
+        const alunoIds = await alunosDoResponsavel(usuario.id);
+        const inscrito =
+          alunoIds.length > 0 &&
+          (await prisma.inscricao.findFirst({
+            where: {
+              turmaId: dados.turmaId,
+              status: 'CURSANDO',
+              matricula: { alunoId: { in: alunoIds } },
+            },
+            select: { id: true },
+          })) !== null;
+        if (!inscrito) {
+          throw new HttpError(403, 'Nenhum aluno seu tem inscrição nesta turma');
         }
       }
       turmaId = dados.turmaId;

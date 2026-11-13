@@ -6,6 +6,32 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+## [1.1.0] - 2026-11-13
+
+### Adicionado
+
+- Documentos em PDF, com a logo da plataforma: boletim, histórico, declaração de matrícula (só para matrícula ativa) e ficha do aluno (só gestão). Cada documento tem um código de conferência, e a página pública `/validar` confere a autenticidade e mostra só o primeiro nome do aluno e as iniciais dos demais. Dependência nova no servidor: `pdfkit`.
+- Ocorrências disciplinares por aluno, com tipo (advertência, suspensão, indisciplina, atraso, observação e elogio), gravidade, medidas tomadas e opção de mostrar à família. O responsável dá ciência no portal, e o aviso chega ao autor.
+- Perfil Responsável e portal `/responsavel`: acompanha um ou mais alunos vinculados (boletim, frequência, mensalidades se liberadas, ocorrências e documentos) e pede a rematrícula. Os responsáveis são cadastrados na ficha do aluno, com convite por e-mail ou senha inicial mostrada uma vez.
+- Matrícula online: formulário público que nasce fechado e é aberto pela secretaria, com documentos (PDF, JPG ou PNG, até 10 MB cada e 6 por pedido), acompanhamento por protocolo e chave, e fila da secretaria. A aprovação cria o aluno e a matrícula, e pode criar o responsável.
+- Rematrícula pelo aluno ou pelo responsável, com acompanhamento e parecer da secretaria.
+- Avisos do tipo `OCORRENCIA` e `SECRETARIA`, e e-mails do tipo `SECRETARIA`.
+- Telas públicas no site, fora do layout do portal, para a conferência de documentos e a matrícula online.
+
+### Alterado
+
+- Boletim e histórico passam a ser calculados em um único lugar (`server/src/lib/boletim.ts`), usado pelo diário, pelo portal da família e pelos PDFs. O formato das respostas não mudou.
+- A documentação passa a descrever quatro portais (incluindo o do responsável) e as novas rotas da API.
+
+### Segurança
+
+- Limites por IP, em memória, nas rotas públicas: matrícula online (5 pedidos por hora), acompanhamento (20 consultas por minuto), envio de documentos do pedido (30 por hora) e validação de documentos (30 consultas por minuto).
+- Armadilha para robôs no formulário de matrícula online: um campo oculto que, quando preenchido, faz a API fingir que aceitou o pedido sem gravar nada.
+- Chave de acompanhamento da matrícula guardada só como hash, mostrada uma vez, e enviada com o protocolo no corpo da requisição (nunca na URL). Protocolo ou chave errados recebem a mesma resposta.
+- Responsável só vê alunos com vínculo, conferido pelas funções `acessoAoAluno` e `acessoAMatricula`. O fórum fica fechado ao perfil Responsável.
+- Documentos do pedido de matrícula com tipo conferido pela extensão e pelo tipo enviado, e nome em disco aleatório.
+- O professor passa a ver só os alunos das próprias turmas, sem dados de contato.
+
 ## [1.0.0] - 2026-11-10
 
 ### Adicionado

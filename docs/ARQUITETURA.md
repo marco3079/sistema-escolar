@@ -49,7 +49,7 @@ client/
 
 O arquivo `server/src/app.ts` percorre as pastas de `server/src/modules/` em ordem alfabética. Cada pasta que tem um `routes.ts` é carregada. As regras são:
 
-- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login, o teste de saúde e a senha por e-mail, e o módulo `plataforma` para `GET /api/plataforma`, o manifesto do app e a logo.
+- Um módulo pode exportar `publico`, um roteador sem autenticação. Hoje, o módulo `auth` usa isso para o login, o teste de saúde e a senha por e-mail, e o módulo `plataforma` para `GET /api/plataforma`, o manifesto do app e a logo. Os módulos `solicitacoes` (matrícula online) e `documentos` (validação pública) também exportam `publico`, com limites por IP.
 - O `default` do módulo é um roteador do Express montado em `/api` com o middleware `autenticar`, que exige o token JWT.
 - As rotas fixas (por exemplo, `/turmas/minhas`) são declaradas antes das rotas com parâmetro (`/turmas/:id`), para não haver conflito.
 - Rotas que não existem recebem `404` com `{ "erro": "Rota não encontrada" }`.
@@ -68,6 +68,9 @@ Os blocos de código compartilhados ficam em `server/src/lib/`:
 - `auth.ts`: `autenticar`, `permitir(...perfis)` e a geração do token.
 - `regras.ts`: frequência mínima, média mínima por nível e a situação final da inscrição.
 - `prisma.ts`: o cliente do Prisma, único para todo o servidor.
+- `responsaveis.ts`: o vínculo entre responsável e aluno, e as funções de acesso `acessoAoAluno` e `acessoAMatricula` (veja a seção "Responsáveis e portal da família").
+- `boletim.ts`: o cálculo do boletim e do histórico, usado pelo diário, pelo portal da família e pelos PDFs.
+- `pdf.ts`: a montagem comum dos PDFs (cabeçalho, rodapé com código, tabelas).
 
 ## Autenticação e perfis
 
@@ -86,8 +89,11 @@ Há cinco perfis:
 | `SECRETARIA` | Administrativo | Cadastros, matrículas, financeiro e comunicados. Não gerencia usuários. |
 | `PROFESSOR` | Professor | Suas turmas, diário, notas, frequência, orientações. |
 | `ALUNO` | Aluno | Seus dados, matrícula, boletim, histórico, financeiro e biblioteca. |
+| `RESPONSAVEL` | Responsável | Portal `/responsavel`: só os alunos com vínculo (boletim, frequência, mensalidades se liberadas, ocorrências, documentos e rematrícula). Sem acesso ao fórum. |
 
 Algumas rotas aplicam regras além do perfil, dentro do código. Exemplos: um professor só lança notas nas turmas dele, e um aluno só vê as próprias matrículas.
+
+O perfil `RESPONSAVEL` é um usuário ligado a um ou mais alunos pela tabela `ResponsavelAluno`. O vínculo nasce da ficha do aluno, ou da aprovação de uma matrícula online quando a secretaria pede para criar o responsável.
 
 ## Log de atividades
 
@@ -134,6 +140,7 @@ As regras e a tabela das medalhas estão em `API.md`, na seção "Perfil, medalh
 - Cada módulo do cliente é a pasta `client/src/modules/<modulo>/`, com um `index.tsx` que exporta a lista `rotas`.
 - Cada item da lista descreve uma tela: caminho, rótulo do menu, ícone, perfis que podem ver a tela, o componente da tela e a ordem no menu. Telas de detalhe ficam fora do menu.
 - O `App.tsx` junta as listas de todos os módulos com `import.meta.glob`. Assim, criar uma pasta de módulo com o `index.tsx` basta para a tela entrar no sistema.
+- **Telas públicas** (`rotasPublicas`): um módulo pode exportar também `rotasPublicas: RotaPublica[]`, com caminho e elemento. O `App.tsx` as monta como rotas soltas, fora do bloco com o layout do portal, que é o único que exige login. Assim, não há barra lateral nem redirecionamento para o login. Hoje são usadas pela conferência de documentos (`/validar`, `/validar/:codigo`) e pela matrícula online (`/matricula-online` e `/matricula-online/acompanhar`). Elas usam a identidade da plataforma (nome, logo e cores) e o visual da tela de entrada.
 - O menu mostra só as telas do perfil logado. A barra lateral agrupa as telas em seções (por exemplo, Pessoas, Acadêmico, Ensino, Gestão, Agenda e Conta), definidas em `client/src/layout/grupos.ts`.
 - Se um usuário abre uma tela de outro perfil, ele é redirecionado para o início do próprio portal.
 - Chamadas à API passam por `client/src/lib/api.ts`, que prefixa `/api`, envia o token e transforma a mensagem `erro` em exceção. Em resposta `401`, o usuário é desconectado.
@@ -164,6 +171,7 @@ Os componentes compartilhados (`Pagina`, `Tabela`, `Campo`, `Modal`, `Aviso` e o
 - A fila envia um e-mail por vez, com 300 ms entre um envio e o seguinte. Ela aceita até 500 mensagens pendentes; o excedente é registrado como falha ("Fila cheia"). A fila fica na memória do servidor: mensagens pendentes se perdem se o servidor reiniciar.
 - Cada envio, com sucesso ou falha, grava uma linha em `EmailEnviado` (destinatário, assunto, tipo, situação, erro e data). O corpo do e-mail não é gravado. A tela mostra os 30 registros mais recentes.
 - O e-mail tem versão HTML (cabeçalho com o nome da plataforma na cor primária, título, parágrafos, botão e rodapé) e versão texto. O texto enviado pela tela é escapado antes de virar HTML.
+- Tipos de aviso por e-mail, além dos já existentes: `SECRETARIA`, usado pela matrícula online (confirmação do pedido, mudança de status) e pelos avisos de ocorrência aos responsáveis (que não trazem a descrição). Como os demais, só sai com o envio ligado e o tipo marcado.
 - Erros do servidor de e-mail são cortados em 300 caracteres e têm a senha removida antes de ir para a resposta e para o histórico. Cada etapa da conexão tem limite de 15 segundos.
 - A senha do servidor fica cifrada no banco (veja `SECURITY.md`).
 
@@ -227,6 +235,9 @@ O sino do cabeçalho é a central de avisos. Os avisos ficam na tabela `Notifica
 | Pagamento registrado | o aluno | FINANCEIRO, "Pagamento confirmado: {competência}", link `/financeiro` |
 | Medalha manual concedida | quem recebeu | MEDALHA, "Você recebeu a medalha {título}", link `/perfil` |
 | Empréstimo registrado | quem pegou o livro | BIBLIOTECA, "Empréstimo registrado: {título}, devolução até {data}", link `/biblioteca` |
+| Ocorrência com visibilidade para a família | o aluno e os responsáveis com vínculo | OCORRENCIA, "Nova ocorrência: {título}" (ou "Elogio registrado: {título}"), link `/ocorrencias`, com `chave` `ocorrencia-{id}` |
+| Ciência de ocorrência | o autor da ocorrência | OCORRENCIA, "Ciência registrada: {título}", link `/ocorrencias` |
+| Mudança de status de solicitação (rematrícula) | quem fez o pedido logado | SECRETARIA, link `/rematricula` |
 
 - O chat não gera aviso no sino, porque já tem o próprio contador.
 - **Limpeza**: a cada 720 minutos, a tarefa periódica apaga os avisos com mais de 60 dias.
@@ -257,14 +268,14 @@ A cópia de segurança do banco inteiro é feita pelo módulo `backups` (`server
 
 ## Arquivos enviados
 
-Os arquivos das salas de aula (materiais, tarefas e entregas) ficam no disco da API, não no banco. Código em `server/src/lib/arquivos.ts` e rotas em `server/src/modules/arquivos/routes.ts`. Veja `API.md`.
+Os arquivos das salas de aula (materiais, tarefas e entregas) e os documentos enviados no pedido de matrícula online ficam no disco da API, não no banco. Código em `server/src/lib/arquivos.ts` e rotas em `server/src/modules/arquivos/routes.ts`. Veja `API.md`.
 
 - **Onde ficam**: no diretório `DIRETORIO_ARQUIVOS` (padrão `/dados/arquivos`). No Compose, o volume `dados_arquivos` é montado só no contêiner `api`. Esse volume não entra na cópia de segurança do banco.
-- **Vínculo por contexto**: a tabela `Arquivo` guarda o nome original, o tipo, o tamanho, o nome em disco e o dono. Um arquivo solto não tem contexto. Quando o material, a tarefa ou a entrega é salvo, o arquivo ganha `contexto` (`MATERIAL`, `TAREFA` ou `ENTREGA`) e `contextoId`. `definirArquivos` troca a lista de um item; `arquivosDe` busca os arquivos de vários itens numa consulta só; `apagarArquivosDe` apaga linha e disco quando o item é excluído.
+- **Vínculo por contexto**: a tabela `Arquivo` guarda o nome original, o tipo, o tamanho, o nome em disco e o dono. Um arquivo solto não tem contexto. Quando o material, a tarefa ou a entrega é salvo, o arquivo ganha `contexto` (`MATERIAL`, `TAREFA` ou `ENTREGA`) e `contextoId`. Os documentos do pedido de matrícula usam o contexto `SOLICITACAO`, ligado ao pedido na hora do envio; o download só é permitido à gestão (administrador, TI e secretaria). `definirArquivos` troca a lista de um item; `arquivosDe` busca os arquivos de vários itens numa consulta só; `apagarArquivosDe` apaga linha e disco quando o item é excluído.
 - **Nome em disco**: gerado pelo servidor (32 caracteres hexadecimais aleatórios mais a extensão). O nome do cliente nunca vai para o disco. Antes do nome final, o arquivo é gravado como `.parcial` e renomeado no fim; se algo falhar, o parcial é apagado.
 - **Limpeza**: a tarefa periódica roda a cada 60 minutos. Apaga arquivos soltos com mais de 24 horas e arquivos `.parcial` com mais de 1 hora (envio que não terminou).
 - **Limite e tipos**: 20 MB por arquivo, conferido pelo `Content-Length` e de novo durante a leitura do corpo. A extensão e o tipo do envio precisam combinar com a tabela fixa de tipos (`TIPOS_POR_EXTENSAO`).
-- **Nginx**: `client/nginx.conf` tem um `location ~ ^/api/arquivos(/|$)` com `client_max_body_size 25m` e `proxy_request_buffering off`, para o arquivo seguir direto para a API. As demais rotas `/api/` continuam com o limite de 2 MB.
+- **Nginx**: `client/nginx.conf` tem um `location ~ ^/api/arquivos(/|$)` com `client_max_body_size 25m` e `proxy_request_buffering off`, para o arquivo seguir direto para a API. Há também um `location = /api/matricula-online/documentos` com 12 MB, no mesmo formato, para os documentos do pedido de matrícula. As demais rotas `/api/` continuam com o limite de 2 MB.
 
 ## Sala de aula
 
@@ -315,6 +326,53 @@ Código em `server/src/modules/chamada/routes.ts`. Telas em `client/src/modules/
 - **Tela do professor**: consulta o estado a cada 2 segundos, uma consulta por vez, e pausa com a aba oculta. Tem botão de tela cheia para projetar.
 - **QR code**: `QrCode` desenha o SVG com a biblioteca `qrcode-generator` (correção de erro M), com fundo branco e módulos pretos, nos dois temas.
 
+## Responsáveis e portal da família
+
+Código em `server/src/modules/responsaveis/` (`routes.ts` e `servico.ts`), com as funções de acesso em `server/src/lib/responsaveis.ts`. Telas em `client/src/modules/responsavel/`: o portal (`/responsavel`, com o aluno em `/responsavel/aluno/:alunoId`), as ocorrências do responsável e a tela de responsáveis da gestão (`/admin/responsaveis`), além de `ResponsaveisDoAluno.tsx`, usado na ficha do aluno.
+
+- **Vínculo**: a tabela `ResponsavelAluno` liga um usuário de perfil `RESPONSAVEL` a um aluno (chave única para o par). Um responsável pode ter vários alunos, e um aluno, vários responsáveis. Ao excluir o vínculo, o usuário continua existindo.
+- **Financeiro**: cada vínculo tem a flag `financeiro`, que libera as mensalidades no portal. Sem ela, a rota de mensalidades responde `403`.
+- **Funções de acesso**: `acessoAoAluno(req, alunoId)` e `acessoAMatricula(req, matriculaId)` devolvem o papel de quem pede: `GESTAO` (administrador, TI e secretaria), `PROPRIO` (o próprio aluno) ou `RESPONSAVEL` (com vínculo; a flag `financeiro` vem do vínculo). Qualquer outro caso recebe `403`. Toda rota que mostra dados de um aluno ao próprio aluno ou a um responsável passa por elas. Professor não passa por essas funções: ele usa as regras da turma.
+- **Listas do responsável**: `vinculosDoResponsavel`, `alunosDoResponsavel` e `usuariosResponsaveisDoAluno` são as consultas básicas, usadas também nos avisos e no chat.
+- **Chat**: o responsável não cria grupos e não entra neles. Os contatos dele são a equipe (administrador, TI e secretaria) e os professores das turmas dos alunos vinculados, e a conversa é só individual.
+- **Fórum**: o responsável recebe `403` em todas as rotas `/forum`, porque o fórum não tem tela para ele.
+- **Visão do aluno**: o portal lê o boletim, o histórico, a frequência e as mensalidades pelos mesmos cálculos da gestão (`lib/boletim.ts` e as regras de frequência), com `?matriculaId=` opcional, que precisa ser matrícula do aluno.
+- **Resumo**: `GET /familia/alunos` devolve, por aluno, a média geral, a frequência média, as mensalidades abertas e atrasadas e as ocorrências ainda sem ciência, calculados na hora.
+
+## Ocorrências
+
+Código em `server/src/modules/ocorrencias/routes.ts`. Telas em `client/src/modules/ocorrencias/`: `ListaOcorrencias.tsx` (o componente usado nas fichas, no portal e nas telas de professor e secretaria), `FormularioOcorrencia.tsx`, `Ocorrencias.tsx` (a lista com filtros e o resumo da gestão), `MinhasOcorrencias.tsx` (do professor) e `index.tsx`.
+
+- **Modelo**: `Ocorrencia` tem aluno, turma (opcional, onde aconteceu), autor, tipo, gravidade, título, descrição, medidas, data do fato, `visivelFamilia`, e a ciência (`cienteEm` e `cientePorId`).
+- **Quem registra**: administrador, TI, secretaria e professor. O professor só registra para aluno com inscrição não trancada numa turma dele, e só vê as que registrou.
+- **Visibilidade**: só as marcadas como `visivelFamilia` aparecem para o aluno e para o responsável. As demais ficam só com a gestão e com o autor.
+- **Ciência**: o responsável com vínculo, ou o próprio aluno com 18 anos ou mais, registra a ciência uma vez. Repetir não muda o registro. Depois disso, o autor não edita nem exclui; só o administrador (inclusive TI) faz isso.
+- **Avisos**: ao criar ou tornar visível, a família recebe o aviso e o e-mail (tabela de avisos, na seção "Central de notificações"). A ciência avisa o autor.
+
+## Documentos em PDF
+
+Código em `server/src/lib/pdf.ts` (montagem comum) e `server/src/modules/documentos/routes.ts` (rotas). Tela de conferência em `client/src/modules/documentos/Validar.tsx`; componentes `BotaoPdf.tsx` (baixar, com estado de "Gerando...") e `Emitidos.tsx` (lista de documentos emitidos da gestão).
+
+- **Biblioteca**: `pdfkit` 0.15.2 e `@types/pdfkit` 0.17.7, com versão fixa (sem `^`) em `server/package.json`. A fonte padrão (Helvetica) cobre os acentos do português.
+- **Documentos**: boletim, histórico, declaração de matrícula (só para matrícula `ATIVA`) e ficha cadastral (só gestão). Os dados do boletim e do histórico vêm de `lib/boletim.ts`, o mesmo cálculo do diário.
+- **Código de conferência**: cada emissão grava um `DocumentoEmitido` com código `XXXX-XXXX-XXXX`, o tipo, o aluno (nome na hora da emissão), a descrição e quem emitiu. O PDF não é guardado; é montado de novo a cada pedido.
+- **Validação**: `GET /api/documentos/validar/:codigo` é pública e tem limite por IP. A tela `/validar/:codigo` é uma rota pública do cliente (veja "Como o cliente monta as telas"). Antes da consulta, o código é normalizado: as letras viram maiúsculas e os separadores (espaços e hífens) são retirados e colocados de novo no formato `XXXX-XXXX-XXXX`.
+- **Logo**: só PNG e JPEG em data URL entram no cabeçalho. Outros formatos e endereços externos saem como só o nome da plataforma. Nada é buscado na internet.
+- **Rodapé**: o código, a data e hora da emissão e, se o endereço do site estiver definido, `Confira em {endereço}/validar/{código}`.
+
+## Matrícula e rematrícula online
+
+Código em `server/src/modules/solicitacoes/` (`routes.ts` e `servico.ts`). Telas em `client/src/modules/solicitacoes/`: `MatriculaOnline.tsx` e `Acompanhar.tsx` (públicas), `EnvioDocumentos.tsx`, `Rematricula.tsx` (aluno e responsável), e `Fila.tsx`, `Detalhe.tsx` (secretaria).
+
+- **Fechada por padrão**: a abertura é um valor de `ConfiguracaoPlataforma` (`matriculaOnlineAberta`), com um texto (`matriculaOnlineTexto`). Fechada, o formulário responde `403` e a lista de cursos e períodos vem vazia. Com a matrícula fechada, `GET /api/plataforma` informa `matriculaOnline: false` e a tela de entrada não mostra o link.
+- **Modelo**: `SolicitacaoMatricula` guarda o protocolo, o tipo (`NOVA` ou `REMATRICULA`), o status, o curso, os dados do pedido, o `parecer` e quem analisou. A chave fica só como `chaveHash`.
+- **Chave e protocolo**: o protocolo é `{ano}-{id com 6 dígitos}`. A chave tem 10 caracteres, é devolvida uma vez e o banco guarda só o SHA-256. O acompanhamento compara o hash com `crypto.timingSafeEqual`.
+- **Armadilha para robôs**: o campo `site` do formulário público. Preenchido, a API responde como se tivesse aceitado, com protocolo e chave falsos, e não grava nada.
+- **Documentos**: entram pelo corpo bruto da requisição (sem o parser de JSON), com `receberArquivo` e contexto `SOLICITACAO`. Só em `ENVIADA` ou `PENDENTE`, até 6 por pedido, de até 10 MB, em PDF, JPG, JPEG e PNG.
+- **Aprovação**: cria usuário, aluno e matrícula na mesma transação, pelo mesmo caminho do cadastro (`criarAlunoNoBanco`, `geradorRA` e `avisarBoasVindas`, de `cadastros/importacao.ts`). Uma falha ao criar o vínculo do responsável não desfaz a matrícula.
+- **Rematrícula**: pedida pelo aluno ou pelo responsável com vínculo, para uma matrícula `ATIVA` ou `TRANCADA`. Não há dois pedidos abertos para a mesma matrícula. A aprovação volta a matrícula para `ATIVA` e pode avançar a série.
+- **Limites**: os pedidos de matrícula, o acompanhamento e o envio de documentos têm limite por IP em memória (veja `SECURITY.md`).
+
 ## Modelo de dados
 
 O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas áreas abaixo (só os nomes principais):
@@ -332,12 +390,16 @@ O modelo completo está em `server/prisma/schema.prisma`. Ele é organizado nas 
 - **Perfil e medalhas**: `MedalhaConcedida`, só as medalhas manuais (veja a seção "Perfil, medalhas e níveis").
 - **Suporte**: `Chamado` e `ChamadoMensagem`.
 - **Fórum**: `ForumComunidade`, `ForumPublicacao`, `ForumComentario` e `ForumVoto`.
-- **Plataforma**: `ConfiguracaoPlataforma`, uma linha com a identidade visual, as configurações de e-mail e as da cópia automática (`backupAutomatico`, `backupHora` e `backupManter`, veja a seção "Cópia de segurança").
+- **Plataforma**: `ConfiguracaoPlataforma`, uma linha com a identidade visual, as configurações de e-mail, as da cópia automática (`backupAutomatico`, `backupHora` e `backupManter`, veja a seção "Cópia de segurança") e as da matrícula online (`matriculaOnlineAberta`, que começa `false`, e `matriculaOnlineTexto`).
 - **E-mail**: `EmailEnviado`, o histórico de envios, sem o corpo do e-mail.
 - **Central de avisos**: `Notificacao`, um aviso por pessoa e evento. Tem `chave` opcional, que não se repete para a mesma pessoa, e `lidaEm`, que fica vazio enquanto o aviso não foi lido.
 - **Senha por e-mail**: `TokenSenha`, guardado só como hash.
 - **Chat**: `ChatConversa`, `ChatParticipante` e `ChatMensagem`.
-- **Sala de aula**: `Arquivo` (arquivo solto ou ligado a material, tarefa ou entrega), `MaterialAula`, `PlanoAula` (com o id da aula do diário), `Tarefa` e `TarefaEntrega`, `Prova`, `ProvaQuestao`, `ProvaTentativa` e `ProvaResposta`, e `ChamadaQr` (uma chamada por aula). A presença da chamada usa `Presenca`.
+- **Sala de aula**: `Arquivo` (arquivo solto ou ligado a material, tarefa, entrega ou pedido de matrícula), `MaterialAula`, `PlanoAula` (com o id da aula do diário), `Tarefa` e `TarefaEntrega`, `Prova`, `ProvaQuestao`, `ProvaTentativa` e `ProvaResposta`, e `ChamadaQr` (uma chamada por aula). A presença da chamada usa `Presenca`.
+- **Responsáveis**: `ResponsavelAluno`, o vínculo entre um usuário de perfil `RESPONSAVEL` e um aluno, com a flag `financeiro` (veja "Responsáveis e portal da família").
+- **Ocorrências**: `Ocorrencia`, com tipo e gravidade (enums `TipoOcorrencia` e `GravidadeOcorrencia`), a visibilidade para a família e a ciência.
+- **Documentos emitidos**: `DocumentoEmitido`, um registro por PDF emitido, com o código de conferência.
+- **Matrícula online**: `SolicitacaoMatricula`, com o tipo e o status (enums `TipoSolicitacao` e `StatusSolicitacao`). Os documentos do pedido ficam em `Arquivo`, no contexto `SOLICITACAO`.
 
 Os relacionamentos principais estão no diagrama abaixo. Os campos ficam de fora para manter o diagrama legível.
 
@@ -401,6 +463,10 @@ erDiagram
   ProvaQuestao ||--o{ ProvaResposta : "é respondida em"
   Aula |o..o| ChamadaQr : "tem"
   Usuario |o..o{ Arquivo : "envia"
+  Usuario ||--o{ ResponsavelAluno : "é responsável por"
+  Aluno ||--o{ ResponsavelAluno : "tem"
+  Aluno ||--o{ Ocorrencia : "recebe"
+  Curso ||--o{ SolicitacaoMatricula : "é pedido em"
   ConfiguracaoPlataforma {
     int id
   }
@@ -424,6 +490,8 @@ As regras ficam em `server/src/lib/regras.ts` e nos módulos de rotas.
 - **Pré-requisitos e vagas**: uma inscrição só é aceita se os pré-requisitos da disciplina já estiverem aprovados e se a turma tiver vaga. Matrícula trancada ou cancelada não aceita inscrição.
 - **Pós-graduação**: em mestrado e doutorado, a banca de defesa só pode ser criada quando o projeto já estiver `QUALIFICADO`. O resultado gravado em uma banca muda o status do projeto: qualificação aprovada (com ou sem ressalvas) leva a `QUALIFICADO`, defesa aprovada leva a `APROVADO` e defesa reprovada leva a `REPROVADO`.
 - **Mensalidades**: uma mensalidade em aberto com vencimento anterior a hoje passa a `ATRASADA`. Ao gerar mensalidades, o desconto usa o percentual da bolsa ativa de maior percentual da matrícula.
+- **Matrícula online**: o pedido nasce `ENVIADA`. A secretaria move para `EM_ANALISE`, `PENDENTE` (pede complemento, com parecer) ou `RECUSADA` (com parecer). A aprovação encerra o pedido: na matrícula nova, cria o aluno e a matrícula; na rematrícula, reativa a matrícula. Pedidos aprovados ou recusados não mudam mais de status.
+- **Ocorrências**: o aluno e o responsável só veem o que está marcado como visível à família, e a ciência só vale para essas.
 
 ## Documentos relacionados
 

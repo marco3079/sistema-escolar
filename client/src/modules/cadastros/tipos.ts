@@ -209,6 +209,7 @@ export const PERFIS: { valor: string; rotulo: string }[] = [
   { valor: 'SECRETARIA', rotulo: 'Secretaria' },
   { valor: 'PROFESSOR', rotulo: 'Professor' },
   { valor: 'ALUNO', rotulo: 'Aluno' },
+  { valor: 'RESPONSAVEL', rotulo: 'Responsável' },
 ];
 
 export function rotuloTitulacao(valor: string): string {

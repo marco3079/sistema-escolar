@@ -23,12 +23,14 @@ const CONSULTA_CELULAR = '(max-width: 899px)';
 export function nomePortal(perfil: Perfil): string {
   if (perfil === 'PROFESSOR') return 'Professor';
   if (perfil === 'ALUNO') return 'Aluno';
+  if (perfil === 'RESPONSAVEL') return 'Família';
   return 'Administrativo';
 }
 
 export function caminhoDoPerfil(perfil: Perfil): string {
   if (perfil === 'PROFESSOR') return '/professor';
   if (perfil === 'ALUNO') return '/aluno';
+  if (perfil === 'RESPONSAVEL') return '/responsavel';
   return '/admin';
 }
 

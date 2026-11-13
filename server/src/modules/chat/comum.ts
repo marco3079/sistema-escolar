@@ -2,6 +2,7 @@ import { Prisma, type ChatMensagem, type Perfil } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { HttpError } from '../../lib/erros';
 import { estaOnline, quemDigita, JANELA_ONLINE_MS, ultimoVisto } from './estado';
+import type { UsuarioToken } from '../../lib/auth';
 
 // Tipos do Contrato C (docs/plano/quarta-leva.md). Datas saem como ISO (string).
 
@@ -163,6 +164,66 @@ export function estadoDaMensagem(criadaEm: Date, leitura: Leitura): EstadoEnvio 
 
 export function iso(data: Date): string {
   return data.toISOString();
+}
+
+// ---------- Quem pode ser encontrado (contatos e conversas individuais) ----------
+
+// Responsável: fala com a equipe (ADMIN, TI, SECRETARIA) e com os professores das turmas dos alunos ligados a ele.
+function condicaoContatosDoResponsavel(usuarioId: number): Prisma.UsuarioWhereInput {
+  return {
+    OR: [
+      { perfil: { in: ['ADMIN', 'TI', 'SECRETARIA'] } },
+      {
+        perfil: 'PROFESSOR',
+        professor: {
+          turmas: {
+            some: {
+              inscricoes: {
+                some: {
+                  status: { not: 'TRANCADO' },
+                  matricula: { aluno: { responsaveis: { some: { usuarioId } } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
+}
+
+// Professor: vê os responsáveis dos alunos das turmas dele (quem não tem vínculo fica de fora).
+function condicaoResponsaveisDasTurmas(professorId: number): Prisma.UsuarioWhereInput {
+  return {
+    perfil: 'RESPONSAVEL',
+    alunosSobResponsabilidade: {
+      some: {
+        aluno: {
+          matriculas: {
+            some: {
+              inscricoes: { some: { status: { not: 'TRANCADO' }, turma: { professorId } } },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+// Filtro de usuários que a pessoa pode encontrar e abrir conversa. Responsável nunca aparece para aluno,
+// nem para outro responsável; ADMIN, TI e SECRETARIA veem todos (inclusive responsáveis).
+export function filtroDeContatos(usuario: UsuarioToken): Prisma.UsuarioWhereInput {
+  if (usuario.perfil === 'RESPONSAVEL') {
+    return condicaoContatosDoResponsavel(usuario.id);
+  }
+  if (usuario.perfil === 'ADMIN' || usuario.perfil === 'SECRETARIA') {
+    return {};
+  }
+  const semResponsaveis: Prisma.UsuarioWhereInput = { perfil: { not: 'RESPONSAVEL' } };
+  if (usuario.perfil === 'PROFESSOR' && usuario.professorId !== null) {
+    return { OR: [semResponsaveis, condicaoResponsaveisDasTurmas(usuario.professorId)] };
+  }
+  return semResponsaveis;
 }
 
 // Só participantes ativos acessam a conversa; senão 404.

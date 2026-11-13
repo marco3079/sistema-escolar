@@ -8,6 +8,15 @@ import { notificar } from '../../lib/notificacoes';
 
 const router = Router();
 
+// O responsável não participa do fórum (não há tela para ele): 403 em todas as rotas /forum.
+router.use('/forum', (req, res, next) => {
+  if (req.usuario?.perfil === 'RESPONSAVEL') {
+    res.status(403).json({ erro: 'Sem permissão' });
+    return;
+  }
+  next();
+});
+
 type Voto = 1 | -1 | 0;
 
 interface UsuarioResumo {

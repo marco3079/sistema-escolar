@@ -11,3 +11,9 @@ export interface RotaModulo {
   menu?: boolean; // padrão true; false para telas de detalhe
   ordem?: number; // posição no menu (menor primeiro); padrão 100
 }
+
+// Tela pública (sem login e fora do layout do portal). Um módulo exporta `rotasPublicas: RotaPublica[]`.
+export interface RotaPublica {
+  caminho: string; // ex.: '/matricula-online' ou '/validar/:codigo'
+  elemento: ReactNode;
+}

@@ -13,6 +13,7 @@ export interface Plataforma {
   corSecundaria: string;
   emailAtivo: boolean;
   recuperacaoSenha: boolean;
+  matriculaOnline: boolean; // formulário público de matrícula aberto
 }
 
 export const PLATAFORMA_PADRAO: Plataforma = {
@@ -23,6 +24,7 @@ export const PLATAFORMA_PADRAO: Plataforma = {
   corSecundaria: '#1d4ed8',
   emailAtivo: false,
   recuperacaoSenha: false,
+  matriculaOnline: false,
 };
 
 const CHAVE_ARMAZENAMENTO = 'escola.plataforma';
@@ -50,6 +52,7 @@ function normalizar(dados: Partial<Plataforma>): Plataforma {
     corSecundaria: cor(dados.corSecundaria, PLATAFORMA_PADRAO.corSecundaria),
     emailAtivo: dados.emailAtivo === true,
     recuperacaoSenha: dados.recuperacaoSenha === true,
+    matriculaOnline: dados.matriculaOnline === true,
   };
 }
 

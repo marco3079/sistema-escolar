@@ -1,5 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
+import type { Request } from 'express';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 import { prisma } from './prisma';
 import { HttpError } from './erros';
 import { registrarTarefaPeriodica } from './agendador';
@@ -7,7 +11,7 @@ import { registrarTarefaPeriodica } from './agendador';
 // Arquivos das salas de aula (materiais, tarefas e entregas). Contrato A em docs/plano/sexta-leva.md.
 // O nome em disco é gerado pelo servidor (32 hexadecimais + extensão); nunca vem do cliente.
 
-export type ContextoArquivo = 'MATERIAL' | 'TAREFA' | 'ENTREGA';
+export type ContextoArquivo = 'MATERIAL' | 'TAREFA' | 'ENTREGA' | 'SOLICITACAO';
 export interface ArquivoDTO { id: number; nome: string; tipo: string; tamanho: number; criadoEm: string }
 export const MAX_ARQUIVOS_POR_ITEM = 10;
 
@@ -190,6 +194,102 @@ async function limparArquivos(): Promise<void> {
     } catch {
       // Sumiu ou está em uso: a próxima rodada tenta de novo.
     }
+  }
+}
+
+// ---------- Envio direto para um item (sétima leva) ----------
+
+export interface OpcoesEnvio {
+  donoId: number; // usuário que enviou; 0 = visitante sem login (matrícula online)
+  contexto: ContextoArquivo;
+  contextoId: number;
+  limiteBytes?: number; // padrão LIMITE_ARQUIVO_BYTES
+  extensoes?: string[]; // subconjunto de TIPOS_POR_EXTENSAO; padrão todas
+}
+
+// Recebe o corpo bruto do pedido como um arquivo já ligado a um item (sem passar por "arquivo solto").
+// Cabeçalhos: Content-Type (tipo MIME) e X-Nome-Arquivo (nome com encodeURIComponent).
+// Erros: HttpError 400 (nome, extensão ou tipo), 413 (tamanho). Quem chama confere permissão e limites de quantidade.
+export async function receberArquivo(req: Request, opcoes: OpcoesEnvio): Promise<ArquivoDTO> {
+  const limiteBytes = opcoes.limiteBytes ?? LIMITE_ARQUIVO_BYTES;
+  const mensagemLimite = `O arquivo passa do limite de ${Math.round(limiteBytes / (1024 * 1024))} MB`;
+  const tipo = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+  const codificado = req.headers['x-nome-arquivo'];
+  if (typeof codificado !== 'string' || codificado === '') {
+    throw new HttpError(400, 'Informe o nome do arquivo em X-Nome-Arquivo');
+  }
+  let bruto: string;
+  try {
+    bruto = decodeURIComponent(codificado);
+  } catch {
+    throw new HttpError(400, 'Nome de arquivo inválido');
+  }
+  const partes = bruto.split(/[\\/]/);
+  const semCaminho = (partes[partes.length - 1] ?? '').replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+  const ponto = semCaminho.lastIndexOf('.');
+  if (ponto <= 0 || ponto === semCaminho.length - 1) {
+    throw new HttpError(400, 'O arquivo precisa ter uma extensão aceita');
+  }
+  const extensao = semCaminho.slice(ponto + 1).toLowerCase();
+  const aceitas = opcoes.extensoes ?? Object.keys(TIPOS_POR_EXTENSAO);
+  if (!Object.prototype.hasOwnProperty.call(TIPOS_POR_EXTENSAO, extensao) || !aceitas.includes(extensao)) {
+    throw new HttpError(400, 'Tipo de arquivo não aceito');
+  }
+  if (!TIPOS_POR_EXTENSAO[extensao].includes(tipo)) {
+    throw new HttpError(400, 'O tipo do arquivo não combina com a extensão');
+  }
+  const base = Array.from(semCaminho.slice(0, ponto)).slice(0, 150 - extensao.length - 1).join('').trim();
+  if (base === '') throw new HttpError(400, 'Nome de arquivo inválido');
+  const nome = `${base}.${semCaminho.slice(ponto + 1)}`;
+
+  if (Number(req.headers['content-length'] ?? 0) > limiteBytes) {
+    throw new HttpError(413, mensagemLimite);
+  }
+
+  const dir = diretorioArquivos();
+  await fs.promises.mkdir(dir, { recursive: true });
+  const caminho = `${crypto.randomBytes(16).toString('hex')}.${extensao}`;
+  const destino = path.join(dir, caminho);
+  const parcial = destino + '.parcial';
+
+  let recebido = 0;
+  const limite = new Transform({
+    transform(pedaco: Buffer, _codificacao, callback) {
+      recebido += pedaco.length;
+      if (recebido > limiteBytes) callback(new HttpError(413, mensagemLimite));
+      else callback(null, pedaco);
+    },
+  });
+
+  let tamanho: number;
+  try {
+    await pipeline(req, limite, fs.createWriteStream(parcial));
+    tamanho = (await fs.promises.stat(parcial)).size;
+    if (tamanho === 0) throw new HttpError(400, 'O arquivo está vazio');
+    await fs.promises.rename(parcial, destino);
+  } catch (erro) {
+    await fs.promises.rm(parcial, { force: true }).catch(() => undefined);
+    if (erro instanceof HttpError) throw erro;
+    console.error('Falha ao gravar arquivo enviado:', erro instanceof Error ? erro.message : erro);
+    throw new HttpError(500, 'Não foi possível gravar o arquivo');
+  }
+
+  try {
+    const criado = await prisma.arquivo.create({
+      data: {
+        nomeOriginal: nome,
+        tipo,
+        tamanho,
+        caminho,
+        donoId: opcoes.donoId,
+        contexto: opcoes.contexto,
+        contextoId: opcoes.contextoId,
+      },
+    });
+    return paraDTO(criado);
+  } catch (erro) {
+    await apagarDoDisco(caminho);
+    throw erro;
   }
 }
 

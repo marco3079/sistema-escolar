@@ -20,6 +20,7 @@ enum Perfil {
   SECRETARIA
   PROFESSOR
   ALUNO
+  RESPONSAVEL
 }
 
 enum NivelEnsino {
@@ -135,11 +136,12 @@ model Usuario {
   foto      String? // endereço http(s) ou data URL (imagem reduzida enviada pelo usuário)
   criadoEm  DateTime @default(now())
 
-  aluno       Aluno?
-  professor   Professor?
-  emprestimos Emprestimo[]
-  comunicados Comunicado[]
-  leituras    ComunicadoLeitura[]
+  aluno                     Aluno?
+  professor                 Professor?
+  emprestimos               Emprestimo[]
+  comunicados               Comunicado[]
+  leituras                  ComunicadoLeitura[]
+  alunosSobResponsabilidade ResponsavelAluno[]
 }
 
 model Aluno {
@@ -153,7 +155,9 @@ model Aluno {
   responsavelTelefone String?
   responsavelEmail    String?
 
-  matriculas Matricula[]
+  matriculas   Matricula[]
+  responsaveis ResponsavelAluno[]
+  ocorrencias  Ocorrencia[]
 }
 
 model Professor {
@@ -164,10 +168,10 @@ model Professor {
   titulacao Titulacao
   area      String?
 
-  turmas         Turma[]
-  orientacoes    ProjetoPesquisa[] @relation("Orientador")
-  coorientacoes  ProjetoPesquisa[] @relation("Coorientador")
-  participacoes  BancaMembro[]
+  turmas        Turma[]
+  orientacoes   ProjetoPesquisa[] @relation("Orientador")
+  coorientacoes ProjetoPesquisa[] @relation("Coorientador")
+  participacoes BancaMembro[]
 }
 
 // ---------- Estrutura acadêmica ----------
@@ -183,9 +187,10 @@ model Curso {
   mensalidade       Float       @default(0) // valor em reais
   ativo             Boolean     @default(true)
 
-  disciplinas Disciplina[]
-  matriculas  Matricula[]
-  comunicados Comunicado[]
+  disciplinas  Disciplina[]
+  matriculas   Matricula[]
+  comunicados  Comunicado[]
+  solicitacoes SolicitacaoMatricula[]
 }
 
 model Disciplina {
@@ -438,15 +443,15 @@ model Livro {
 }
 
 model Emprestimo {
-  id               Int              @id @default(autoincrement())
-  livroId          Int
-  livro            Livro            @relation(fields: [livroId], references: [id])
-  usuarioId        Int
-  usuario          Usuario          @relation(fields: [usuarioId], references: [id])
-  retiradoEm       DateTime         @default(now())
+  id                Int              @id @default(autoincrement())
+  livroId           Int
+  livro             Livro            @relation(fields: [livroId], references: [id])
+  usuarioId         Int
+  usuario           Usuario          @relation(fields: [usuarioId], references: [id])
+  retiradoEm        DateTime         @default(now())
   devolucaoPrevista DateTime
-  devolvidoEm      DateTime?
-  status           StatusEmprestimo @default(ATIVO)
+  devolvidoEm       DateTime?
+  status            StatusEmprestimo @default(ATIVO)
 }
 
 // ---------- Comunicados ----------
@@ -649,22 +654,22 @@ model ComunicadoLeitura {
 // ===== Configurações da plataforma (linha única, id = 1) =====
 
 model ConfiguracaoPlataforma {
-  id            Int      @id @default(1)
-  nome          String   @default("Sistema Escolar")
-  slogan        String   @default("Construindo um futuro melhor.")
+  id            Int     @id @default(1)
+  nome          String  @default("Sistema Escolar")
+  slogan        String  @default("Construindo um futuro melhor.")
   logo          String? // data URL (jpeg, png ou webp) ou endereço http(s); null = logo padrão
-  corPrimaria   String   @default("#2563eb")
-  corSecundaria String   @default("#1d4ed8")
+  corPrimaria   String  @default("#2563eb")
+  corSecundaria String  @default("#1d4ed8")
   enderecoSite  String? // endereço público do site, usado nos links dos e-mails
 
-  smtpServidor      String?
-  smtpPorta         Int      @default(587)
-  smtpSeguro        Boolean  @default(false) // true = TLS direto (porta 465)
-  smtpUsuario       String?
-  smtpSenhaCifrada  String? // AES-256-GCM; nunca sai pela API
-  emailRemetente    String?
+  smtpServidor       String?
+  smtpPorta          Int     @default(587)
+  smtpSeguro         Boolean @default(false) // true = TLS direto (porta 465)
+  smtpUsuario        String?
+  smtpSenhaCifrada   String? // AES-256-GCM; nunca sai pela API
+  emailRemetente     String?
   emailNomeRemetente String?
-  emailAtivo        Boolean  @default(false)
+  emailAtivo         Boolean @default(false)
 
   emailRecuperacao Boolean @default(true)
   emailBoasVindas  Boolean @default(true)
@@ -675,6 +680,10 @@ model ConfiguracaoPlataforma {
   backupAutomatico Boolean @default(true)
   backupHora       Int     @default(3) // hora do dia (0 a 23), no relógio do servidor
   backupManter     Int     @default(7) // quantas cópias automáticas guardar
+
+  // Matrícula online (formulário público)
+  matriculaOnlineAberta Boolean @default(false)
+  matriculaOnlineTexto  String  @default("") // orientações mostradas no formulário
 
   atualizadoEm DateTime @updatedAt
 }
@@ -798,7 +807,7 @@ model Arquivo {
   tamanho      Int // bytes
   caminho      String   @unique // nome do arquivo em disco (gerado pelo servidor)
   donoId       Int // usuário que enviou
-  contexto     String? // MATERIAL, TAREFA, ENTREGA
+  contexto     String? // MATERIAL, TAREFA, ENTREGA, SOLICITACAO
   contextoId   Int?
   criadoEm     DateTime @default(now())
 
@@ -945,10 +954,125 @@ model ProvaResposta {
 
 // Chamada por QR code: o professor abre para uma aula e o código muda a cada poucos segundos.
 model ChamadaQr {
-  id       Int       @id @default(autoincrement())
-  aulaId   Int       @unique
+  id       Int      @id @default(autoincrement())
+  aulaId   Int      @unique
   segredo  String // base do código rotativo; nunca sai pela API
-  abertaEm DateTime  @default(now())
+  abertaEm DateTime @default(now())
   fechaEm  DateTime
-  fechada  Boolean   @default(false)
+  fechada  Boolean  @default(false)
+}
+
+// ===== Secretaria e famílias (sétima leva) =====
+
+// Liga um usuário de perfil RESPONSAVEL a um aluno. Um responsável pode ter vários alunos e vice-versa.
+model ResponsavelAluno {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  alunoId    Int
+  aluno      Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  parentesco String   @default("Responsável")
+  financeiro Boolean  @default(true) // pode ver as mensalidades
+  criadoEm   DateTime @default(now())
+
+  @@unique([usuarioId, alunoId])
+  @@index([alunoId])
+}
+
+enum TipoOcorrencia {
+  ADVERTENCIA
+  SUSPENSAO
+  INDISCIPLINA
+  ATRASO
+  OBSERVACAO
+  ELOGIO
+}
+
+enum GravidadeOcorrencia {
+  LEVE
+  MEDIA
+  GRAVE
+}
+
+model Ocorrencia {
+  id             Int                 @id @default(autoincrement())
+  alunoId        Int
+  aluno          Aluno               @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turmaId        Int? // turma em que aconteceu (opcional)
+  autorId        Int // usuário que registrou
+  tipo           TipoOcorrencia
+  gravidade      GravidadeOcorrencia @default(LEVE)
+  titulo         String
+  descricao      String
+  medidas        String              @default("") // providências tomadas
+  data           DateTime // dia do fato
+  visivelFamilia Boolean             @default(true) // aparece para o aluno e os responsáveis
+  cienteEm       DateTime? // quando um responsável (ou o aluno maior de idade) deu ciência
+  cientePorId    Int?
+  criadoEm       DateTime            @default(now())
+  atualizadoEm   DateTime            @updatedAt
+
+  @@index([alunoId, data])
+}
+
+// Registro de cada documento em PDF emitido, para conferência pública pelo código.
+model DocumentoEmitido {
+  id           Int      @id @default(autoincrement())
+  codigo       String   @unique // ex.: "A1B2-C3D4-E5F6"
+  tipo         String // BOLETIM, HISTORICO, DECLARACAO, FICHA
+  alunoId      Int
+  matriculaId  Int?
+  alunoNome    String
+  descricao    String // ex.: "Boletim de Ciência da Computação"
+  emitidoPorId Int
+  emitidoEm    DateTime @default(now())
+
+  @@index([alunoId])
+}
+
+enum TipoSolicitacao {
+  NOVA
+  REMATRICULA
+}
+
+enum StatusSolicitacao {
+  ENVIADA
+  EM_ANALISE
+  PENDENTE // falta documento ou informação
+  APROVADA
+  RECUSADA
+}
+
+// Pedido de matrícula (formulário público) ou de rematrícula (aluno ou responsável logado).
+model SolicitacaoMatricula {
+  id                    Int               @id @default(autoincrement())
+  protocolo             String            @unique // ex.: "2026-000123"
+  chaveHash             String // SHA-256 da chave de acompanhamento (só para NOVA)
+  tipo                  TipoSolicitacao
+  status                StatusSolicitacao @default(ENVIADA)
+  cursoId               Int
+  curso                 Curso             @relation(fields: [cursoId], references: [id])
+  nome                  String
+  email                 String
+  cpf                   String?
+  dataNascimento        DateTime
+  telefone              String?
+  endereco              String?
+  responsavelNome       String?
+  responsavelEmail      String?
+  responsavelTelefone   String?
+  responsavelParentesco String?
+  observacao            String            @default("") // escrita por quem pediu
+  parecer               String            @default("") // escrito pela secretaria; visível a quem pediu
+  alunoId               Int? // rematrícula: aluno existente; nova: preenchido na aprovação
+  matriculaId           Int? // rematrícula: matrícula a renovar; nova: criada na aprovação
+  periodoLetivoId       Int? // período pretendido
+  solicitanteId         Int? // usuário logado que pediu (rematrícula)
+  analisadoPorId        Int?
+  analisadoEm           DateTime?
+  criadoEm              DateTime          @default(now())
+  atualizadoEm          DateTime          @updatedAt
+
+  @@index([status, criadoEm])
+  @@index([alunoId])
 }

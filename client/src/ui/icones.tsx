@@ -11,7 +11,8 @@ export type NomeIcone =
   | 'anexo' | 'estrela' | 'enviar' | 'fixar' | 'cadeado' | 'sol' | 'lua' | 'monitor'
   | 'chat' | 'email' | 'paleta' | 'visto' | 'visto-duplo' | 'responder' | 'lixeira' | 'grupo'
   | 'mais-circulo' | 'seta-esquerda'
-  | 'sala' | 'pasta' | 'tarefa' | 'prova' | 'qr' | 'link' | 'arquivo' | 'plano';
+  | 'sala' | 'pasta' | 'tarefa' | 'prova' | 'qr' | 'link' | 'arquivo' | 'plano'
+  | 'familia' | 'ocorrencia' | 'solicitacao' | 'pdf';
 
 export const NOMES_ICONES: NomeIcone[] = [
   'inicio', 'alunos', 'professores', 'usuarios', 'cursos', 'periodos', 'turmas',
@@ -25,6 +26,7 @@ export const NOMES_ICONES: NomeIcone[] = [
   'chat', 'email', 'paleta', 'visto', 'visto-duplo', 'responder', 'lixeira', 'grupo',
   'mais-circulo', 'seta-esquerda',
   'sala', 'pasta', 'tarefa', 'prova', 'qr', 'link', 'arquivo', 'plano',
+  'familia', 'ocorrencia', 'solicitacao', 'pdf',
 ];
 
 // Desenhos sólidos em grade 24 x 24 (área útil 2.5 a 21.5). Preenchidos com currentColor.
@@ -433,6 +435,34 @@ const DESENHOS: Record<NomeIcone, ReactNode> = {
 
   // Bandeira sólida numa haste: marco de um plano de aula.
   plano: <path d="M4 2.5H6.2V21.5H4ZM6.2 3H19.5L16.2 8.2L19.5 13.4H6.2Z" />,
+
+  // Duas pessoas sólidas: uma maior à frente e uma menor atrás, à direita.
+  familia: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 21.5C2.5 16.6 5.2 13.4 9 13.4C12.8 13.4 15.5 16.6 15.5 21.5Z" />
+      <circle cx="17.8" cy="10.2" r="2.6" />
+      <path d="M16.5 21.5C16.5 17.6 17.6 15.2 19.5 15.2C21.4 15.2 22.3 17.6 22.3 21.5Z" />
+    </>
+  ),
+
+  // Prancheta sólida com aba no topo e um sinal de exclamação recortado no corpo.
+  ocorrencia: (
+    <>
+      <path fillRule="evenodd" clipRule="evenodd" d="M5 4H19V21.5H5ZM11 7.5H13V14.5H11ZM11 15.8H13V18H11Z" />
+      <path d="M8.5 2H15.5V5.5H8.5Z" />
+    </>
+  ),
+
+  // Folha sólida com um sinal de mais recortado no centro e seta de entrada na lateral direita.
+  solicitacao: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M4.5 2.5H14V7.5H12V4.5H6.5V19.5H12V17.5H14V21.5H4.5ZM7.6 11H9.6V8.8H11.2V11H13.4V12.6H11.2V14.8H9.6V12.6H7.6ZM14.5 11H19.8V8.2L23 12L19.8 15.8V13H14.5Z" />
+  ),
+
+  // Página sólida com canto dobrado e uma seta para baixo recortada no centro.
+  pdf: (
+    <path fillRule="evenodd" clipRule="evenodd" d="M5 2.5H13.8L19.5 8.2V21.5H5ZM13.8 2.5V8.2H19.5ZM11.2 10H12.8V15.4H15.2L12 18.8L8.8 15.4H11.2Z" />
+  ),
 };
 
 export function Icone({

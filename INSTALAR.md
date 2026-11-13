@@ -124,7 +124,7 @@ Antes de restaurar, o sistema guarda o estado do computador novo numa cópia "An
 
 ## Os arquivos enviados entram na cópia de segurança?
 
-Não. A cópia de segurança guarda só o banco de dados. Os arquivos das salas de aula (materiais, tarefas e entregas) ficam no volume `dados_arquivos` do Docker e precisam de uma cópia à parte. Para fazê-la, com o sistema rodando:
+Não. A cópia de segurança guarda só o banco de dados. Os arquivos das salas de aula (materiais, tarefas e entregas) e os documentos enviados no pedido de matrícula online ficam no volume `dados_arquivos` do Docker e precisam de uma cópia à parte. Para fazê-la, com o sistema rodando:
 
 1. Descubra o nome do volume com `docker volume ls`. Ele termina em `dados_arquivos` e começa com o nome do projeto (por exemplo, `sistema_escolar_dados_arquivos`).
 2. Copie o conteúdo do volume para uma pasta sua, trocando `NOME_DO_VOLUME` pelo nome encontrado e `PASTA_DE_DESTINO` pelo caminho completo da pasta:
@@ -140,6 +140,26 @@ Guarde esse arquivo junto com a cópia de segurança do banco. Sem ele, os anexo
 Cada arquivo anexado a um material, uma tarefa ou uma entrega pode ter até **20 MB**, e cada item aceita até 10 arquivos. Os tipos aceitos são PDF, imagens (PNG, JPG, WEBP e GIF), textos (TXT e CSV), documentos do Word, planilhas do Excel, apresentações do PowerPoint, documentos do LibreOffice (ODT, ODS e ODP) e arquivos ZIP. Vídeos não são enviados como arquivo: coloque o link do vídeo no material.
 
 Um arquivo enviado e não anexado a nada é apagado depois de 24 horas.
+
+Os documentos enviados no pedido de matrícula online são PDF, JPG, JPEG ou PNG, de até **10 MB** cada, com no máximo 6 por pedido.
+
+## Matrícula online
+
+A matrícula online nasce **fechada**: o formulário público não aparece até a secretaria abrir.
+
+1. Antes de abrir, defina o endereço do site em **Configurações** (no menu, na seção Sistema), aba **E-mail**, no campo de endereço do site (por exemplo, `https://escola.exemplo.br`, ou `http://localhost:8090` para testar). Os links dos e-mails e a linha de conferência no rodapé dos PDFs usam esse endereço.
+2. Entre como administrador ou secretaria e abra **Matrícula online** (no menu). Clique em **Abrir matrícula online**. O mesmo botão passa a mostrar **Fechar matrícula online** e fecha o formulário de novo.
+3. O formulário fica no endereço do site seguido de `/matricula-online`. Quem acompanha um pedido usa `/matricula-online/acompanhar`, com o protocolo e a chave que foram mostrados ao enviar o pedido. A chave não vai por e-mail: o e-mail de confirmação traz só o protocolo.
+
+Os pedidos aparecem na mesma tela, na fila, onde a secretaria analisa, pede complemento, recusa ou aprova. Ao aprovar uma matrícula, a pessoa vira aluno, com a matrícula ativa.
+
+## Responsáveis
+
+Os responsáveis são cadastrados na **ficha do aluno**, na seção **Responsáveis**. Informe o nome, o e-mail, o parentesco e se a pessoa é financeira (só o responsável financeiro vê as mensalidades). Um responsável pode ser ligado a vários alunos, e um aluno pode ter mais de um responsável.
+
+- Se o e-mail da plataforma estiver ligado (veja "Como faço a plataforma enviar e-mails?" abaixo), a pessoa recebe um convite por e-mail para criar a própria senha.
+- Se não estiver, o sistema mostra uma senha inicial **uma única vez**, logo após o cadastro. Anote e entregue à pessoa, e oriente a trocar a senha no primeiro acesso.
+- Se o e-mail já pertence a um usuário de outro perfil, o cadastro é recusado. O responsável acessa o portal em `/responsavel`.
 
 ## Problemas comuns
 

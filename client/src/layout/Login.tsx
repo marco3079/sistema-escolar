@@ -88,6 +88,11 @@ export function Login() {
               Esqueci minha senha
             </Link>
           )}
+          {plataforma.matriculaOnline && (
+            <Link to="/matricula-online" className="entrada-esqueci">
+              Quero me matricular
+            </Link>
+          )}
         </form>
       </section>
     </main>

@@ -9,8 +9,9 @@ export interface GrupoMenu {
 // Seções da barra lateral e da gaveta. A rota entra no grupo pelo ícone dela.
 export const GRUPOS: GrupoMenu[] = [
   { titulo: '', icones: ['inicio'] },
-  { titulo: 'Pessoas', icones: ['alunos', 'professores', 'usuarios'] },
-  { titulo: 'Acadêmico', icones: ['cursos', 'periodos', 'turmas', 'matriculas'] },
+  { titulo: 'Família', icones: ['familia'] },
+  { titulo: 'Pessoas', icones: ['alunos', 'professores', 'usuarios', 'ocorrencia'] },
+  { titulo: 'Acadêmico', icones: ['cursos', 'periodos', 'turmas', 'matriculas', 'solicitacao'] },
   { titulo: 'Ensino', icones: ['sala', 'plano', 'diario', 'boletim', 'historico', 'pos'] },
   { titulo: 'Gestão', icones: ['financeiro', 'biblioteca'] },
   { titulo: 'Agenda', icones: ['horarios', 'calendario', 'comunicados'] },

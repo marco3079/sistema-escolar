@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
 import { permitir } from '../../lib/auth';
@@ -91,7 +92,8 @@ const usuarioCriarSchema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
   email: emailSchema,
   senha: senhaSchema,
-  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA']),
+  // RESPONSAVEL entra no enum só para receber a mensagem certa (recusado abaixo).
+  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA', 'RESPONSAVEL']),
 });
 
 const usuarioAtualizarSchema = z.object({
@@ -102,7 +104,7 @@ const usuarioAtualizarSchema = z.object({
 });
 
 const usuarioFiltroSchema = z.object({
-  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA', 'PROFESSOR', 'ALUNO']).optional(),
+  perfil: z.enum(['ADMIN', 'TI', 'SECRETARIA', 'PROFESSOR', 'ALUNO', 'RESPONSAVEL']).optional(),
   busca: z.string().optional(),
 });
 
@@ -147,6 +149,9 @@ router.post(
   permitir('ADMIN'),
   asyncHandler(async (req, res) => {
     const dados = validar(usuarioCriarSchema, req.body);
+    if (dados.perfil === 'RESPONSAVEL') {
+      throw new HttpError(400, 'Responsáveis são criados pela ficha do aluno');
+    }
     await garantirEmailLivre(dados.email);
     const senhaHash = await bcrypt.hash(dados.senha, 10);
     const usuario = await prisma.usuario.create({
@@ -208,25 +213,55 @@ router.post(
 
 const incluiAluno = { usuario: true } as const;
 
+// Professor só enxerga alunos com inscrição não trancada numa turma dele, e sem os dados de contato
+// e de família (e-mail, CPF, telefone, endereço e responsável). A gestão vê tudo.
+function filtroDoProfessor(req: Request): Prisma.AlunoWhereInput | null {
+  if (req.usuario.perfil !== 'PROFESSOR') return null;
+  return {
+    matriculas: {
+      some: {
+        inscricoes: {
+          some: { status: { not: 'TRANCADO' }, turma: { professorId: req.usuario.professorId ?? -1 } },
+        },
+      },
+    },
+  };
+}
+
+function semContatos<A extends { usuario: { email: string; cpf: string | null; telefone: string | null } }>(aluno: A): A {
+  return {
+    ...aluno,
+    endereco: null,
+    responsavelNome: null,
+    responsavelTelefone: null,
+    responsavelEmail: null,
+    usuario: { ...aluno.usuario, email: '', cpf: null, telefone: null },
+  };
+}
+
 router.get(
   '/alunos',
   permitir('ADMIN', 'SECRETARIA', 'PROFESSOR'),
   asyncHandler(async (req, res) => {
     const busca = textoBusca(req.query.busca);
+    const doProfessor = filtroDoProfessor(req);
+    const porBusca: Prisma.AlunoWhereInput | null = busca
+      ? {
+          OR: [
+            { ra: { contains: busca, mode: 'insensitive' } },
+            { usuario: { nome: { contains: busca, mode: 'insensitive' } } },
+            // A busca por e-mail fica só com a gestão.
+            ...(doProfessor ? [] : [{ usuario: { email: { contains: busca, mode: 'insensitive' as const } } }]),
+          ],
+        }
+      : null;
+    const filtros = [doProfessor, porBusca].filter((x): x is Prisma.AlunoWhereInput => x !== null);
     const alunos = await prisma.aluno.findMany({
-      where: busca
-        ? {
-            OR: [
-              { ra: { contains: busca, mode: 'insensitive' } },
-              { usuario: { nome: { contains: busca, mode: 'insensitive' } } },
-              { usuario: { email: { contains: busca, mode: 'insensitive' } } },
-            ],
-          }
-        : undefined,
+      where: filtros.length > 0 ? { AND: filtros } : undefined,
       include: incluiAluno,
       orderBy: { usuario: { nome: 'asc' } },
     });
-    res.json(alunos.map((a) => paraDTO(a)));
+    res.json(alunos.map((a) => paraDTO(doProfessor ? semContatos(a) : a)));
   })
 );
 
@@ -253,8 +288,9 @@ router.get(
   permitir('ADMIN', 'SECRETARIA', 'PROFESSOR'),
   asyncHandler(async (req, res) => {
     const id = idParam(req);
-    const aluno = await prisma.aluno.findUnique({
-      where: { id },
+    const doProfessor = filtroDoProfessor(req);
+    const aluno = await prisma.aluno.findFirst({
+      where: doProfessor ? { AND: [{ id }, doProfessor] } : { id },
       include: {
         usuario: true,
         matriculas: {
@@ -271,7 +307,7 @@ router.get(
     if (!aluno) {
       throw new HttpError(404, 'Aluno não encontrado');
     }
-    res.json(paraDTO(aluno));
+    res.json(paraDTO(doProfessor ? semContatos(aluno) : aluno));
   })
 );
 

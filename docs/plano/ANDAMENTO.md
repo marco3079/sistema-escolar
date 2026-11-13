@@ -147,3 +147,36 @@ Pontos em aberto:
 - A leitura do QR code pela câmera de um celular real não foi testada; o código digitado e o link do QR foram.
 - O envio automático da prova ao acabar o tempo e as novas tentativas em caso de falha de rede não foram provocados na tela.
 - Se a resposta do envio da prova se perder e a nova tentativa receber "já enviada", a tela mostra erro mesmo com a prova gravada; a nota aparece na lista.
+
+## Sétima leva (13/11/2026): secretaria e famílias
+
+Plano e contratos em [setima-leva.md](setima-leva.md). Todas as partes aprovadas pelo revisor.
+
+| Parte | Gerador |
+|---|---|
+| Responsáveis e portal da família (servidor) | g01 |
+| Ocorrências (servidor) | g02 |
+| Documentos em PDF (servidor) | g03 |
+| Matrícula e rematrícula online (servidor) | g04 |
+| Perfil de responsável nos módulos existentes (servidor) | g05 |
+| Base do cliente e perfil de responsável nas telas existentes | g06 |
+| Portal dos responsáveis (telas) | g07 |
+| Ocorrências e ficha do aluno (telas) | g08 |
+| Documentos (telas) | g09 |
+| Matrícula e rematrícula (telas) | g10 |
+| Dados de demonstração | g11 |
+| Documentação | g12 |
+
+Base feita pelo main: modelos do banco, `lib/responsaveis.ts`, `lib/boletim.ts` (saiu do diário), envio direto em `lib/arquivos.ts`, perfil `RESPONSAVEL` no cliente e telas públicas por `rotasPublicas`.
+
+Testes reais: o revisor rodou o servidor inteiro num banco descartável (matrícula online de ponta a ponta com aprovação e login do aluno criado, vínculo de responsável, rotas da família, ocorrência com ciência, os quatro PDFs e a validação pública, e uma varredura de todas as rotas logado como responsável). O main abriu as telas numa instalação temporária em Docker (portal do responsável no computador e no celular, telas públicas, fila da secretaria, PDFs baixados e lidos).
+
+Decisões do main nesta leva: matrícula online nasce fechada; fórum e perfil público fechados ao responsável; o professor passou a ver só os alunos das próprias turmas em `GET /alunos`, sem dados de contato (ponto antigo achado na auditoria).
+
+Pontos em aberto:
+
+- Os e-mails desta leva (convite do responsável, confirmação e parecer da matrícula, aviso de ocorrência) não foram vistos chegando: os testes rodaram sem servidor de e-mail.
+- Os limites por IP das rotas públicas ficam na memória do processo e zeram quando a API reinicia.
+- A logo no cabeçalho do PDF só foi vista com a logo padrão (sem imagem); logo enviada em PNG ou JPEG não foi testada.
+- A biblioteca de e-mail (`nodemailer` 6.9.16) tem alertas de segurança conhecidos; a correção exige a versão 10, com mudanças incompatíveis, e ficou para uma rodada própria.
+- A ficha do aluno ainda aceita professor com inscrição trancada na turma (critério diferente do novo `GET /alunos`).

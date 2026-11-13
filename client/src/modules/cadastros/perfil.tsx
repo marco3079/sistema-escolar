@@ -55,6 +55,7 @@ const PAPEIS: Record<string, string> = {
   SECRETARIA: 'Secretaria',
   PROFESSOR: 'Professor',
   ALUNO: 'Aluno',
+  RESPONSAVEL: 'Responsável',
 };
 
 const ICONE_ATIVIDADE: Record<string, NomeIcone> = {
@@ -477,6 +478,8 @@ export function MeuPerfil() {
   }
 
   const medalhasAutomaticas = dados.usuario.perfil === 'ALUNO' || dados.usuario.perfil === 'PROFESSOR';
+  // Responsável não vê medalhas nem indicadores acadêmicos (dependem de aluno).
+  const ehResponsavel = dados.usuario.perfil === 'RESPONSAVEL';
 
   return (
     <Pagina titulo="Meu perfil">
@@ -504,11 +507,13 @@ export function MeuPerfil() {
       {aba === 'visao' ? (
         <div className="perfil-visao">
           <CartaoNivel nivel={dados.nivel} />
-          <IndicadoresResumo indicadores={dados.resumo} />
-          <PerfilMedalhas
-            medalhas={dados.medalhas}
-            automaticasDisponiveis={medalhasAutomaticas}
-          />
+          {!ehResponsavel && <IndicadoresResumo indicadores={dados.resumo} />}
+          {!ehResponsavel && (
+            <PerfilMedalhas
+              medalhas={dados.medalhas}
+              automaticasDisponiveis={medalhasAutomaticas}
+            />
+          )}
           <AtividadeRecente itens={dados.atividadeRecente} />
         </div>
       ) : (

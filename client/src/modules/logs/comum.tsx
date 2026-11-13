@@ -68,6 +68,7 @@ const ROTULO_PERFIL: Record<string, { rotulo: string; cor: CorSelo }> = {
   SECRETARIA: { rotulo: 'Secretaria', cor: 'verde' },
   PROFESSOR: { rotulo: 'Professor', cor: 'amarelo' },
   ALUNO: { rotulo: 'Aluno', cor: 'cinza' },
+  RESPONSAVEL: { rotulo: 'Responsável', cor: 'amarelo' },
 };
 
 export const TIPOS_LOG: { valor: string; rotulo: string }[] = Object.keys(ROTULO_TIPO).map((t) => ({
@@ -113,6 +114,15 @@ const ROTULO_MODULO: Record<string, string> = {
   andamento: 'Andamento das aulas',
   presenca: 'Chamada',
   'presenca-qr': 'Chamada',
+  familia: 'Portal da família',
+  responsavel: 'Portal da família',
+  responsaveis: 'Responsáveis',
+  ocorrencias: 'Ocorrências',
+  documentos: 'Documentos',
+  solicitacoes: 'Matrícula online',
+  'matricula-online': 'Matrícula online',
+  rematricula: 'Rematrícula',
+  validar: 'Documentos',
 };
 
 function chaveModulo(valor: string): string {

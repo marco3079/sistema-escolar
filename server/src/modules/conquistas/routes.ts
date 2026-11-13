@@ -3,7 +3,8 @@ import { z } from 'zod';
 import type { Perfil } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { asyncHandler, HttpError, idParam, validar } from '../../lib/erros';
-import { permitir } from '../../lib/auth';
+import { permitir, type UsuarioToken } from '../../lib/auth';
+import { alunosDoResponsavel } from '../../lib/responsaveis';
 import { notificar } from '../../lib/notificacoes';
 import { validarImagem } from './imagem';
 import {
@@ -245,12 +246,38 @@ router.get(
 
 // ---------- Perfil público (para o fórum e outras telas) ----------
 
+// Quem pode ver o perfil público de `alvo`. Responsável: só vê a equipe, professores, alunos ligados a ele e a si mesmo.
+// Perfil de responsável: só a equipe, ele mesmo e professores que dão aula a alunos dele. Demais casos: sim.
+async function podeVerPerfilPublico(quem: UsuarioToken, alvo: UsuarioCarregado): Promise<boolean> {
+  if (alvo.perfil === 'RESPONSAVEL') {
+    if (quem.id === alvo.id) return true;
+    if (quem.perfil === 'ADMIN' || quem.perfil === 'SECRETARIA') return true;
+    if (quem.perfil !== 'PROFESSOR' || quem.professorId === null) return false;
+    const alunoIds = await alunosDoResponsavel(alvo.id);
+    if (alunoIds.length === 0) return false;
+    const turmas = await prisma.inscricao.count({
+      where: {
+        status: { not: 'TRANCADO' },
+        matricula: { alunoId: { in: alunoIds } },
+        turma: { professorId: quem.professorId },
+      },
+    });
+    return turmas > 0;
+  }
+  if (quem.perfil !== 'RESPONSAVEL' || quem.id === alvo.id) return true;
+  if (alvo.perfil === 'ALUNO') {
+    const alunoId = alvo.aluno?.id;
+    return alunoId !== undefined && (await alunosDoResponsavel(quem.id)).includes(alunoId);
+  }
+  return alvo.perfil === 'ADMIN' || alvo.perfil === 'TI' || alvo.perfil === 'SECRETARIA' || alvo.perfil === 'PROFESSOR';
+}
+
 router.get(
   '/usuarios/:id/perfil-publico',
   asyncHandler(async (req, res) => {
     const id = idParam(req);
     const usuario = await carregarUsuario(id);
-    if (!usuario || !usuario.ativo) {
+    if (!usuario || !usuario.ativo || !(await podeVerPerfilPublico(req.usuario, usuario))) {
       throw new HttpError(404, 'Usuário não encontrado');
     }
     const medalhas = ordenarMedalhas(

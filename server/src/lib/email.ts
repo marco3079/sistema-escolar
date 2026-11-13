@@ -5,7 +5,7 @@ import { decifrar } from './cripto';
 
 // Envio de e-mails da plataforma (SMTP pelo nodemailer). Contrato em docs/plano/quarta-leva.md, "Contrato A".
 
-export type TipoEmail = 'TESTE' | 'RECUPERACAO' | 'BOAS_VINDAS' | 'COMUNICADO' | 'SUPORTE';
+export type TipoEmail = 'TESTE' | 'RECUPERACAO' | 'BOAS_VINDAS' | 'COMUNICADO' | 'SUPORTE' | 'SECRETARIA';
 
 export interface MensagemEmail {
   para: string;
@@ -66,6 +66,8 @@ export async function emailHabilitado(tipo: TipoEmail): Promise<boolean> {
       return configuracao.emailComunicados;
     case 'SUPORTE':
       return configuracao.emailSuporte;
+    case 'SECRETARIA':
+      return true; // matrícula online e convites de responsáveis: basta o e-mail estar ativo
   }
 }
 

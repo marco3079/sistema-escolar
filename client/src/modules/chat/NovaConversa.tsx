@@ -12,6 +12,7 @@ const ROTULO_PERFIL: Record<string, string> = {
   SECRETARIA: 'Secretaria',
   PROFESSOR: 'Professor',
   ALUNO: 'Aluno',
+  RESPONSAVEL: 'Responsável',
 };
 
 interface PropsNovaConversa {

@@ -31,7 +31,7 @@ Três peças aparecem em muitos itens e por isso vêm primeiro:
 | Provas online | Objetivas com correção automática e dissertativas, com tempo limite |
 | Chamada por QR code | Código que muda a cada poucos segundos, para não valer foto enviada a quem faltou |
 
-## Leva 7: secretaria e famílias
+## Leva 7: secretaria e famílias (concluída em 13/11/2026)
 
 | Item | Observação |
 |---|---|

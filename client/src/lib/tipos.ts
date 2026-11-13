@@ -1,4 +1,4 @@
-export type Perfil = 'ADMIN' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO';
+export type Perfil = 'ADMIN' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO' | 'RESPONSAVEL';
 
 // Perfil verdadeiro do usuário. TI tem o mesmo acesso do ADMIN, mas aparece como "TI".
 export type PerfilReal = Perfil | 'TI';

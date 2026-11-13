@@ -127,4 +127,12 @@ export const rotas: RotaModulo[] = [
     elemento: <ComunicadosAluno />,
     ordem: 72,
   },
+  {
+    caminho: '/responsavel/comunicados',
+    rotulo: 'Comunicados',
+    icone: 'comunicados',
+    perfis: ['RESPONSAVEL'],
+    elemento: <ComunicadosAluno />,
+    ordem: 72,
+  },
 ];

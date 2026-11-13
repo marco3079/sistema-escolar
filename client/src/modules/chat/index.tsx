@@ -28,4 +28,12 @@ export const rotas: RotaModulo[] = [
     elemento: <Chat />,
     ordem: 58,
   },
+  {
+    caminho: '/responsavel/chat',
+    rotulo: 'Chat',
+    icone: 'chat',
+    perfis: ['RESPONSAVEL'],
+    elemento: <Chat />,
+    ordem: 58,
+  },
 ];

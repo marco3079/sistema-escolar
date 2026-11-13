@@ -17,6 +17,8 @@ type TipoNotificacao =
   | 'MEDALHA'
   | 'BIBLIOTECA'
   | 'AULA'
+  | 'OCORRENCIA'
+  | 'SECRETARIA'
   | 'SISTEMA';
 
 interface NotificacaoDTO {
@@ -48,6 +50,8 @@ const ICONE_POR_TIPO: Record<TipoNotificacao, NomeIcone> = {
   MEDALHA: 'medalha',
   BIBLIOTECA: 'biblioteca',
   AULA: 'diario',
+  OCORRENCIA: 'documento',
+  SECRETARIA: 'matriculas',
   SISTEMA: 'engrenagem',
 };
 
