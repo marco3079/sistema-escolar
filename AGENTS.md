@@ -53,7 +53,7 @@ Opções úteis: `-Demo` no Windows ou `--demo` no Linux/macOS carrega dados de 
 
 ## Opções do dia a dia
 
-- **Atualizar**: entre na pasta do projeto, rode `git pull` e depois o instalador de novo (`.\instalar.ps1` ou `bash instalar.sh`). Os dados do banco são mantidos.
+- **Atualizar**: entre na pasta do projeto, rode `git pull` e depois o instalador de novo (`.\instalar.ps1` ou `bash instalar.sh`). Os dados do banco são mantidos. Para uma instalação que já existe, também dá para orientar a pessoa a usar o botão em Configurações → Atualização (administrador ou TI, com "Verificar agora" e "Atualizar agora"); se o botão disser que o serviço não responde, rode o instalador de novo.
 - **Parar**: `docker compose down` (os dados ficam guardados).
 - **Apagar tudo**: `docker compose down -v`. Isso apaga o banco. Só faça com pedido explícito da pessoa.
 - **Dados de demonstração**: `-Demo` ou `--demo`, só em instalação nova.

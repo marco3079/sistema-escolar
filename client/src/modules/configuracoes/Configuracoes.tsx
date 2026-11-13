@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import { usePlataforma } from '../../lib/plataforma';
 import { Abas, Aviso, Carregando, Pagina } from '../../ui';
 import { mensagemErro } from '../cadastros/tipos';
+import { Atualizacao } from './Atualizacao';
 import { Cores } from './Cores';
 import { Email } from './Email';
 import { Identidade } from './Identidade';
@@ -13,6 +14,7 @@ const ABAS = [
   { id: 'identidade', rotulo: 'Identidade' },
   { id: 'cores', rotulo: 'Cores' },
   { id: 'email', rotulo: 'E-mail' },
+  { id: 'atualizacao', rotulo: 'Atualização' },
 ];
 
 export function Configuracoes() {
@@ -99,6 +101,8 @@ export function Configuracoes() {
           <div hidden={aba !== 'email'}>
             <Email config={config} aoSalvo={aoSalvarEmail} />
           </div>
+          {/* Montada só nesta aba: ao sair, o acompanhamento da atualização para e o temporizador é limpo. */}
+          {aba === 'atualizacao' && <Atualizacao />}
         </>
       )}
     </Pagina>

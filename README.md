@@ -62,6 +62,7 @@ Um único app tem três portais, escolhidos pelo perfil do usuário no login:
 - Painel com indicadores e gráfico
 - Perfil TI, com o mesmo acesso do administrador
 - Configurações da plataforma (só administrador e TI): nome, slogan, logo e cores, aplicados na tela de entrada e no menu
+- Atualização pelo painel (só administrador e TI): verifica o último commit do GitHub e atualiza o sistema, sem mexer no banco de dados
 - E-mails da plataforma, com teste de envio e histórico: recuperação de senha, boas-vindas a novos usuários, comunicados e respostas do suporte
 - Painel "Atividades" com o registro de ações em tempo real, visível só para administrador e TI; os registros são guardados por 90 dias
 
@@ -145,6 +146,19 @@ No fim da instalação, o instalador mostra o endereço do site (por padrão `ht
 
 Para um passo a passo para quem não é programador, veja [INSTALAR.md](INSTALAR.md).
 
+### Como atualizar
+
+Pelo próprio sistema: entre como administrador ou TI e abra **Configurações → Atualização**.
+
+1. Clique em **Verificar agora** para buscar as novidades no GitHub. A tela mostra a versão instalada, a última versão do repositório e a lista do que vem nela.
+2. Se houver novidades, clique em **Atualizar agora** e confirme.
+
+O sistema baixa o código novo (só avanço rápido, a partir do ramo atual do repositório), reconstrói a API e o site e os reinicia. A tela acompanha cada etapa e mostra o registro do que está acontecendo. Leva alguns minutos, e as pessoas conectadas podem ser desconectadas por instantes. Quando terminar, clique em **Recarregar a página**.
+
+O banco de dados não é tocado: nenhum dado é apagado. Se a pasta tiver alterações locais que conflitem com o código novo, a atualização para com a mensagem do Git e nada se perde.
+
+Alternativa manual: na pasta do projeto, rode `git pull` e depois o instalador de novo (`.\instalar.ps1` no Windows ou `bash instalar.sh` no Linux e macOS). Se a tela avisar que o próprio serviço de atualização mudou, o instalador também precisa ser rodado de novo.
+
 ### Instalar com um assistente de IA
 
 Se você usa um assistente com acesso ao terminal (Claude Code, Cursor, Copilot ou outro), cole este texto nele:
@@ -196,11 +210,12 @@ Entre como administrador e abra **Configurações**, no menu, na seção Sistema
 
 ## Arquitetura
 
-O sistema roda em três contêineres, orquestrados pelo `docker-compose.yml`:
+O sistema roda em quatro contêineres, orquestrados pelo `docker-compose.yml`:
 
 - **`db`**: PostgreSQL 16.
 - **`api`**: API em Node.js 20 e TypeScript (Express e Prisma). Na subida, aplica o esquema do banco e cria o administrador.
 - **`web`**: o app React servido pelo nginx, que também encaminha `/api` para a API.
+- **`atualizador`**: serviço do botão de atualizar. Baixa o código novo do GitHub e reconstrói e reinicia a API e o site. Não publica porta e tem acesso ao Docker do computador (veja [SECURITY.md](SECURITY.md)).
 
 Estrutura de pastas:
 

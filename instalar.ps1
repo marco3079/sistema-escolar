@@ -74,6 +74,17 @@ function Ler-Variavel {
     return ''
 }
 
+function Tem-Variavel {
+    # Diz se o arquivo tem a variavel, mesmo com valor vazio.
+    param([string]$Arquivo, [string]$Nome)
+    foreach ($linha in [System.IO.File]::ReadAllLines($Arquivo)) {
+        if ($linha -match ('^\s*' + $Nome + '\s*=')) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Porta-Ocupada {
     param([int]$Porta)
     try {
@@ -157,6 +168,7 @@ $envCriadoAgora = $false
 $senhaAdmin = ''
 $adminEmail = 'admin@escola.local'
 $adminSenhaExistente = ''
+$temGit = Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git')
 
 # [2/6] Docker instalado
 Write-Host '[2/6] Verificando o Docker...'
@@ -220,9 +232,20 @@ if ($envExiste) {
     $adminEmailLido = Ler-Variavel $arquivoEnv 'ADMIN_EMAIL'
     if ($adminEmailLido -ne '') { $adminEmail = $adminEmailLido }
     $adminSenhaExistente = Ler-Variavel $arquivoEnv 'ADMIN_SENHA'
+    # O botao de atualizar precisa do nome do projeto no .env. Grava o mesmo nome que o Compose ja usa.
+    if (-not (Tem-Variavel $arquivoEnv 'COMPOSE_PROJECT_NAME')) {
+        $nomeProjetoExistente = Obter-NomeProjeto
+        $existente = [System.IO.File]::ReadAllText($arquivoEnv)
+        $quebra = ''
+        if (($existente.Length -gt 0) -and (-not $existente.EndsWith("`n"))) { $quebra = "`n" }
+        $novaLinha = $quebra + 'COMPOSE_PROJECT_NAME=' + $nomeProjetoExistente + "`n"
+        [System.IO.File]::AppendAllText($arquivoEnv, $novaLinha, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host ('Nome do projeto gravado no .env: ' + $nomeProjetoExistente + '.')
+    }
 } else {
     # Um banco de uma instalacao anterior nao aceita senha nova: para antes de criar o .env.
-    $volumeBanco = (Obter-NomeProjeto) + '_dados_db'
+    $nomeProjeto = Obter-NomeProjeto
+    $volumeBanco = $nomeProjeto + '_dados_db'
     if (Existe-Volume $volumeBanco) {
         Write-Host ('Ja existe um banco de dados desta instalacao (volume ' + $volumeBanco + '), mas nao ha arquivo .env com a senha dele.')
         Write-Host 'Saidas possiveis:'
@@ -239,6 +262,7 @@ if ($envExiste) {
     if ($Demo) { $seedDemo = 'true' }
     $linhas = @(
         '# Gerado pelo instalar.ps1. Nao envie este arquivo para o Git.',
+        ('COMPOSE_PROJECT_NAME=' + $nomeProjeto),
         ('POSTGRES_PASSWORD=' + $senhaBanco),
         ('JWT_SECRET=' + $segredoJwt),
         'ADMIN_NOME=Administrador',
@@ -306,5 +330,10 @@ Write-Host ('No celular (mesma rede Wi-Fi): http://' + $ipComputador + ':' + $po
 Write-Host ''
 Write-Host 'Parar o sistema:           docker compose down'
 Write-Host 'Apagar tudo (inclui banco): docker compose down -v'
+if (-not $temGit) {
+    Write-Host ''
+    Write-Host 'Aviso: esta pasta nao e um repositorio Git (talvez tenha sido baixada como ZIP).'
+    Write-Host 'O botao de atualizar nao vai funcionar aqui. Para usar a atualizacao, instale de novo com git clone.'
+}
 Write-Host '============================================================'
 exit 0

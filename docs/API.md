@@ -208,6 +208,63 @@ Regras:
 - Teste: envia com a configuração gravada mesmo com o envio desligado, e espera o resultado do servidor. Cada etapa da conexão tem limite de 15 segundos. A mensagem de erro sai sem a senha e com no máximo 300 caracteres. O teste também entra no histórico, com o tipo `TESTE`.
 - O histórico guarda destinatário, assunto, tipo, situação e erro. O corpo do e-mail não é guardado.
 
+## Atualização (módulo `atualizacao`)
+
+Botão de atualizar do sistema (Configurações → Atualização). Só o perfil ADMIN (inclui TI) acessa. A API conversa com o serviço `atualizador` pela rede interna do Compose (`ATUALIZADOR_URL`, padrão `http://atualizador:4000`), com um token derivado de `JWT_SECRET`. O serviço não publica porta. Veja a seção "Atualização pelo painel" em `ARQUITETURA.md` e o `SECURITY.md`.
+
+| Método e caminho | Quem | Corpo ou query | Resposta |
+|---|---|---|---|
+| GET `/atualizacao` | A | | `AtualizacaoDTO`. Sem `verificar`, usa o que já se sabe (limite de 8 segundos). |
+| GET `/atualizacao?verificar=1` | A | | `AtualizacaoDTO`. Antes, o serviço busca as novidades no GitHub (limite de 40 segundos). |
+| POST `/atualizacao` | A | | `202 { iniciada: true }`; `409 { erro }` se já houver uma atualização em andamento; `503 { erro }` se o serviço não responder ou recusar o pedido. |
+
+Formatos:
+
+```ts
+interface CommitInfo {
+  commit: string;   // hash completo
+  curto: string;    // 7 primeiros caracteres
+  data: string;     // ISO 8601 (data do commit)
+  mensagem: string; // primeira linha
+}
+
+interface EstadoAtualizacao {
+  ramo: string | null;
+  repositorio: string | null;     // endereço do origin, sem usuário e senha
+  instalado: CommitInfo | null;   // commit do código em execução na pasta do projeto
+  implantado: string | null;      // commit que o serviço subiu por último (hash completo)
+  remoto: CommitInfo | null;      // origin/<ramo>, como conhecido localmente
+  atras: number;                  // commits que faltam para o remoto
+  novidades: { curto: string; mensagem: string; data: string }[]; // até 20, do mais novo para o mais antigo
+  precisaReconstruir: boolean;    // o commit implantado é diferente do instalado
+  atualizadorMudou: boolean;      // os arquivos do serviço de atualização mudaram no checkout
+  verificadoEm: string | null;
+  erroVerificacao: string | null; // motivo curto da última busca no GitHub que falhou
+  tarefa: {
+    estado: 'PARADA' | 'EXECUTANDO' | 'CONCLUIDA' | 'FALHOU';
+    etapa: string;                // "Baixando o código", "Reconstruindo", "Reiniciando", "Concluída"
+    iniciadaEm: string | null;
+    terminadaEm: string | null;
+    erro: string | null;
+    log: string[];                // últimas 200 linhas do Git e do Docker, cada uma com até 500 caracteres
+  };
+}
+
+type AtualizacaoDTO =
+  | { disponivel: false; motivo: string }   // serviço desligado, inacessível ou com resposta inválida
+  | ({ disponivel: true } & EstadoAtualizacao);
+```
+
+Regras:
+
+- `GET /atualizacao` devolve `200` mesmo quando o serviço de atualização não responde: nesse caso, `disponivel` é `false` e `motivo` diz o que fazer (por exemplo, "O serviço de atualização não está respondendo. Rode o instalador de novo para criá-lo."). O motivo `Defina JWT_SECRET no .env para usar a atualização` aparece quando `JWT_SECRET` está vazio.
+- Textos que citem o endereço interno do serviço saem com o rótulo "o serviço de atualização" no lugar do endereço. Credenciais de `repositorio` e de mensagens de erro são removidas.
+- `POST /atualizacao` manda o pedido ao serviço e não aceita nenhum parâmetro. A atualização roda em segundo plano: o `202` só confirma que ela começou. Acompanhe pelo `GET`, campo `tarefa`.
+- Ordem da tarefa: "Baixando o código" (`git pull --ff-only`), "Reconstruindo" (`docker compose build api web`), "Reiniciando" (`docker compose up -d --no-deps api web`). Se um passo falhar, a tarefa vira `FALHOU` com o passo em `erro`, e os passos seguintes não rodam. O banco de dados não é tocado.
+- Durante a etapa "Reiniciando", a API fica fora do ar por instantes: as chamadas podem falhar de rede até ela voltar.
+- Cada `POST` aceito grava no log de atividades "Iniciou a atualização do sistema", sem detalhes.
+- O `GET /atualizacao` (com ou sem `verificar`) fica fora do log de atividades, porque a tela o consulta a cada 2 segundos durante a atualização.
+
 ## Chat (módulo `chat`)
 
 Chat privado entre usuários de qualquer perfil. Todas as rotas exigem login. Todos podem conversar com todos. Só participantes ativos acessam uma conversa; quem não participa, ou saiu do grupo, recebe `404`.

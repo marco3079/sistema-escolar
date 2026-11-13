@@ -1,0 +1,4 @@
+# O contexto de build é só o Dockerfile e o servidor.
+*
+!Dockerfile
+!servidor.mjs

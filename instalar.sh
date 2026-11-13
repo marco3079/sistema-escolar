@@ -151,6 +151,10 @@ ENV_CRIADO_AGORA=0
 SENHA_ADMIN=""
 ADMIN_EMAIL="admin@escola.local"
 ADMIN_SENHA_EXISTENTE=""
+TEM_GIT=0
+if [ -e "$PASTA_PROJETO/.git" ]; then
+  TEM_GIT=1
+fi
 
 # [2/6] Docker instalado
 echo "[2/6] Verificando o Docker..."
@@ -232,9 +236,21 @@ if [ "$ENV_EXISTE" -eq 1 ]; then
     ADMIN_EMAIL="$EMAIL_LIDO"
   fi
   ADMIN_SENHA_EXISTENTE=$(ler_variavel "$ARQ_ENV" ADMIN_SENHA)
+  # O botao de atualizar precisa do nome do projeto no .env. Grava o mesmo nome que o Compose ja usa.
+  if ! grep -qE "^[[:space:]]*COMPOSE_PROJECT_NAME[[:space:]]*=" "$ARQ_ENV"; then
+    NOME_PROJETO_EXISTENTE=$(obter_nome_projeto)
+    if [ -n "$NOME_PROJETO_EXISTENTE" ]; then
+      if [ -n "$(tail -c 1 "$ARQ_ENV")" ]; then
+        printf '\n' >> "$ARQ_ENV"
+      fi
+      printf 'COMPOSE_PROJECT_NAME=%s\n' "$NOME_PROJETO_EXISTENTE" >> "$ARQ_ENV"
+      echo "Nome do projeto gravado no .env: $NOME_PROJETO_EXISTENTE."
+    fi
+  fi
 else
   # Um banco de uma instalacao anterior nao aceita senha nova: para antes de criar o .env.
-  VOLUME_BANCO="$(obter_nome_projeto)_dados_db"
+  NOME_PROJETO=$(obter_nome_projeto)
+  VOLUME_BANCO="${NOME_PROJETO}_dados_db"
   if existe_volume "$VOLUME_BANCO"; then
     echo "Ja existe um banco de dados desta instalacao (volume $VOLUME_BANCO), mas nao ha arquivo .env com a senha dele."
     echo "Saidas possiveis:"
@@ -255,6 +271,7 @@ else
     umask 077
     cat > "$ARQ_ENV" <<EOF
 # Gerado pelo instalar.sh. Nao envie este arquivo para o Git.
+COMPOSE_PROJECT_NAME=$NOME_PROJETO
 POSTGRES_PASSWORD=$SENHA_BANCO
 JWT_SECRET=$SEGREDO_JWT
 ADMIN_NOME=Administrador
@@ -324,5 +341,10 @@ echo "No celular (mesma rede Wi-Fi): http://$IP_COMPUTADOR:$PORTA_WEB_FINAL"
 echo ""
 echo "Parar o sistema:           docker compose down"
 echo "Apagar tudo (inclui banco): docker compose down -v"
+if [ "$TEM_GIT" -ne 1 ]; then
+  echo ""
+  echo "Aviso: esta pasta nao e um repositorio Git (talvez tenha sido baixada como ZIP)."
+  echo "O botao de atualizar nao vai funcionar aqui. Para usar a atualizacao, instale de novo com git clone."
+fi
 echo "============================================================"
 exit 0

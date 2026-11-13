@@ -4,13 +4,14 @@ Este documento descreve como o sistema escolar é montado por dentro: os contêi
 
 ## Visão geral dos contêineres
 
-O Docker Compose sobe três contêineres:
+O Docker Compose sobe quatro contêineres:
 
 | Contêiner | Imagem ou build | Função | Porta |
 |---|---|---|---|
 | `db` | `postgres:16-alpine` | Banco de dados PostgreSQL | `127.0.0.1:5432` (só no computador) |
 | `api` | build de `server/` | API HTTP (Node 20, Express 4, Prisma 5) | `127.0.0.1:API_PORT` (padrão 3090), só no computador |
 | `web` | build de `client/` | Site estático servido pelo nginx | `WEB_PORT` (padrão 8090) |
+| `atualizador` | build de `atualizador/` (Docker CLI com Git e Node) | Baixa a versão nova do GitHub e reconstrói a API e o site | nenhuma; só a API o acessa, pela rede interna |
 
 O nginx do contêiner `web` entrega os arquivos do site e encaminha as requisições de `/api/` para o contêiner `api`. Por isso, o navegador só precisa falar com uma porta do site.
 
@@ -19,6 +20,8 @@ flowchart LR
   nav["Navegador"] -->|"porta 8090"| web["web (nginx)"]
   web -->|"/api/"| api["api (Express e Prisma)"]
   api -->|"SQL"| db[("PostgreSQL 16")]
+  api -->|"rede interna, com token"| atu["atualizador (Git e Docker)"]
+  atu -->|"reconstrói e reinicia api e web"| api
 ```
 
 O banco de dados e a porta direta da API são publicados somente em `127.0.0.1`, ou seja, só o próprio computador os acessa. O site (`WEB_PORT`) é publicado em todas as interfaces, por isso pode ser aberto pela rede local (no celular, por exemplo), e também encaminha `/api`.
@@ -181,6 +184,19 @@ Os componentes compartilhados (`Pagina`, `Tabela`, `Campo`, `Modal`, `Aviso` e o
 - Os tiques são calculados na leitura: cada mensagem minha ganha o menor estado entre os outros participantes ativos, pelas datas de entrega e leitura guardadas em `ChatParticipante`.
 - As não lidas de todas as conversas saem numa consulta agregada, e a lista de conversas traz a última mensagem de cada uma numa única consulta. Não há uma consulta por conversa.
 - Quem entra num grupo, ou volta depois de sair, só vê o que foi enviado a partir da data de entrada.
+
+## Atualização pelo painel
+
+O botão de atualizar (Configurações → Atualização, perfil ADMIN e TI) faz o sistema baixar o último commit do repositório, reconstruir a API e o site e reiniciá-los. Quem faz o trabalho é o contêiner `atualizador`, porque a API não tem como baixar código nem chamar o Docker.
+
+- **Montagens do `atualizador`**: a pasta do projeto em `/projeto`, o soquete do Docker e o volume `dados_atualizador` em `/dados`. Não publica porta. A API chama `http://atualizador:4000` com o cabeçalho `X-Atualizador-Token`, derivado de `JWT_SECRET`.
+- **Consulta**: `GET /api/atualizacao` (ou `?verificar=1`, que antes faz `git fetch --prune origin <ramo>`) repassa ao atualizador e devolve a versão instalada, a última do GitHub, as novidades e o estado da tarefa. A tela consulta a cada 2 segundos durante uma atualização.
+- **Tarefa**: `POST /api/atualizacao` pede ao atualizador que comece. Ele roda, em segundo plano e nesta ordem: `git pull --ff-only origin <ramo>` ("Baixando o código"); `docker compose build api web` ("Reconstruindo"); `docker compose up -d --no-deps api web` ("Reiniciando"). Se um passo falha, a tarefa para ali e fica `FALHOU`, com o passo e as últimas linhas do comando. Se a pasta não puder avançar só por fast-forward (commits próprios ou arquivos locais em conflito), o Git recusa e os arquivos da pasta não mudam. O nome do projeto do Compose vem de `COMPOSE_PROJECT_NAME`, gravado no `.env` pelo instalador.
+- **Reinício da API**: a API é reconstruída e reiniciada na etapa "Reiniciando", então fica fora do ar por instantes. A tela trata as falhas de rede como esperadas por até 5 minutos e, ao concluir, mostra o botão "Recarregar a página", porque o site também foi trocado.
+- **Persistência em `dados_atualizador`**: o arquivo `implantado` guarda o commit em execução. Na primeira subida, se ele não existir, grava o commit atual (o instalador acabou de construir tudo). Depois, é regravado a cada atualização concluída. O arquivo `tarefa.json` guarda o estado da tarefa e é relido na subida; uma tarefa que estava `EXECUTANDO` quando o serviço caiu vira `FALHOU` com o erro "O atualizador reiniciou durante a atualização". Nenhum dado do banco fica nesse volume.
+- **Por que o atualizador não se reconstrói**: ele é quem reconstrói a API e o site, então reconstruir a si mesmo no meio da tarefa derrubaria o próprio processo. Quando os arquivos dele mudam num commit (`atualizador/servidor.mjs` ou `atualizador/Dockerfile`), a tela avisa que é preciso rodar o instalador de novo. A comparação é feita entre os arquivos em execução e os do checkout.
+- **Uma tarefa por vez**: um segundo `POST` enquanto a tarefa roda recebe `409`. Os comandos Git (verificação e atualização) usam uma fila única, para não rodarem ao mesmo tempo no mesmo repositório.
+- **Log de atividades**: o `POST` registra "Iniciou a atualização do sistema". O `GET` fica fora do log, como as consultas de tempo real do chat.
 
 ## Modelo de dados
 

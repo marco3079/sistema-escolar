@@ -27,6 +27,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@escola.local}
       ADMIN_SENHA: ${ADMIN_SENHA:-admin1234}
       SEED_DEMO: ${SEED_DEMO:-false}
+      ATUALIZADOR_URL: http://atualizador:4000
     ports:
       - "127.0.0.1:${API_PORT:-3090}:3000"
     healthcheck:
@@ -46,5 +47,19 @@ services:
       - "${WEB_PORT:-8090}:80"
     restart: unless-stopped
 
+  # Atualizador: baixa a versão nova do GitHub e reconstrói a API e o site.
+  # Tem acesso ao Docker deste computador (soquete montado). Não publica porta: só a API fala com ele.
+  atualizador:
+    build: ./atualizador
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-de-exemplo}
+      PROJETO_COMPOSE: ${COMPOSE_PROJECT_NAME}
+    volumes:
+      - .:/projeto
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dados_atualizador:/dados
+    restart: unless-stopped
+
 volumes:
   dados_db:
+  dados_atualizador:

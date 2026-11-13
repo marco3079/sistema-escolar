@@ -423,3 +423,165 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* Atualização (aba Atualização) */
+
+.config-atualizacao {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.config-atualizacao-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.config-atualizacao-topo .config-ajuda-campo {
+  margin: 0;
+}
+
+.config-atualizacao-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.config-atualizacao-situacao {
+  margin-top: 0.6rem;
+}
+
+.config-atualizacao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  min-width: 0;
+}
+
+.config-commit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.config-commit-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.config-commit-codigo {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.9rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto);
+}
+
+.config-commit-mensagem {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.config-novidades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.config-novidade {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--cor-borda);
+  min-width: 0;
+}
+
+.config-novidade-texto {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.config-alerta {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--cor-aviso);
+  border-radius: var(--raio);
+  background: var(--cor-laranja-suave);
+  color: var(--cor-texto);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.config-etapas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.config-etapa {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--cor-borda);
+  font-size: 0.85rem;
+  color: var(--cor-texto-suave);
+  background: var(--cor-superficie);
+}
+
+.config-etapa-feita {
+  border-color: var(--cor-verde);
+  background: var(--cor-verde-suave);
+  color: var(--cor-sucesso);
+  font-weight: 600;
+}
+
+.config-etapa-atual {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria-escura);
+  font-weight: 600;
+}
+
+.config-etapa-erro {
+  border-color: var(--cor-perigo);
+  color: var(--cor-perigo);
+  font-weight: 600;
+}
+
+.config-log {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto);
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

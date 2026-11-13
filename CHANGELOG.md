@@ -35,6 +35,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Recuperação de senha por link enviado por e-mail, com as telas "Esqueci minha senha" e "Redefinir senha", e criação de senha por link para novos usuários.
 - Chat privado entre usuários, com conversas individuais e grupos (administração do grupo, adicionar e remover pessoas, sair do grupo), imagens, confirmação de entrega e de leitura, "digitando...", quem está online, resposta citando uma mensagem e apagar a própria mensagem.
 - Botão do chat com contador de mensagens não lidas, ao lado do sino.
+- Atualização pelo painel, em Configurações → Atualização (perfis ADMIN e TI): verifica o último commit do GitHub, mostra as novidades e atualiza o sistema (baixa o código, reconstrói a API e o site e os reinicia), sem apagar dados do banco. Novo serviço `atualizador` no `docker-compose.yml`.
 
 ### Alterado
 
@@ -50,3 +51,4 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Senha do servidor de e-mail guardada cifrada (AES-256-GCM) e nunca devolvida pela API.
 - Tokens de senha por e-mail de uso único, guardados só como hash, com validade, e limites para pedidos de recuperação de senha.
 - Chat só para participantes da conversa, com limite de 30 mensagens por minuto por pessoa.
+- Serviço de atualização sem porta publicada, com token derivado de `JWT_SECRET`, só duas ordens fixas, só avanço rápido a partir do `origin` do checkout e sem ações que apaguem dados.

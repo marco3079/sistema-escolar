@@ -69,7 +69,9 @@ Só o site fica acessível pela rede. A API e o banco aceitam conexões somente 
 
 ## Atualizar
 
-Entre na pasta do projeto e rode:
+Como atualizo o sistema? A forma mais simples é pelo próprio sistema: entre como administrador, abra **Configurações**, depois a aba **Atualização**, clique em **Verificar agora** e, se houver novidades, em **Atualizar agora**. A tela mostra cada etapa e, no fim, o botão **Recarregar a página**. Os dados do banco são mantidos. Os detalhes estão no README, na seção "Como atualizar".
+
+Se preferir fazer à mão, entre na pasta do projeto e rode:
 
 ```bash
 git pull
@@ -115,5 +117,7 @@ Os dados de demonstração são fictícios e servem só para teste.
 **O instalador parou com a mensagem "Ja existe um banco de dados desta instalacao" (código 6).** O banco de uma instalação anterior ainda existe, mas o arquivo `.env` com a senha dele não está na pasta. Duas saídas: (a) se você tem o `.env` antigo, copie-o de volta para a pasta do projeto e rode o instalador de novo; (b) se você não precisa mais dos dados antigos, apague o banco com `docker compose down -v` (isso apaga tudo) e rode o instalador de novo. O instalador não apaga nada sozinho.
 
 **A instalação falhou no meio.** Rode o instalador de novo. Ele não sobrescreve o `.env` que já existe.
+
+**O botão de atualizar diz que o serviço não está respondendo.** A instalação foi feita antes do serviço de atualização existir. Rode o instalador de novo na pasta do projeto (`.\instalar.ps1` ou `bash instalar.sh`): ele cria o serviço e não apaga os dados. Se o aviso continuar, veja se a pasta do projeto foi baixada como ZIP: nesse caso, o botão não funciona. Instale de novo com `git clone`, como mostrado acima.
 
 **Como faço a plataforma enviar e-mails?** O sistema manda e-mails de recuperação de senha, boas-vindas a novos usuários, comunicados e respostas do suporte, mas só depois de você informar uma conta de e-mail. Entre como administrador, abra **Configurações** (no menu, na seção Sistema) e a aba **E-mail**. Preencha o servidor de envio (SMTP), a porta, o usuário e a senha da conta, o e-mail e o nome do remetente, e o endereço do site (por exemplo, `http://localhost:8090`). Marque **Envio de e-mails ligado** e salve. Para conferir, use **Enviar e-mail de teste** com o seu endereço. Se a conta tiver verificação em duas etapas, o provedor costuma pedir uma senha de aplicativo, que você cria no próprio provedor. Os detalhes estão no README, na seção "Como conectar um e-mail".

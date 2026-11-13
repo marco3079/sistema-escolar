@@ -49,6 +49,24 @@ Não envie senhas reais, tokens válidos nem dados pessoais no relato. Use dados
 - **Cabeçalhos de segurança no site**: o nginx envia `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` e `Referrer-Policy: strict-origin-when-cross-origin`.
 - **Perfil público sem dados de contato**: o perfil público (usado pelo fórum e por outras telas) mostra nome, perfil, foto, curso, titulação, nível e medalhas. Não mostra e-mail, CPF nem telefone. O mesmo vale para os autores de chamados e de publicações.
 
+## Atualização pelo painel (serviço `atualizador`)
+
+O botão de atualizar (Configurações → Atualização) usa um quarto serviço do `docker-compose.yml`, o `atualizador`. Ele precisa de acesso ao Docker do computador: o soquete `/var/run/docker.sock` é montado dentro dele. **Isso equivale a controle total da máquina onde o sistema roda**, porque quem controla o Docker controla os contêineres, os volumes e os arquivos montados. Por isso, o serviço foi feito com estas proteções:
+
+- **Sem porta publicada.** O `atualizador` não tem `ports` no Compose. Só a API fala com ele, pela rede interna dos contêineres (`http://atualizador:4000`).
+- **Token próprio.** Cada chamada leva o cabeçalho `X-Atualizador-Token`, que é o SHA-256 de `atualizador:` seguido do `JWT_SECRET`. A comparação é em tempo constante. Sem o token certo, a resposta é `401`. O segredo aleatório da execução da API não é usado, para que o atualizador possa conferir o token sozinho.
+- **Só duas ordens, sem parâmetros.** O atualizador aceita consultar o estado e atualizar. Não recebe nada do corpo da requisição, não aceita endereço de repositório nem nome de ramo, e não executa texto montado por ninguém: os comandos são fixos e rodam sem shell.
+- **Só avanço rápido.** A atualização usa `git pull --ff-only` a partir do `origin` do próprio checkout. Commits próprios divergentes ou arquivos locais em conflito fazem a atualização parar com a mensagem do Git. Nada é descartado (o serviço não usa `reset --hard`, `clean`, `checkout` de arquivos nem `stash`).
+- **Nenhuma ação que apague dados.** O serviço reconstrói a API e o site (`docker compose build api web`) e os reinicia (`docker compose up -d --no-deps api web`). Não apaga volume, não mexe no banco e não se reconstrói.
+- **Uma tarefa por vez.** Um segundo pedido enquanto a atualização roda recebe `409`.
+
+Na prática, isso significa:
+
+- Quem tem a senha de administrador (ou de TI, que tem o mesmo acesso) pode disparar a atualização do sistema para o último commit do repositório configurado. A confiança passa a estar no repositório de origem: quem consegue colocar código nele consegue colocar código rodando nesta máquina na próxima atualização. Proteja a conta do repositório e revise os commits antes de aceitá-los.
+- Trate contas de administrador e de TI como contas que controlam o computador inteiro.
+
+Para desligar o recurso, remova o serviço `atualizador` do `docker-compose.yml` ou não o suba. O botão de atualizar passa a avisar que o serviço não está respondendo, e o sistema continua funcionando normalmente, sem atualização pelo painel.
+
 ## Recomendações antes de expor o sistema à internet
 
 - **Use HTTPS.** Coloque um proxy reverso com certificado (por exemplo, Caddy, Nginx ou Traefik) na frente do site e da API. O projeto não traz HTTPS pronto.

@@ -77,6 +77,7 @@ function registrarAtividade(req: Request, res: Response, next: NextFunction): vo
         caminho === '/api/saude' ||
         caminho === '/api/logs' ||
         caminho.startsWith('/api/logs/') ||
+        caminho === '/api/atualizacao' ||
         caminho === '/api/auth/login' ||
         caminho === '/api/auth/sair' ||
         REGEX_CHAT_SEM_LOG.test(caminho)

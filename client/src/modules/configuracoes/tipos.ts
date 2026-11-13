@@ -54,6 +54,40 @@ export interface EmailEnviadoDTO {
   criadoEm: string;
 }
 
+// Contrato W (atualização): commit do Git. curto = 7 caracteres; data ISO; mensagem = primeira linha.
+export interface CommitInfo {
+  commit: string;
+  curto: string;
+  data: string;
+  mensagem: string;
+}
+
+// Contrato W (atualização): estado devolvido por GET /atualizacao quando o atualizador responde.
+export interface EstadoAtualizacao {
+  ramo: string | null;
+  repositorio: string | null; // endereço de origin sem credenciais
+  instalado: CommitInfo | null; // HEAD da pasta do projeto
+  implantado: string | null; // commit em execução
+  remoto: CommitInfo | null; // origin/<ramo> como conhecido localmente
+  atras: number; // commits que faltam: HEAD..origin/<ramo>
+  novidades: { curto: string; mensagem: string; data: string }[]; // até 20, do mais novo ao mais antigo
+  precisaReconstruir: boolean;
+  atualizadorMudou: boolean;
+  verificadoEm: string | null;
+  erroVerificacao: string | null;
+  tarefa: {
+    estado: 'PARADA' | 'EXECUTANDO' | 'CONCLUIDA' | 'FALHOU';
+    etapa: string;
+    iniciadaEm: string | null;
+    terminadaEm: string | null;
+    erro: string | null;
+    log: string[];
+  };
+}
+
+// Contrato W (atualização): resposta de GET /atualizacao.
+export type AtualizacaoDTO = { disponivel: false; motivo: string } | ({ disponivel: true } & EstadoAtualizacao);
+
 export const REGEX_COR = /^#[0-9a-fA-F]{6}$/;
 
 export const COMBINACOES_CORES: { nome: string; corPrimaria: string; corSecundaria: string }[] = [

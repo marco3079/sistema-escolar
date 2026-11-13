@@ -59,6 +59,7 @@ const ROTULOS_MODULO: Record<string, string> = {
   perfil: 'Perfil',
   auth: 'Sessão',
   chat: 'Chat',
+  atualizacao: 'Atualização',
 };
 
 // Ações: POST cujo último segmento do caminho está aqui vira ALTERACAO.

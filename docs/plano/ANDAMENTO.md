@@ -82,3 +82,14 @@ Pontos em aberto desta leva:
 - O envio de e-mail pela tela (botão "Enviar e-mail de teste") foi testado pela API; pela tela, não.
 - O chat não foi aberto em celular real nem em 360 px no navegador (conferido por leitura do CSS).
 - As mensagens do chat ficam no banco em texto puro (sem criptografia de ponta a ponta).
+
+## Rodada W (12/11/2026): botão de atualizar pelo GitHub
+
+Plano e contratos em [w-atualizador.md](w-atualizador.md). Serviço atualizador (g03), API (g08), aba "Atualização" (g19) e documentação (g04), todos aprovados pelo revisor.
+
+Teste real numa cópia separada do projeto, com origem local um commit à frente: atualização normal concluída (código avançou, site novo no ar, banco preservado, só API e site reiniciados) e caso de conflito local (parou sem perder nada). O teste revelou e corrigiu dois defeitos: o ponto de entrada da imagem do atualizador e a consulta de estado travada durante a reconstrução.
+
+Pontos em aberto:
+
+- O clique em "Atualizar agora" pela tela não foi exercitado (a atualização foi disparada pela API; a aba foi aberta e conferida depois de concluída).
+- Em Linux, o `git pull` roda como root dentro do contêiner e os arquivos novos podem ficar com dono root na pasta do projeto.
